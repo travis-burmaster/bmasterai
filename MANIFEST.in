@@ -1,0 +1,9 @@
+include README.md
+include LICENSE
+include requirements.txt
+include pyproject.toml
+recursive-include src/bmasterai *.py
+recursive-include examples *.py *.yaml *.yml
+recursive-include tests *.py
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]

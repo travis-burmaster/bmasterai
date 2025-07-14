@@ -4,19 +4,77 @@ build-backend = "hatchling.build"
 
 [project]
 name = "bmasterai"
-version = "0.1.0"
+version = "0.2.0"
 authors = [{ name = "Travis Burmaster", email = "travis@burmaster.com" }]
-description = "A Python framework for building multi-agent AI systems with collaboration examples"
+description = "A comprehensive Python framework for building multi-agent AI systems with advanced logging, monitoring, and integrations"
 readme = "README.md"
 requires-python = ">=3.8"
 classifiers = [
-    "Programming Language :: Python :: 3",
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
+keywords = ["ai", "agents", "multi-agent", "automation", "monitoring", "logging"]
+
 dependencies = [
-    "openai",  # For LLM calls; add more as needed (e.g., "langchain")
+    "openai>=1.0.0",
+    "requests>=2.28.0",
+    "pyyaml>=6.0",
+    "psutil>=5.9.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=22.0.0",
+    "flake8>=5.0.0",
+    "mypy>=1.0.0",
+]
+integrations = [
+    "discord.py>=2.0.0",
+    "slack-sdk>=3.19.0",
+    "pymongo>=4.0.0",
+    "redis>=4.0.0",
+    "celery>=5.2.0",
+]
+all = [
+    "bmasterai[dev,integrations]"
 ]
 
 [project.urls]
 Homepage = "https://github.com/travis-burmaster/bmasterai"
 Issues = "https://github.com/travis-burmaster/bmasterai/issues"
+Documentation = "https://github.com/travis-burmaster/bmasterai#readme"
+Repository = "https://github.com/travis-burmaster/bmasterai.git"
+
+[project.scripts]
+bmasterai = "bmasterai.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/bmasterai"]
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]

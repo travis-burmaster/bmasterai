@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "bmasterai"
+version = "0.1.0"
+authors = [{ name = "Travis Burmaster", email = "travis@burmaster.com" }]
+description = "A Python framework for building multi-agent AI systems with collaboration examples"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+]
+dependencies = [
+    "openai",  # For LLM calls; add more as needed (e.g., "langchain")
+]
+
+[project.urls]
+Homepage = "https://github.com/travis-burmaster/bmasterai"
+Issues = "https://github.com/travis-burmaster/bmasterai/issues"

@@ -1,0 +1,9 @@
+framework: bmasterai
+topic: Multi-Agent AI
+agents:
+  - name: Researcher
+    role: AI Expert
+    instructions: Research about {topic}
+  - name: Summarizer
+    role: Content Condenser
+    instructions: Summarize the research

@@ -3,8 +3,26 @@
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Version](https://img.shields.io/badge/version-0.2.0-green.svg)](https://github.com/travis-burmaster/bmasterai)
+[![Kubernetes](https://img.shields.io/badge/kubernetes-ready-brightgreen.svg)](https://kubernetes.io/)
+[![Docker](https://img.shields.io/badge/docker-supported-blue.svg)](https://www.docker.com/)
 
 A comprehensive Python framework for building multi-agent AI systems with advanced logging, monitoring, and integrations. BMasterAI provides enterprise-ready features for developing, deploying, and managing AI agents at scale.
+
+## ⚡ **NEW: Kubernetes Deployment Support for AWS EKS**
+
+🚀 **BMasterAI now includes full production-ready Kubernetes deployment support!**
+
+Deploy BMasterAI on Amazon EKS with enterprise features:
+- **🐳 Production Docker images** with security best practices
+- **⚙️ Complete Kubernetes manifests** for EKS deployment  
+- **📊 Helm charts** for easy installation and management
+- **🔧 Auto-scaling** with Horizontal Pod Autoscaler
+- **📈 Monitoring & observability** with Prometheus and Grafana
+- **🔒 Enterprise security** with RBAC, Pod Security Standards, and IAM integration
+
+[**→ Quick Start with Kubernetes**](README-k8s.md) | [**→ Complete Deployment Guide**](docs/kubernetes-deployment.md)
+
+---
 
 ## 🚀 Features
 
@@ -28,6 +46,14 @@ A comprehensive Python framework for building multi-agent AI systems with advanc
 - **Database Storage**: SQLite, MongoDB, and custom database connectors
 - **Webhook Support**: Generic webhook integration for any service
 
+### 🚢 Production Deployment
+- **Kubernetes Native**: Complete EKS deployment with Helm charts
+- **Docker Ready**: Production-optimized container images
+- **Auto-scaling**: Horizontal Pod Autoscaler with custom metrics
+- **Monitoring Stack**: Prometheus, Grafana, and CloudWatch integration
+- **Security First**: RBAC, Pod Security Standards, and secrets management
+- **CI/CD Pipeline**: GitHub Actions for automated deployment
+
 ### Developer Experience
 - **Easy Installation**: Simple pip install with optional dependencies
 - **Rich Examples**: Comprehensive examples and tutorials
@@ -45,6 +71,18 @@ pip install bmasterai
 ### With All Integrations
 ```bash
 pip install bmasterai[all]
+```
+
+### Kubernetes Deployment
+```bash
+# Quick start with automated scripts
+git clone https://github.com/travis-burmaster/bmasterai.git
+cd bmasterai
+./eks/setup-scripts/01-create-cluster.sh
+./eks/setup-scripts/02-deploy-bmasterai.sh
+
+# Or using Helm
+helm install bmasterai ./helm/bmasterai --namespace bmasterai --create-namespace
 ```
 
 ### Development Installation
@@ -90,7 +128,23 @@ print(f"Agent performance: {dashboard}")
 agent.stop()
 ```
 
-### 2. Multi-Agent Coordination
+### 2. Kubernetes Deployment
+
+```bash
+# Deploy on EKS with monitoring
+./eks/setup-scripts/01-create-cluster.sh    # Create EKS cluster
+./eks/setup-scripts/02-deploy-bmasterai.sh  # Deploy BMasterAI
+./eks/setup-scripts/03-install-monitoring.sh # Install Prometheus/Grafana
+
+# Check deployment status
+kubectl get pods -n bmasterai
+kubectl get svc -n bmasterai
+
+# Access monitoring dashboard
+kubectl port-forward svc/prometheus-operator-grafana 3000:80 -n monitoring
+```
+
+### 3. Multi-Agent Coordination
 
 ```python
 from bmasterai.examples import MultiAgentOrchestrator, EnhancedAgent
@@ -153,39 +207,11 @@ my-ai-project/
 └── logs/                   # Log directory
 ```
 
-The generated agent template includes:
-- Correct import statements
-- Proper logging and monitoring setup
-- Task execution framework
-- Error handling and metrics tracking
-
 #### 2. System Status
 Monitor your BMasterAI system in real-time:
 
 ```bash
 bmasterai status
-```
-
-Output example:
-```
-🖥️  BMasterAI System Status
-========================================
-Timestamp: 2025-07-15T00:27:34.364134
-Active Agents: 3
-Total Agents: 5
-
-📊 System Metrics:
-  CPU Usage: 45.2% (avg)
-  Memory Usage: 67.8% (avg)
-
-🔗 Integrations:
-  Active: 2
-    ✅ slack
-    ✅ email
-
-🚨 Recent Alerts:
-  ⚠️  cpu_percent: CPU usage above 80%
-  ⚠️  agent_errors: High error rate detected
 ```
 
 #### 3. Real-time Monitoring
@@ -195,21 +221,6 @@ Start continuous system monitoring:
 bmasterai monitor
 ```
 
-Features:
-- Real-time system metrics display
-- Live agent status updates
-- Performance monitoring
-- Press Ctrl+C to stop
-
-Example output:
-```
-🔍 Starting BMasterAI monitoring...
-✅ Monitoring started
-📊 System metrics being collected every 30 seconds
-
-💻 CPU: 45.1% | 🧠 Memory: 67.8% | 🤖 Agents: 3
-```
-
 #### 4. Test Integrations
 Verify all configured integrations are working:
 
@@ -217,238 +228,31 @@ Verify all configured integrations are working:
 bmasterai test-integrations
 ```
 
-Output example:
-```
-🧪 Testing integrations...
-✅ slack: Connection successful
-✅ email: SMTP connection verified
-❌ discord: Webhook URL not configured
-✅ database: SQLite connection active
-```
+## 🚢 Kubernetes Features
 
-#### 5. Configuration File Support
-Use custom configuration files:
+### Enterprise-Ready Deployment
+- **High Availability**: Multi-replica deployment with pod anti-affinity
+- **Auto-scaling**: HPA with CPU/memory metrics and custom metrics support
+- **Rolling Updates**: Zero-downtime deployments
+- **Health Checks**: Comprehensive liveness, readiness, and startup probes
 
-```bash
-bmasterai --config /path/to/config.yaml status
-bmasterai -c production.yaml monitor
-```
+### Security & Compliance
+- **RBAC**: Minimal required permissions with service accounts
+- **Pod Security**: Non-root execution, read-only filesystem, dropped capabilities
+- **Network Policies**: Traffic isolation and egress control
+- **Secrets Management**: Encrypted storage of API keys and credentials
 
-### CLI Usage Examples
+### Monitoring & Observability
+- **Prometheus Metrics**: System and application metrics collection
+- **Grafana Dashboards**: Pre-built dashboards for BMasterAI monitoring
+- **CloudWatch Integration**: AWS native logging and metrics
+- **Distributed Tracing**: Request flow tracking across services
 
-#### Quick Project Setup
-```bash
-# Create new project
-bmasterai init customer-support-ai
-cd customer-support-ai
-
-# Edit configuration
-nano config/config.yaml
-
-# Customize the agent
-nano agents/my_agent.py
-
-# Run the agent
-python agents/my_agent.py
-
-# Monitor system
-bmasterai status
-```
-
-#### Production Monitoring
-```bash
-# Check system health
-bmasterai status
-
-# Start monitoring daemon
-bmasterai monitor &
-
-# Test all integrations
-bmasterai test-integrations
-
-# Use production config
-bmasterai --config production.yaml status
-```
-
-#### Development Workflow
-```bash
-# Initialize development project
-bmasterai init dev-project
-
-# Start monitoring in background
-bmasterai monitor &
-
-# Develop and test agents
-python agents/my_agent.py
-
-# Check status periodically
-bmasterai status
-```
-
-### Generated Project Structure
-
-When you run `bmasterai init`, you get a complete, working project:
-
-**config/config.yaml:**
-```yaml
-# BMasterAI Configuration
-logging:
-  level: INFO
-  enable_console: true
-  enable_file: true
-  enable_json: true
-
-monitoring:
-  collection_interval: 30
-
-agents:
-  default_timeout: 300
-  max_retries: 3
-
-integrations:
-  slack:
-    enabled: false
-    webhook_url: "${SLACK_WEBHOOK_URL}"
-```
-
-**agents/my_agent.py:**
-```python
-from bmasterai.logging import get_logger, EventType, LogLevel
-from bmasterai.monitoring import get_monitor
-import time
-import uuid
-
-class MyAgent:
-    def __init__(self, agent_id: str, name: str):
-        self.agent_id = agent_id
-        self.name = name
-        self.logger = get_logger()
-        self.monitor = get_monitor()
-        self.status = "initialized"
-
-        # Log agent creation
-        self.logger.log_event(
-            self.agent_id,
-            EventType.AGENT_START,
-            f"Agent {self.name} initialized",
-            metadata={"name": self.name}
-        )
-
-    def execute_task(self, task_name: str, task_data: dict = None):
-        # Full implementation with logging, monitoring, and error handling
-        # ... (complete working code)
-
-if __name__ == "__main__":
-    agent = MyAgent("my-agent", "MyCustomAgent")
-    agent.start()
-    result = agent.execute_task("custom_task", {"data": "example"})
-    print(f"Result: {result}")
-    agent.stop()
-```
-
-### CLI Benefits
-
-- **🚀 Quick Start**: Get up and running in seconds
-- **📊 Real-time Monitoring**: Live system status and metrics
-- **🔧 Easy Configuration**: YAML-based configuration management
-- **🧪 Integration Testing**: Verify all connections work
-- **📁 Project Templates**: Working code from day one
-- **🔍 System Visibility**: Comprehensive status reporting
-
-### 3. RAG (Retrieval-Augmented Generation) System
-
-BMasterAI includes advanced RAG capabilities with Qdrant Cloud integration:
-
-```python
-from bmasterai.logging import configure_logging, LogLevel
-from bmasterai.monitoring import get_monitor
-
-# Configure system
-configure_logging(log_level=LogLevel.INFO)
-monitor = get_monitor()
-monitor.start_monitoring()
-
-# Initialize RAG system with Qdrant Cloud
-from examples.minimal_rag.bmasterai_rag_qdrant_cloud import BMasterAIQdrantRAG, QdrantConfig, RAGConfig
-
-qdrant_config = QdrantConfig(
-    url="https://your-cluster.qdrant.io",
-    api_key="your-qdrant-api-key",
-    collection_name="knowledge_base"
-)
-
-rag_config = RAGConfig(
-    openai_api_key="your-openai-api-key",
-    embedding_model="all-MiniLM-L6-v2",
-    llm_model="gpt-3.5-turbo"
-)
-
-# Create RAG system
-rag_system = BMasterAIQdrantRAG(qdrant_config, rag_config)
-
-# Add documents
-documents = [
-    {
-        "text": "BMasterAI is an advanced multi-agent AI framework...",
-        "metadata": {"category": "framework", "topic": "bmasterai"},
-        "source": "documentation"
-    }
-]
-rag_system.add_documents(documents)
-
-# Query the system
-result = rag_system.query("What is BMasterAI?")
-print(f"Answer: {result['answer']}")
-print(f"Sources: {len(result['sources'])} documents found")
-```
-
-#### 🌐 RAG Web Interface
-
-Launch an interactive Gradio web interface for your RAG system:
-
-```python
-# Run the Gradio RAG interface
-python examples/minimal-rag/gradio_qdrant_rag.py
-```
-
-Features:
-- **Interactive Chat**: Ask questions and get contextual answers
-- **Document Management**: Add and manage your knowledge base
-- **Real-time Search**: Test document retrieval and similarity search
-- **Performance Monitoring**: View system metrics and performance data
-- **Configuration**: Adjust RAG parameters in real-time
-
-### 4. Configuration-Driven Setup
-
-Create a `config.yaml` file:
-
-```yaml
-logging:
-  level: INFO
-  enable_console: true
-  enable_file: true
-
-monitoring:
-  collection_interval: 30
-
-alerts:
-  - metric: "cpu_percent"
-    threshold: 80
-    condition: "greater_than"
-    duration_minutes: 5
-
-integrations:
-  slack:
-    enabled: true
-    webhook_url: "${SLACK_WEBHOOK_URL}"
-
-  email:
-    enabled: true
-    smtp_server: "smtp.gmail.com"
-    smtp_port: 587
-    username: "${EMAIL_USERNAME}"
-    password: "${EMAIL_PASSWORD}"
-```
+### Cost Optimization
+- **Resource Right-sizing**: Optimized CPU/memory requests and limits
+- **Spot Instances**: Support for cost-effective compute
+- **Auto-scaling**: Dynamic scaling based on workload
+- **Storage Optimization**: GP3 volumes with encryption
 
 ## 📊 Monitoring & Analytics
 
@@ -466,23 +270,24 @@ BMasterAI provides comprehensive monitoring out of the box:
 - Agent communication patterns
 - Custom business metrics
 
-### Alerting
-- Configurable thresholds
-- Multiple notification channels
-- Alert escalation
-- Custom alert callbacks
+### Kubernetes Monitoring Commands
 
-### Dashboards
-```python
-# Get real-time system health
-health = monitor.get_system_health()
+```bash
+# Check deployment status
+kubectl get pods -n bmasterai
+kubectl get hpa -n bmasterai
 
-# Get agent-specific dashboard
-dashboard = monitor.get_agent_dashboard("agent-001")
+# View logs
+kubectl logs -f deployment/bmasterai-agent -n bmasterai
 
-# Generate daily reports
-from bmasterai_examples import generate_daily_report
-report = generate_daily_report()
+# Scale manually
+kubectl scale deployment bmasterai-agent --replicas=5 -n bmasterai
+
+# Port forward for direct access
+kubectl port-forward svc/bmasterai-service 8080:80 -n bmasterai
+
+# Access Grafana dashboard
+kubectl port-forward svc/prometheus-operator-grafana 3000:80 -n monitoring
 ```
 
 ## 🔌 Integrations
@@ -529,6 +334,9 @@ bmasterai/
 ├── integrations/     # External service connectors
 ├── agents/          # Agent base classes and utilities
 ├── orchestration/   # Multi-agent coordination
+├── k8s/             # Kubernetes manifests
+├── helm/            # Helm chart for deployment
+├── eks/             # EKS-specific configuration
 └── examples/        # Usage examples and templates
 ```
 
@@ -539,40 +347,7 @@ bmasterai/
 3. **Integration Manager**: Unified interface for external services
 4. **Agent Framework**: Base classes for building AI agents
 5. **Orchestrator**: Multi-agent coordination and workflow management
-
-## 🔧 Configuration
-
-BMasterAI supports multiple configuration methods:
-
-### Environment Variables
-```bash
-export BMASTERAI_LOG_LEVEL=INFO
-export SLACK_WEBHOOK_URL=https://hooks.slack.com/...
-export EMAIL_USERNAME=your-email@gmail.com
-```
-
-### YAML Configuration
-```yaml
-# config.yaml
-logging:
-  level: INFO
-  enable_json: true
-
-agents:
-  default_timeout: 300
-  max_retries: 3
-```
-
-### Programmatic Configuration
-```python
-from bmasterai.logging import configure_logging, LogLevel
-
-logger = configure_logging(
-    log_level=LogLevel.INFO,
-    enable_console=True,
-    enable_file=True
-)
-```
+6. **Kubernetes Operator**: Native Kubernetes deployment and management
 
 ## 📈 Performance & Scalability
 
@@ -581,6 +356,7 @@ BMasterAI is designed for production use:
 - **Async Support**: Non-blocking operations for high throughput
 - **Resource Management**: Automatic cleanup and resource monitoring
 - **Horizontal Scaling**: Multi-process and distributed agent support
+- **Kubernetes Native**: Auto-scaling with HPA and cluster autoscaler
 - **Caching**: Built-in caching for improved performance
 - **Load Balancing**: Intelligent task distribution
 
@@ -597,6 +373,10 @@ pytest
 
 # Run with coverage
 pytest --cov=bmasterai
+
+# Test Kubernetes deployment
+kubectl apply --dry-run=client -f k8s/
+helm template bmasterai ./helm/bmasterai | kubectl apply --dry-run=client -f -
 ```
 
 ## 📚 Examples
@@ -612,60 +392,16 @@ Check out the `examples/` directory for comprehensive examples:
 ### 🧠 RAG (Retrieval-Augmented Generation) Examples
 - **[Qdrant Cloud RAG](examples/minimal-rag/bmasterai_rag_qdrant_cloud.py)**: Advanced RAG system with Qdrant Cloud vector database
 - **[Interactive RAG UI](examples/minimal-rag/gradio_qdrant_rag.py)**: Gradio web interface for RAG system with chat, document management, and monitoring
-- **[RAG Documentation](examples/minimal-rag/README_qdrant_cloud.md)**: Comprehensive setup guide for Qdrant Cloud RAG
-- **[Connection Testing](examples/minimal-rag/test_qdrant_connection.py)**: Utility to test Qdrant Cloud and OpenAI connections
 
 ### 🌐 Web Interface Examples  
 - **[Gradio Anthropic Chat](examples/gradio-anthropic/gradio-app-bmasterai.py)**: Interactive chat interface with Anthropic Claude models
 - **[RAG Web Interface](examples/minimal-rag/gradio_qdrant_rag.py)**: Full-featured RAG system with web UI
 
-### 🔧 Utility Examples
-- **[Custom Metrics](examples/enhanced_examples.py)**: Creating and tracking custom metrics
-- **[Alert Configuration](examples/enhanced_examples.py)**: Setting up monitoring alerts
-- **[Performance Monitoring](examples/enhanced_examples.py)**: Advanced system monitoring and dashboards
-
-### 🚀 Getting Started with Examples
-
-#### Quick RAG Setup
-```bash
-# 1. Install RAG dependencies
-pip install -r examples/minimal-rag/requirements_qdrant.txt
-
-# 2. Set up environment variables
-export QDRANT_URL="https://your-cluster.qdrant.io"
-export QDRANT_API_KEY="your-qdrant-api-key"
-export OPENAI_API_KEY="your-openai-api-key"
-
-# 3. Test connections
-python examples/minimal-rag/test_qdrant_connection.py
-
-# 4. Run RAG system
-python examples/minimal-rag/bmasterai_rag_qdrant_cloud.py
-
-# 5. Launch web interface
-python examples/minimal-rag/gradio_qdrant_rag.py
-```
-
-#### Quick Gradio Chat Setup
-```bash
-# 1. Install Gradio dependencies
-pip install gradio openai anthropic
-
-# 2. Set API key
-export ANTHROPIC_API_KEY="your-anthropic-api-key"
-
-# 3. Launch chat interface
-python examples/gradio-anthropic/gradio-app-bmasterai.py
-```
-
-### 📋 Example Features
-
-Each example demonstrates:
-- ✅ **Full BMasterAI Integration**: Logging, monitoring, and error handling
-- ✅ **Production Ready**: Comprehensive error handling and recovery
-- ✅ **Real-time Monitoring**: Performance metrics and system health
-- ✅ **Extensible Design**: Easy to customize for your use case
-- ✅ **Documentation**: Detailed setup and usage instructions
+### 🚢 Deployment Examples
+- **[Docker Deployment](Dockerfile)**: Production-ready container image
+- **[Kubernetes Manifests](k8s/)**: Complete Kubernetes deployment configuration
+- **[Helm Chart](helm/bmasterai/)**: Helm chart for easy deployment and management
+- **[EKS Setup Scripts](eks/setup-scripts/)**: Automated EKS cluster creation and deployment
 
 ## 🤝 Contributing
 
@@ -694,6 +430,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🆘 Support
 
 - **Documentation**: [GitHub Wiki](https://github.com/travis-burmaster/bmasterai/wiki)
+- **Kubernetes Guide**: [Complete Deployment Guide](docs/kubernetes-deployment.md)
 - **Issues**: [GitHub Issues](https://github.com/travis-burmaster/bmasterai/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/travis-burmaster/bmasterai/discussions)
 - **Email**: travis@burmaster.com
@@ -701,16 +438,16 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🗺️ Roadmap
 
 ### Version 0.3.0 (Coming Soon)
+- [x] **Kubernetes deployment support** ✅ **COMPLETED**
 - [ ] Web dashboard for monitoring
 - [ ] Advanced multi-agent communication protocols
 - [ ] Plugin system for custom integrations
-- [ ] Kubernetes deployment support
 
 ### Version 0.4.0
 - [ ] Visual workflow builder
 - [ ] Advanced scheduling and cron support
 - [ ] Machine learning model integration
-- [ ] Advanced security features
+- [ ] Multi-cloud deployment (GKE, AKS)
 
 ### Version 1.0.0
 - [ ] Production-ready enterprise features
@@ -724,11 +461,40 @@ BMasterAI bridges the gap between simple AI scripts and enterprise-grade AI syst
 
 - **Developer Friendly**: Easy to get started, powerful when you need it
 - **Production Ready**: Built-in monitoring, logging, and error handling
+- **Cloud Native**: Kubernetes-ready with enterprise security features
 - **Extensible**: Plugin architecture and custom integrations
 - **Community Driven**: Open source with active community support
 - **Enterprise Features**: Security, compliance, and scalability built-in
 
+## 🚀 Get Started
+
+Choose your deployment method:
+
+### Local Development
+```bash
+pip install bmasterai
+bmasterai init my-project
+```
+
+### Kubernetes Production
+```bash
+git clone https://github.com/travis-burmaster/bmasterai.git
+cd bmasterai
+./eks/setup-scripts/01-create-cluster.sh
+./eks/setup-scripts/02-deploy-bmasterai.sh
+```
+
+### Helm Deployment
+```bash
+helm repo add bmasterai https://travis-burmaster.github.io/bmasterai
+helm install bmasterai bmasterai/bmasterai
+```
+
 ---
+
+**Ready to build production-scale AI systems? 🚀**
+
+[**→ Start with Kubernetes**](README-k8s.md) | [**→ Local Development**](#-installation) | [**→ View Examples**](examples/)
 
 **Made with ❤️ by the BMasterAI community**
 

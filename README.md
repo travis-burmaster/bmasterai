@@ -112,7 +112,7 @@ slack = SlackConnector(webhook_url="YOUR_SLACK_WEBHOOK")
 integration_manager.add_connector("slack", slack)
 
 # Create and run an agent
-from bmasterai_examples import EnhancedAgent
+from bmasterai.examples import EnhancedAgent
 
 agent = EnhancedAgent("agent-001", "DataProcessor")
 agent.start()
@@ -294,7 +294,7 @@ kubectl port-forward svc/prometheus-operator-grafana 3000:80 -n monitoring
 
 ### Slack Integration
 ```python
-from bmasterai_integrations import SlackConnector
+from bmasterai.integrations import SlackConnector
 
 slack = SlackConnector(webhook_url="YOUR_WEBHOOK_URL")
 slack.send_message("Agent task completed successfully!")
@@ -303,7 +303,7 @@ slack.send_alert(alert_data)
 
 ### Email Integration
 ```python
-from bmasterai_integrations import EmailConnector
+from bmasterai.integrations import EmailConnector
 
 email = EmailConnector(
     smtp_server="smtp.gmail.com",
@@ -316,7 +316,7 @@ email.send_report(["admin@company.com"], report_data)
 
 ### Database Integration
 ```python
-from bmasterai_integrations import DatabaseConnector
+from bmasterai.integrations import DatabaseConnector
 
 db = DatabaseConnector(db_type="sqlite", connection_string="agents.db")
 db.store_agent_data(agent_id, name, status, metadata)

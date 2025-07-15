@@ -1,0 +1,22 @@
+# BMasterAI Qdrant Cloud RAG Example Requirements
+
+# Core BMasterAI framework
+bmasterai>=0.2.0
+
+# Vector database
+qdrant-client>=1.7.0
+
+# LLM and embeddings
+openai>=1.0.0
+sentence-transformers>=2.2.0
+
+# Numerical computing
+numpy>=1.24.0
+
+# Optional: Enhanced monitoring
+prometheus-client>=0.15.0
+
+# Development and testing
+pytest>=7.0.0
+black>=22.0.0
+flake8>=5.0.0

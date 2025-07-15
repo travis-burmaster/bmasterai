@@ -16,9 +16,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY gradio-app-rag.py .
 
+# Create directories for uploads and logs
+RUN mkdir -p /app/uploads /app/logs
+
 # Create non-root user for security
-RUN useradd -m -s /bin/bash raguser && chown -R raguser:raguser /app
-USER raguser
+RUN useradd -m -s /bin/bash rag-user && chown -R rag-user:rag-user /app
+USER rag-user
 
 # Expose port
 EXPOSE 7860

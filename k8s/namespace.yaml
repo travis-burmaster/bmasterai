@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bmasterai
+  labels:
+    name: bmasterai
+    purpose: ai-agents
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: bmasterai-quota
+  namespace: bmasterai
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: 8Gi
+    limits.cpu: "8"
+    limits.memory: 16Gi
+    pods: "10"
+    persistentvolumeclaims: "5"
+    services: "5"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: bmasterai-limits
+  namespace: bmasterai
+spec:
+  limits:
+  - default:
+      cpu: 500m
+      memory: 512Mi
+    defaultRequest:
+      cpu: 100m
+      memory: 128Mi
+    type: Container

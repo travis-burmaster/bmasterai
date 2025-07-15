@@ -1,0 +1,208 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bmasterai-agent
+  namespace: bmasterai
+  labels:
+    app: bmasterai
+    component: agent
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: bmasterai
+      component: agent
+  template:
+    metadata:
+      labels:
+        app: bmasterai
+        component: agent
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: bmasterai-service-account
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+      containers:
+      - name: bmasterai
+        image: bmasterai:latest  # Replace with your image registry
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        env:
+        # Pod information
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: SERVICE_ACCOUNT
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.serviceAccountName
+        # BMasterAI configuration
+        - name: BMASTERAI_CONFIG_FILE
+          value: "/app/config/config.yaml"
+        - name: BMASTERAI_ENV
+          value: "production"
+        # Secrets
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: bmasterai-secrets
+              key: OPENAI_API_KEY
+        - name: ANTHROPIC_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: bmasterai-secrets
+              key: ANTHROPIC_API_KEY
+              optional: true
+        - name: SLACK_WEBHOOK_URL
+          valueFrom:
+            secretKeyRef:
+              name: bmasterai-secrets
+              key: SLACK_WEBHOOK_URL
+              optional: true
+        - name: EMAIL_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: bmasterai-secrets
+              key: EMAIL_USERNAME
+              optional: true
+        - name: EMAIL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: bmasterai-secrets
+              key: EMAIL_PASSWORD
+              optional: true
+        - name: SMTP_SERVER
+          valueFrom:
+            secretKeyRef:
+              name: bmasterai-secrets
+              key: SMTP_SERVER
+              optional: true
+        - name: QDRANT_URL
+          valueFrom:
+            secretKeyRef:
+              name: bmasterai-secrets
+              key: QDRANT_URL
+              optional: true
+        - name: QDRANT_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: bmasterai-secrets
+              key: QDRANT_API_KEY
+              optional: true
+        volumeMounts:
+        - name: config-volume
+          mountPath: /app/config
+          readOnly: true
+        - name: data-volume
+          mountPath: /app/data
+        - name: logs-volume
+          mountPath: /app/logs
+        resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+        livenessProbe:
+          exec:
+            command:
+            - python
+            - -c
+            - "import bmasterai; print('BMasterAI healthy')"
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command:
+            - python
+            - -c
+            - "import bmasterai; print('BMasterAI ready')"
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        startupProbe:
+          exec:
+            command:
+            - python
+            - -c
+            - "import bmasterai; print('BMasterAI starting')"
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+        command:
+        - python
+        - -c
+        - |
+          import os
+          import time
+          import bmasterai
+          from bmasterai.logging import configure_logging, LogLevel
+          from bmasterai.monitoring import get_monitor
+          
+          # Configure logging
+          logger = configure_logging(log_level=LogLevel.INFO)
+          
+          # Start monitoring
+          monitor = get_monitor()
+          monitor.start_monitoring()
+          
+          print(f"BMasterAI Agent started in pod {os.getenv('POD_NAME')}")
+          
+          # Keep the container running
+          while True:
+              time.sleep(60)
+              print("BMasterAI Agent is running...")
+      volumes:
+      - name: config-volume
+        configMap:
+          name: bmasterai-config
+      - name: data-volume
+        persistentVolumeClaim:
+          claimName: bmasterai-data-pvc
+      - name: logs-volume
+        persistentVolumeClaim:
+          claimName: bmasterai-logs-pvc
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      nodeSelector:
+        kubernetes.io/os: linux
+      tolerations:
+      - key: "bmasterai"
+        operator: "Equal"
+        value: "true"
+        effect: "NoSchedule"
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - bmasterai
+              topologyKey: kubernetes.io/hostname

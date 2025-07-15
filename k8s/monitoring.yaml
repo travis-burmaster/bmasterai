@@ -1,0 +1,112 @@
+apiVersion: v1
+kind: ServiceMonitor
+metadata:
+  name: bmasterai-metrics
+  namespace: bmasterai
+  labels:
+    app: bmasterai
+spec:
+  selector:
+    matchLabels:
+      app: bmasterai
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bmasterai-grafana-dashboard
+  namespace: bmasterai
+  labels:
+    grafana_dashboard: "1"
+data:
+  bmasterai-dashboard.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "BMasterAI Dashboard",
+        "tags": ["bmasterai", "ai", "agents"],
+        "timezone": "browser",
+        "panels": [
+          {
+            "id": 1,
+            "title": "Agent Count",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "sum(up{job=\"bmasterai-service\"})",
+                "legendFormat": "Active Agents"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+          },
+          {
+            "id": 2,
+            "title": "CPU Usage",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(container_cpu_usage_seconds_total{pod=~\"bmasterai-.*\"}[5m])",
+                "legendFormat": "{{pod}}"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+          },
+          {
+            "id": 3,
+            "title": "Memory Usage",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "container_memory_usage_bytes{pod=~\"bmasterai-.*\"}",
+                "legendFormat": "{{pod}}"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 24, "x": 0, "y": 8}
+          }
+        ],
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "refresh": "5s"
+      }
+    }
+---
+apiVersion: logging.coreos.com/v1
+kind: ClusterLogForwarder
+metadata:
+  name: bmasterai-logs
+  namespace: bmasterai
+spec:
+  outputs:
+  - name: cloudwatch
+    type: cloudwatch
+    cloudwatch:
+      groupName: "/aws/eks/bmasterai"
+      region: us-west-2  # Replace with your region
+  pipelines:
+  - name: bmasterai-pipeline
+    inputRefs:
+    - application
+    filterRefs:
+    - bmasterai-filter
+    outputRefs:
+    - cloudwatch
+---
+apiVersion: logging.coreos.com/v1
+kind: ClusterLogFilter
+metadata:
+  name: bmasterai-filter
+  namespace: bmasterai
+spec:
+  type: json
+  json:
+    javascript: |
+      const log = record.log;
+      if (log && log.kubernetes && log.kubernetes.namespace_name === 'bmasterai') {
+        return record;
+      }
+      return null;

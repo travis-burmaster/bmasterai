@@ -4,9 +4,9 @@
 ## 1. Basic Setup with Logging and Monitoring
 
 ```python
-from bmasterai_logging import configure_logging, get_logger, LogLevel, EventType
-from bmasterai_monitoring import get_monitor
-from bmasterai_integrations import get_integration_manager, SlackConnector, EmailConnector
+from bmasterai.logging import configure_logging, get_logger, LogLevel, EventType
+from bmasterai.monitoring import get_monitor
+from bmasterai.integrations import get_integration_manager, SlackConnector, EmailConnector
 
 # Configure logging
 logger = configure_logging(
@@ -43,8 +43,8 @@ integration_manager.add_connector("email", email)
 import time
 import uuid
 from datetime import datetime
-from bmasterai_logging import get_logger, EventType, LogLevel
-from bmasterai_monitoring import get_monitor
+from bmasterai.logging import get_logger, EventType, LogLevel
+from bmasterai.monitoring import get_monitor
 
 class EnhancedAgent:
     def __init__(self, agent_id: str, name: str):
@@ -207,9 +207,9 @@ if __name__ == "__main__":
 ## 3. Multi-Agent System with Coordination
 
 ```python
-from bmasterai_logging import get_logger, EventType
-from bmasterai_monitoring import get_monitor
-from bmasterai_integrations import get_integration_manager
+from bmasterai.logging import get_logger, EventType
+from bmasterai.monitoring import get_monitor
+from bmasterai.integrations import get_integration_manager
 import threading
 import time
 
@@ -335,8 +335,8 @@ if __name__ == "__main__":
 ## 4. Alert Configuration and Monitoring
 
 ```python
-from bmasterai_monitoring import get_monitor
-from bmasterai_integrations import get_integration_manager
+from bmasterai.monitoring import get_monitor
+from bmasterai.integrations import get_integration_manager
 
 # Setup monitoring with alerts
 monitor = get_monitor()
@@ -436,9 +436,9 @@ agents:
 ```python
 import json
 from datetime import datetime, timedelta
-from bmasterai_logging import get_logger
-from bmasterai_monitoring import get_monitor
-from bmasterai_integrations import get_integration_manager
+from bmasterai.logging import get_logger
+from bmasterai.monitoring import get_monitor
+from bmasterai.integrations import get_integration_manager
 
 def generate_daily_report():
     """Generate a comprehensive daily report"""

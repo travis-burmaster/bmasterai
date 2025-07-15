@@ -59,9 +59,9 @@ pip install -e .[dev]
 ### 1. Basic Agent Setup
 
 ```python
-from bmasterai_logging import configure_logging, LogLevel
-from bmasterai_monitoring import get_monitor
-from bmasterai_integrations import get_integration_manager, SlackConnector
+from bmasterai.logging import configure_logging, LogLevel
+from bmasterai.monitoring import get_monitor
+from bmasterai.integrations import get_integration_manager, SlackConnector
 
 # Configure logging and monitoring
 logger = configure_logging(log_level=LogLevel.INFO)
@@ -93,7 +93,7 @@ agent.stop()
 ### 2. Multi-Agent Coordination
 
 ```python
-from bmasterai_examples import MultiAgentOrchestrator, EnhancedAgent
+from bmasterai.examples import MultiAgentOrchestrator, EnhancedAgent
 
 # Create orchestrator
 orchestrator = MultiAgentOrchestrator()
@@ -122,6 +122,238 @@ task_assignments = {
 results = orchestrator.coordinate_task("monthly_analysis", task_assignments)
 print(f"Coordination results: {results}")
 ```
+
+## 🖥️ Command Line Interface
+
+BMasterAI includes a powerful CLI for project management, monitoring, and system administration.
+
+### Installation & Setup
+
+The CLI is automatically available after installation:
+
+```bash
+pip install bmasterai
+bmasterai --help
+```
+
+### Available Commands
+
+#### 1. Initialize New Project
+Create a new BMasterAI project with proper structure and templates:
+
+```bash
+bmasterai init my-ai-project
+```
+
+This creates:
+```
+my-ai-project/
+├── agents/my_agent.py      # Working agent template
+├── config/config.yaml      # Configuration file
+└── logs/                   # Log directory
+```
+
+The generated agent template includes:
+- Correct import statements
+- Proper logging and monitoring setup
+- Task execution framework
+- Error handling and metrics tracking
+
+#### 2. System Status
+Monitor your BMasterAI system in real-time:
+
+```bash
+bmasterai status
+```
+
+Output example:
+```
+🖥️  BMasterAI System Status
+========================================
+Timestamp: 2025-07-15T00:27:34.364134
+Active Agents: 3
+Total Agents: 5
+
+📊 System Metrics:
+  CPU Usage: 45.2% (avg)
+  Memory Usage: 67.8% (avg)
+
+🔗 Integrations:
+  Active: 2
+    ✅ slack
+    ✅ email
+
+🚨 Recent Alerts:
+  ⚠️  cpu_percent: CPU usage above 80%
+  ⚠️  agent_errors: High error rate detected
+```
+
+#### 3. Real-time Monitoring
+Start continuous system monitoring:
+
+```bash
+bmasterai monitor
+```
+
+Features:
+- Real-time system metrics display
+- Live agent status updates
+- Performance monitoring
+- Press Ctrl+C to stop
+
+Example output:
+```
+🔍 Starting BMasterAI monitoring...
+✅ Monitoring started
+📊 System metrics being collected every 30 seconds
+
+💻 CPU: 45.1% | 🧠 Memory: 67.8% | 🤖 Agents: 3
+```
+
+#### 4. Test Integrations
+Verify all configured integrations are working:
+
+```bash
+bmasterai test-integrations
+```
+
+Output example:
+```
+🧪 Testing integrations...
+✅ slack: Connection successful
+✅ email: SMTP connection verified
+❌ discord: Webhook URL not configured
+✅ database: SQLite connection active
+```
+
+#### 5. Configuration File Support
+Use custom configuration files:
+
+```bash
+bmasterai --config /path/to/config.yaml status
+bmasterai -c production.yaml monitor
+```
+
+### CLI Usage Examples
+
+#### Quick Project Setup
+```bash
+# Create new project
+bmasterai init customer-support-ai
+cd customer-support-ai
+
+# Edit configuration
+nano config/config.yaml
+
+# Customize the agent
+nano agents/my_agent.py
+
+# Run the agent
+python agents/my_agent.py
+
+# Monitor system
+bmasterai status
+```
+
+#### Production Monitoring
+```bash
+# Check system health
+bmasterai status
+
+# Start monitoring daemon
+bmasterai monitor &
+
+# Test all integrations
+bmasterai test-integrations
+
+# Use production config
+bmasterai --config production.yaml status
+```
+
+#### Development Workflow
+```bash
+# Initialize development project
+bmasterai init dev-project
+
+# Start monitoring in background
+bmasterai monitor &
+
+# Develop and test agents
+python agents/my_agent.py
+
+# Check status periodically
+bmasterai status
+```
+
+### Generated Project Structure
+
+When you run `bmasterai init`, you get a complete, working project:
+
+**config/config.yaml:**
+```yaml
+# BMasterAI Configuration
+logging:
+  level: INFO
+  enable_console: true
+  enable_file: true
+  enable_json: true
+
+monitoring:
+  collection_interval: 30
+
+agents:
+  default_timeout: 300
+  max_retries: 3
+
+integrations:
+  slack:
+    enabled: false
+    webhook_url: "${SLACK_WEBHOOK_URL}"
+```
+
+**agents/my_agent.py:**
+```python
+from bmasterai.logging import get_logger, EventType, LogLevel
+from bmasterai.monitoring import get_monitor
+import time
+import uuid
+
+class MyAgent:
+    def __init__(self, agent_id: str, name: str):
+        self.agent_id = agent_id
+        self.name = name
+        self.logger = get_logger()
+        self.monitor = get_monitor()
+        self.status = "initialized"
+
+        # Log agent creation
+        self.logger.log_event(
+            self.agent_id,
+            EventType.AGENT_START,
+            f"Agent {self.name} initialized",
+            metadata={"name": self.name}
+        )
+
+    def execute_task(self, task_name: str, task_data: dict = None):
+        # Full implementation with logging, monitoring, and error handling
+        # ... (complete working code)
+
+if __name__ == "__main__":
+    agent = MyAgent("my-agent", "MyCustomAgent")
+    agent.start()
+    result = agent.execute_task("custom_task", {"data": "example"})
+    print(f"Result: {result}")
+    agent.stop()
+```
+
+### CLI Benefits
+
+- **🚀 Quick Start**: Get up and running in seconds
+- **📊 Real-time Monitoring**: Live system status and metrics
+- **🔧 Easy Configuration**: YAML-based configuration management
+- **🧪 Integration Testing**: Verify all connections work
+- **📁 Project Templates**: Working code from day one
+- **🔍 System Visibility**: Comprehensive status reporting
 
 ### 3. Configuration-Driven Setup
 
@@ -270,7 +502,7 @@ agents:
 
 ### Programmatic Configuration
 ```python
-from bmasterai_logging import configure_logging, LogLevel
+from bmasterai.logging import configure_logging, LogLevel
 
 logger = configure_logging(
     log_level=LogLevel.INFO,

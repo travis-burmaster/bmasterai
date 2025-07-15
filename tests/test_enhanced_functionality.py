@@ -298,11 +298,11 @@ class TestLoggingIntegration:
             assert mock_log.call_count >= 3  # At least start, task, stop events
 
             # Check for specific event types
-            event_types = [call[0][0] for call in mock_log.call_args_list]
-            assert EventType.AGENT_STARTED in event_types
-            assert EventType.TASK_STARTED in event_types
-            assert EventType.TASK_COMPLETED in event_types
-            assert EventType.AGENT_STOPPED in event_types
+            event_types = [call[0][1] for call in mock_log.call_args_list]  # event_type is the second parameter
+            assert EventType.AGENT_START in event_types
+            assert EventType.TASK_START in event_types
+            assert EventType.TASK_COMPLETE in event_types
+            assert EventType.AGENT_STOP in event_types
 
 
 class TestMonitoringIntegration:
@@ -322,10 +322,10 @@ class TestMonitoringIntegration:
 
         agent = StatefulAgent("test-agent", "TestAgent")
 
-        # Mock the monitor to capture registration
-        with patch.object(monitor, 'register_agent') as mock_register:
+        # Mock the monitor to capture agent tracking
+        with patch.object(monitor, 'track_agent_start') as mock_track_start:
             agent.start()
-            mock_register.assert_called_once()
+            mock_track_start.assert_called_once_with("test-agent")
             agent.stop()
 
 

@@ -14,9 +14,9 @@ from dataclasses import dataclass
 from datetime import datetime
 
 # Import the new logging and monitoring systems
-from bmasterai_logging import configure_logging, get_logger, LogLevel, EventType
-from bmasterai_monitoring import get_monitor
-from bmasterai_integrations import get_integration_manager, SlackConnector, EmailConnector
+from bmasterai.logging import configure_logging, get_logger, LogLevel, EventType
+from bmasterai.monitoring import get_monitor
+from bmasterai.integrations import get_integration_manager, SlackConnector, EmailConnector
 
 
 @dataclass
@@ -54,7 +54,7 @@ class StatefulAgent:
         )
 
         # Setup logging
-        self.logger = get_logger(f"agent.{agent_id}")
+        self.logger = get_logger()
 
         # Setup monitoring
         self.monitor = get_monitor()
@@ -67,9 +67,10 @@ class StatefulAgent:
 
         # Log agent creation
         self.logger.log_event(
-            EventType.AGENT_CREATED,
+            agent_id,
+            EventType.AGENT_START,
             f"Stateful agent {name} created",
-            {
+            metadata={
                 "agent_id": agent_id,
                 "name": name,
                 "initial_state": initial_state
@@ -79,7 +80,7 @@ class StatefulAgent:
     def start(self):
         """Start the agent with full monitoring"""
         if self.running:
-            self.logger.log_event(EventType.AGENT_ERROR, "Agent already running")
+            self.logger.log_event(self.agent_id, EventType.TASK_ERROR, "Agent already running")
             return
 
         self.running = True
@@ -87,16 +88,17 @@ class StatefulAgent:
         self.state.last_activity = datetime.now()
 
         # Register with monitor
-        self.monitor.register_agent(self.agent_id, self.name, "running", self.state.metadata)
+        self.monitor.track_agent_start(self.agent_id)
 
         # Start heartbeat thread
         self.thread = threading.Thread(target=self._heartbeat_loop, daemon=True)
         self.thread.start()
 
         self.logger.log_event(
-            EventType.AGENT_STARTED,
+            self.agent_id,
+            EventType.AGENT_START,
             f"Stateful agent {self.name} started",
-            {"agent_id": self.agent_id}
+            metadata={"agent_id": self.agent_id}
         )
 
     def stop(self):
@@ -107,16 +109,17 @@ class StatefulAgent:
         self.running = False
         self.state.status = "stopped"
 
-        # Unregister from monitor
-        self.monitor.unregister_agent(self.agent_id)
+        # Track agent stop
+        self.monitor.track_agent_stop(self.agent_id)
 
         if self.thread:
             self.thread.join(timeout=5)
 
         self.logger.log_event(
-            EventType.AGENT_STOPPED,
+            self.agent_id,
+            EventType.AGENT_STOP,
             f"Stateful agent {self.name} stopped",
-            {
+            metadata={
                 "agent_id": self.agent_id,
                 "total_tasks": self.state.task_count,
                 "final_state": self.get_state_summary()
@@ -127,23 +130,23 @@ class StatefulAgent:
         """Send periodic heartbeats to monitoring system"""
         while self.running:
             try:
-                # Update agent status in monitor
-                self.monitor.update_agent_status(
-                    self.agent_id,
-                    self.state.status,
+                # Record custom metric for agent status
+                self.monitor.metrics_collector.record_custom_metric(
+                    "agent_status",
+                    1,
                     {
-                        "task_count": self.state.task_count,
-                        "current_task": self.state.current_task,
-                        "memory_size": len(self.memory),
-                        "last_activity": self.state.last_activity.isoformat()
+                        "agent_id": self.agent_id,
+                        "status": self.state.status,
+                        "task_count": str(self.state.task_count)
                     }
                 )
 
                 # Log heartbeat
                 self.logger.log_event(
-                    EventType.AGENT_HEARTBEAT,
+                    self.agent_id,
+                    EventType.PERFORMANCE_METRIC,
                     f"Agent {self.name} heartbeat",
-                    {
+                    metadata={
                         "agent_id": self.agent_id,
                         "status": self.state.status,
                         "task_count": self.state.task_count
@@ -154,9 +157,10 @@ class StatefulAgent:
 
             except Exception as e:
                 self.logger.log_event(
-                    EventType.AGENT_ERROR,
+                    self.agent_id,
+                    EventType.TASK_ERROR,
                     f"Heartbeat error for agent {self.name}",
-                    {"agent_id": self.agent_id, "error": str(e)}
+                    metadata={"agent_id": self.agent_id, "error": str(e)}
                 )
                 time.sleep(60)  # Wait longer on error
 
@@ -176,9 +180,10 @@ class StatefulAgent:
 
         # Log task start
         self.logger.log_event(
-            EventType.TASK_STARTED,
+            self.agent_id,
+            EventType.TASK_START,
             f"Task {task_type} started",
-            {
+            metadata={
                 "agent_id": self.agent_id,
                 "task_id": task_id,
                 "task_type": task_type,
@@ -220,9 +225,10 @@ class StatefulAgent:
 
             # Log successful completion
             self.logger.log_event(
-                EventType.TASK_COMPLETED,
+                self.agent_id,
+                EventType.TASK_COMPLETE,
                 f"Task {task_type} completed successfully",
-                {
+                metadata={
                     "agent_id": self.agent_id,
                     "task_id": task_id,
                     "execution_time": execution_time,
@@ -231,11 +237,10 @@ class StatefulAgent:
             )
 
             # Record metrics
-            self.monitor.record_task_completion(
+            self.monitor.track_task_duration(
                 self.agent_id,
                 task_type,
-                execution_time,
-                True
+                execution_time * 1000  # Convert to milliseconds
             )
 
             return {
@@ -251,9 +256,10 @@ class StatefulAgent:
 
             # Log error
             self.logger.log_event(
+                self.agent_id,
                 EventType.TASK_ERROR,
                 f"Task {task_type} failed",
-                {
+                metadata={
                     "agent_id": self.agent_id,
                     "task_id": task_id,
                     "error": error_msg,
@@ -262,11 +268,11 @@ class StatefulAgent:
             )
 
             # Record failed metrics
-            self.monitor.record_task_completion(
+            self.monitor.track_error(self.agent_id, "task_failure")
+            self.monitor.track_task_duration(
                 self.agent_id,
                 task_type,
-                execution_time,
-                False
+                execution_time * 1000  # Convert to milliseconds
             )
 
             return {
@@ -405,16 +411,17 @@ class MultiAgentOrchestrator:
         self.coordination_history: List[Dict[str, Any]] = []
 
         # Setup logging and monitoring
-        self.logger = get_logger(f"orchestrator.{orchestrator_id}")
+        self.logger = get_logger()
         self.monitor = get_monitor()
 
         # Integration manager for notifications
         self.integration_manager = get_integration_manager()
 
         self.logger.log_event(
-            EventType.SYSTEM_STARTED,
+            orchestrator_id,
+            EventType.AGENT_START,
             f"Multi-agent orchestrator {orchestrator_id} initialized",
-            {"orchestrator_id": orchestrator_id}
+            metadata={"orchestrator_id": orchestrator_id}
         )
 
     def add_agent(self, agent: StatefulAgent):
@@ -422,9 +429,10 @@ class MultiAgentOrchestrator:
         self.agents[agent.agent_id] = agent
 
         self.logger.log_event(
-            EventType.AGENT_REGISTERED,
+            self.orchestrator_id,
+            EventType.AGENT_COMMUNICATION,
             f"Agent {agent.name} added to orchestrator",
-            {
+            metadata={
                 "orchestrator_id": self.orchestrator_id,
                 "agent_id": agent.agent_id,
                 "agent_name": agent.name
@@ -439,9 +447,10 @@ class MultiAgentOrchestrator:
             del self.agents[agent_id]
 
             self.logger.log_event(
-                EventType.AGENT_UNREGISTERED,
+                self.orchestrator_id,
+                EventType.AGENT_COMMUNICATION,
                 f"Agent {agent_id} removed from orchestrator",
-                {
+                metadata={
                     "orchestrator_id": self.orchestrator_id,
                     "agent_id": agent_id
                 }
@@ -462,9 +471,10 @@ class MultiAgentOrchestrator:
                 )
 
         self.logger.log_event(
-            EventType.SYSTEM_STARTED,
+            self.orchestrator_id,
+            EventType.AGENT_START,
             f"Started {started_count}/{len(self.agents)} agents",
-            {
+            metadata={
                 "orchestrator_id": self.orchestrator_id,
                 "started_count": started_count,
                 "total_agents": len(self.agents)
@@ -488,9 +498,10 @@ class MultiAgentOrchestrator:
                 )
 
         self.logger.log_event(
-            EventType.SYSTEM_STOPPED,
+            self.orchestrator_id,
+            EventType.AGENT_STOP,
             f"Stopped {stopped_count}/{len(self.agents)} agents",
-            {
+            metadata={
                 "orchestrator_id": self.orchestrator_id,
                 "stopped_count": stopped_count
             }
@@ -509,9 +520,10 @@ class MultiAgentOrchestrator:
         start_time = time.time()
 
         self.logger.log_event(
-            EventType.TASK_STARTED,
+            self.orchestrator_id,
+            EventType.TASK_START,
             f"Multi-agent coordination {coordination_id} started",
-            {
+            metadata={
                 "orchestrator_id": self.orchestrator_id,
                 "coordination_id": coordination_id,
                 "agent_assignments": list(task_assignments.keys()),
@@ -579,9 +591,10 @@ class MultiAgentOrchestrator:
         # Log completion
         if success:
             self.logger.log_event(
-                EventType.TASK_COMPLETED,
+                self.orchestrator_id,
+                EventType.TASK_COMPLETE,
                 f"Multi-agent coordination {coordination_id} completed successfully",
-                {
+                metadata={
                     "coordination_id": coordination_id,
                     "execution_time": execution_time,
                     "agents_count": len(results)
@@ -638,9 +651,10 @@ class MultiAgentOrchestrator:
 
         except Exception as e:
             self.logger.log_event(
-                EventType.INTEGRATION_ERROR,
+                self.orchestrator_id,
+                EventType.TASK_ERROR,
                 f"Failed to send coordination notification",
-                {"error": str(e)}
+                metadata={"error": str(e)}
             )
 
     def get_orchestrator_status(self) -> Dict[str, Any]:

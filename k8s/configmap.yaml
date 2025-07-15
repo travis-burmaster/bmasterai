@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bmasterai-config
+  namespace: bmasterai
+  labels:
+    app: bmasterai
+data:
+  config.yaml: |
+    # BMasterAI Configuration for Kubernetes
+    logging:
+      level: INFO
+      enable_console: true
+      enable_file: true
+      enable_json: true
+      log_file: "/app/logs/bmasterai.log"
+    
+    monitoring:
+      collection_interval: 30
+      enable_system_metrics: true
+      enable_agent_metrics: true
+    
+    agents:
+      default_timeout: 300
+      max_retries: 3
+      enable_health_checks: true
+    
+    integrations:
+      slack:
+        enabled: false
+        webhook_url: "${SLACK_WEBHOOK_URL}"
+      
+      email:
+        enabled: false
+        smtp_server: "${SMTP_SERVER}"
+        smtp_port: 587
+        username: "${EMAIL_USERNAME}"
+        password: "${EMAIL_PASSWORD}"
+      
+      database:
+        enabled: true
+        type: "sqlite"
+        connection_string: "/app/data/bmasterai.db"
+    
+    kubernetes:
+      pod_name: "${POD_NAME}"
+      pod_namespace: "${POD_NAMESPACE}"
+      node_name: "${NODE_NAME}"
+      service_account: "${SERVICE_ACCOUNT}"

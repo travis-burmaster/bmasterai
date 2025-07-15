@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bmasterai-data-pvc
+  namespace: bmasterai
+  labels:
+    app: bmasterai
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: gp3  # EKS default storage class
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bmasterai-logs-pvc
+  namespace: bmasterai
+  labels:
+    app: bmasterai
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: gp3
+  resources:
+    requests:
+      storage: 5Gi

@@ -1,0 +1,108 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.travis.yml
+.circleci
+
+# Documentation
+*.md
+README*
+CHANGELOG*
+LICENSE
+docs/
+
+# Development files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# Testing
+.pytest_cache
+.coverage
+.tox
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis
+
+# Jupyter
+.ipynb_checkpoints
+
+# Environments
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Kubernetes
+k8s/
+helm/
+eks/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Examples (exclude from production image)
+examples/
+my-new-project/
+
+# Development dependencies
+.pre-commit-config.yaml
+pyproject.toml
+setup.cfg
+tox.ini
+
+# Docker
+Dockerfile*
+docker-compose*
+.dockerignore

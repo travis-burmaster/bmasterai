@@ -1,0 +1,52 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "bmasterai.configmapName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "bmasterai.labels" . | nindent 4 }}
+data:
+  config.yaml: |
+    # BMasterAI Configuration for Kubernetes
+    logging:
+      level: {{ .Values.config.logging.level }}
+      enable_console: {{ .Values.config.logging.enableConsole }}
+      enable_file: {{ .Values.config.logging.enableFile }}
+      enable_json: {{ .Values.config.logging.enableJson }}
+      log_file: "/app/logs/bmasterai.log"
+    
+    monitoring:
+      collection_interval: {{ .Values.config.monitoring.collectionInterval }}
+      enable_system_metrics: {{ .Values.config.monitoring.enableSystemMetrics }}
+      enable_agent_metrics: {{ .Values.config.monitoring.enableAgentMetrics }}
+    
+    agents:
+      default_timeout: {{ .Values.config.agents.defaultTimeout }}
+      max_retries: {{ .Values.config.agents.maxRetries }}
+      enable_health_checks: {{ .Values.config.agents.enableHealthChecks }}
+    
+    integrations:
+      slack:
+        enabled: {{ .Values.config.integrations.slack.enabled }}
+        webhook_url: "${SLACK_WEBHOOK_URL}"
+      
+      email:
+        enabled: {{ .Values.config.integrations.email.enabled }}
+        smtp_server: "${SMTP_SERVER}"
+        smtp_port: {{ .Values.config.integrations.email.smtpPort }}
+        username: "${EMAIL_USERNAME}"
+        password: "${EMAIL_PASSWORD}"
+      
+      database:
+        enabled: {{ .Values.config.integrations.database.enabled }}
+        type: {{ .Values.config.integrations.database.type | quote }}
+        connection_string: {{ .Values.config.integrations.database.connectionString | quote }}
+    
+    kubernetes:
+      pod_name: "${POD_NAME}"
+      pod_namespace: "${POD_NAMESPACE}"
+      node_name: "${NODE_NAME}"
+      service_account: "${SERVICE_ACCOUNT}"
+      cluster_name: {{ .Values.clusterName | default "eks-cluster" | quote }}
+      release_name: {{ .Release.Name | quote }}
+      release_namespace: {{ .Release.Namespace | quote }}

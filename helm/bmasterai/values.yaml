@@ -1,0 +1,247 @@
+# Default values for bmasterai
+# This is a YAML-formatted file
+
+# Global settings
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+  storageClass: "gp3"
+
+# Image configuration
+image:
+  repository: bmasterai
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+# Service Account
+serviceAccount:
+  create: true
+  annotations:
+    # For AWS EKS with IAM roles for service accounts (IRSA)
+    # eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT-ID:role/bmasterai-eks-role
+  name: ""
+
+# Pod Security Context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1001
+  runAsGroup: 1001
+  fsGroup: 1001
+
+# Security Context
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+  runAsUser: 1001
+  capabilities:
+    drop:
+    - ALL
+
+# Deployment configuration
+replicaCount: 2
+
+# Resources
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 200m
+    memory: 256Mi
+
+# Autoscaling
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Service configuration
+service:
+  type: LoadBalancer
+  port: 80
+  targetPort: 8080
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: nlb
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: tcp
+
+# Ingress configuration
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: bmasterai.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+# Node selection
+nodeSelector:
+  kubernetes.io/os: linux
+
+# Tolerations
+tolerations:
+  - key: "bmasterai"
+    operator: "Equal"
+    value: "true"
+    effect: "NoSchedule"
+
+# Affinity
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      podAffinityTerm:
+        labelSelector:
+          matchExpressions:
+          - key: app.kubernetes.io/name
+            operator: In
+            values:
+            - bmasterai
+        topologyKey: kubernetes.io/hostname
+
+# Persistent storage
+persistence:
+  data:
+    enabled: true
+    storageClass: "gp3"
+    accessMode: ReadWriteOnce
+    size: 10Gi
+  logs:
+    enabled: true
+    storageClass: "gp3"
+    accessMode: ReadWriteOnce
+    size: 5Gi
+
+# BMasterAI Configuration
+config:
+  logging:
+    level: INFO
+    enableConsole: true
+    enableFile: true
+    enableJson: true
+  
+  monitoring:
+    collectionInterval: 30
+    enableSystemMetrics: true
+    enableAgentMetrics: true
+  
+  agents:
+    defaultTimeout: 300
+    maxRetries: 3
+    enableHealthChecks: true
+  
+  integrations:
+    slack:
+      enabled: false
+    email:
+      enabled: false
+      smtpPort: 587
+    database:
+      enabled: true
+      type: "sqlite"
+      connectionString: "/app/data/bmasterai.db"
+
+# Secrets configuration
+secrets:
+  # Create secrets manually or set these values
+  # All values should be base64 encoded
+  openaiApiKey: ""
+  anthropicApiKey: ""
+  slackWebhookUrl: ""
+  emailUsername: ""
+  emailPassword: ""
+  smtpServer: ""
+  qdrantUrl: ""
+  qdrantApiKey: ""
+
+# Monitoring and observability
+monitoring:
+  serviceMonitor:
+    enabled: false
+    namespace: ""
+    interval: 30s
+    scrapeTimeout: 10s
+  
+  grafana:
+    dashboard:
+      enabled: false
+      namespace: ""
+
+# Probes configuration
+probes:
+  liveness:
+    enabled: true
+    initialDelaySeconds: 30
+    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 3
+  
+  readiness:
+    enabled: true
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  
+  startup:
+    enabled: true
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 30
+
+# Pod Disruption Budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+  # maxUnavailable: 1
+
+# Network Policies
+networkPolicy:
+  enabled: false
+  ingress: []
+  egress: []
+
+# Additional environment variables
+extraEnvVars: []
+# - name: EXTRA_VAR
+#   value: "extra-value"
+
+# Additional environment variables from ConfigMaps or Secrets
+extraEnvVarsFrom: []
+# - configMapRef:
+#     name: extra-configmap
+# - secretRef:
+#     name: extra-secret
+
+# Additional volumes
+extraVolumes: []
+# - name: extra-volume
+#   configMap:
+#     name: extra-configmap
+
+# Additional volume mounts
+extraVolumeMounts: []
+# - name: extra-volume
+#   mountPath: /extra
+#   readOnly: true
+
+# Pod annotations
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8080"
+  prometheus.io/path: "/metrics"
+
+# Pod labels
+podLabels: {}
+
+# Service annotations
+serviceAnnotations: {}
+
+# Deployment annotations
+deploymentAnnotations: {}

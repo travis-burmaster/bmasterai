@@ -98,26 +98,31 @@ python bmasterai_rag_qdrant_cloud.py
 The RAG system consists of several key components:
 
 ### 1. Document Processing
+
 - **Text Chunking**: Splits documents into manageable chunks
 - **Embedding Generation**: Uses SentenceTransformers for vector embeddings
 - **Metadata Handling**: Preserves document metadata and source information
 
 ### 2. Vector Storage (Qdrant Cloud)
+
 - **Collection Management**: Automatic collection creation and configuration
 - **Vector Indexing**: Efficient similarity search with cosine distance
 - **Payload Storage**: Stores original text and metadata alongside vectors
 
 ### 3. Retrieval System
+
 - **Semantic Search**: Finds most relevant documents using vector similarity
 - **Filtering**: Supports metadata-based filtering
 - **Ranking**: Returns results sorted by relevance score
 
 ### 4. Generation Pipeline
+
 - **Context Assembly**: Combines retrieved documents into coherent context
 - **Prompt Engineering**: Optimized prompts for accurate answer generation
 - **Response Processing**: Handles OpenAI API responses and errors
 
 ### 5. BMasterAI Integration
+
 - **Comprehensive Logging**: All operations logged with structured data
 - **Performance Monitoring**: Tracks latency, token usage, and success rates
 - **Error Handling**: Robust error handling with detailed error tracking
@@ -157,12 +162,14 @@ rag_config = RAGConfig(
 The system provides comprehensive monitoring through BMasterAI:
 
 ### Key Metrics Tracked
+
 - **Document Ingestion**: Processing time, success/failure rates
 - **Vector Search**: Query latency, result counts, similarity scores
 - **LLM Calls**: Token usage, response time, model performance
 - **End-to-End RAG**: Complete pipeline performance
 
 ### Available Dashboards
+
 ```python
 # Get agent-specific dashboard
 dashboard = monitor.get_agent_dashboard("qdrant-rag-agent")
@@ -172,7 +179,9 @@ health = monitor.get_system_health()
 ```
 
 ### Log Events
+
 All operations generate structured log events:
+
 - `AGENT_START`: System initialization
 - `TASK_START/COMPLETE`: Operation tracking
 - `LLM_CALL`: Language model interactions
@@ -294,21 +303,25 @@ Contributions are welcome! Please:
 ### Common Issues
 
 **Connection to Qdrant fails:**
+
 - Verify your cluster URL and API key
 - Check network connectivity
 - Ensure cluster is running
 
 **OpenAI API errors:**
+
 - Verify API key is valid
 - Check rate limits and quotas
 - Ensure sufficient credits
 
 **Embedding model download fails:**
+
 - Check internet connection
 - Verify disk space
 - Try different model if needed
 
 **Performance issues:**
+
 - Reduce batch sizes
 - Optimize vector dimensions
 - Check system resources

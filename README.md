@@ -355,7 +355,70 @@ if __name__ == "__main__":
 - **📁 Project Templates**: Working code from day one
 - **🔍 System Visibility**: Comprehensive status reporting
 
-### 3. Configuration-Driven Setup
+### 3. RAG (Retrieval-Augmented Generation) System
+
+BMasterAI includes advanced RAG capabilities with Qdrant Cloud integration:
+
+```python
+from bmasterai.logging import configure_logging, LogLevel
+from bmasterai.monitoring import get_monitor
+
+# Configure system
+configure_logging(log_level=LogLevel.INFO)
+monitor = get_monitor()
+monitor.start_monitoring()
+
+# Initialize RAG system with Qdrant Cloud
+from examples.minimal_rag.bmasterai_rag_qdrant_cloud import BMasterAIQdrantRAG, QdrantConfig, RAGConfig
+
+qdrant_config = QdrantConfig(
+    url="https://your-cluster.qdrant.io",
+    api_key="your-qdrant-api-key",
+    collection_name="knowledge_base"
+)
+
+rag_config = RAGConfig(
+    openai_api_key="your-openai-api-key",
+    embedding_model="all-MiniLM-L6-v2",
+    llm_model="gpt-3.5-turbo"
+)
+
+# Create RAG system
+rag_system = BMasterAIQdrantRAG(qdrant_config, rag_config)
+
+# Add documents
+documents = [
+    {
+        "text": "BMasterAI is an advanced multi-agent AI framework...",
+        "metadata": {"category": "framework", "topic": "bmasterai"},
+        "source": "documentation"
+    }
+]
+rag_system.add_documents(documents)
+
+# Query the system
+result = rag_system.query("What is BMasterAI?")
+print(f"Answer: {result['answer']}")
+print(f"Sources: {len(result['sources'])} documents found")
+```
+
+#### 🌐 RAG Web Interface
+
+Launch an interactive Gradio web interface for your RAG system:
+
+```python
+# Run the Gradio RAG interface
+python examples/minimal-rag/gradio_qdrant_rag.py
+```
+
+Features:
+- **Interactive Chat**: Ask questions and get contextual answers
+- **Document Management**: Add and manage your knowledge base
+- **Real-time Search**: Test document retrieval and similarity search
+- **Performance Monitoring**: View system metrics and performance data
+- **Configuration**: Adjust RAG parameters in real-time
+
+### 4. Configuration-Driven Setup
 
 Create a `config.yaml` file:
 
@@ -540,12 +603,69 @@ pytest --cov=bmasterai
 
 Check out the `examples/` directory for comprehensive examples:
 
-- **Basic Agent**: Simple agent with logging and monitoring
-- **Multi-Agent System**: Coordinated agents working together
-- **Integration Examples**: Using Slack, email, and database integrations
-- **Custom Metrics**: Creating and tracking custom metrics
-- **Alert Configuration**: Setting up monitoring alerts
-- **Production Deployment**: Enterprise deployment examples
+### 🤖 Core Framework Examples
+- **[Basic Agent](examples/basic_usage.py)**: Simple agent with logging and monitoring
+- **[Enhanced Examples](examples/enhanced_examples.py)**: Advanced multi-agent system with full BMasterAI integration
+- **[Multi-Agent System](examples/enhanced_examples.py)**: Coordinated agents working together
+- **[Integration Examples](examples/enhanced_examples.py)**: Using Slack, email, and database integrations
+
+### 🧠 RAG (Retrieval-Augmented Generation) Examples
+- **[Qdrant Cloud RAG](examples/minimal-rag/bmasterai_rag_qdrant_cloud.py)**: Advanced RAG system with Qdrant Cloud vector database
+- **[Interactive RAG UI](examples/minimal-rag/gradio_qdrant_rag.py)**: Gradio web interface for RAG system with chat, document management, and monitoring
+- **[RAG Documentation](examples/minimal-rag/README_qdrant_cloud.md)**: Comprehensive setup guide for Qdrant Cloud RAG
+- **[Connection Testing](examples/minimal-rag/test_qdrant_connection.py)**: Utility to test Qdrant Cloud and OpenAI connections
+
+### 🌐 Web Interface Examples  
+- **[Gradio Anthropic Chat](examples/gradio-anthropic/gradio-app-bmasterai.py)**: Interactive chat interface with Anthropic Claude models
+- **[RAG Web Interface](examples/minimal-rag/gradio_qdrant_rag.py)**: Full-featured RAG system with web UI
+
+### 🔧 Utility Examples
+- **[Custom Metrics](examples/enhanced_examples.py)**: Creating and tracking custom metrics
+- **[Alert Configuration](examples/enhanced_examples.py)**: Setting up monitoring alerts
+- **[Performance Monitoring](examples/enhanced_examples.py)**: Advanced system monitoring and dashboards
+
+### 🚀 Getting Started with Examples
+
+#### Quick RAG Setup
+```bash
+# 1. Install RAG dependencies
+pip install -r examples/minimal-rag/requirements_qdrant.txt
+
+# 2. Set up environment variables
+export QDRANT_URL="https://your-cluster.qdrant.io"
+export QDRANT_API_KEY="your-qdrant-api-key"
+export OPENAI_API_KEY="your-openai-api-key"
+
+# 3. Test connections
+python examples/minimal-rag/test_qdrant_connection.py
+
+# 4. Run RAG system
+python examples/minimal-rag/bmasterai_rag_qdrant_cloud.py
+
+# 5. Launch web interface
+python examples/minimal-rag/gradio_qdrant_rag.py
+```
+
+#### Quick Gradio Chat Setup
+```bash
+# 1. Install Gradio dependencies
+pip install gradio openai anthropic
+
+# 2. Set API key
+export ANTHROPIC_API_KEY="your-anthropic-api-key"
+
+# 3. Launch chat interface
+python examples/gradio-anthropic/gradio-app-bmasterai.py
+```
+
+### 📋 Example Features
+
+Each example demonstrates:
+- ✅ **Full BMasterAI Integration**: Logging, monitoring, and error handling
+- ✅ **Production Ready**: Comprehensive error handling and recovery
+- ✅ **Real-time Monitoring**: Performance metrics and system health
+- ✅ **Extensible Design**: Easy to customize for your use case
+- ✅ **Documentation**: Detailed setup and usage instructions
 
 ## 🤝 Contributing
 

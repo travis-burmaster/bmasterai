@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  bmasterai-gradio:
+    build: .
+    ports:
+      - "7860:7860"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - MODEL_NAME=${MODEL_NAME:-claude-3-5-sonnet-20241022}
+      - MAX_TOKENS=${MAX_TOKENS:-4096}
+      - TEMPERATURE=${TEMPERATURE:-0.7}
+      - SYSTEM_PROMPT=${SYSTEM_PROMPT:-You are a helpful AI assistant powered by BMasterAI framework.}
+      - GRADIO_SHARE=${GRADIO_SHARE:-false}
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7860/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

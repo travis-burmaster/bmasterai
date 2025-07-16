@@ -1,0 +1,39 @@
+# Development Requirements
+# Install with: pip install -r requirements-dev.txt
+
+# Include production requirements
+-r requirements.txt
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+pytest-mock>=3.12.0
+
+# Code Quality
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.5.0
+isort>=5.12.0
+pre-commit>=3.5.0
+
+# Documentation
+mkdocs>=1.5.0
+mkdocs-material>=9.4.0
+mkdocs-mermaid2-plugin>=1.1.0
+
+# Debugging
+ipdb>=0.13.0
+pdbpp>=0.10.3
+
+# Performance Profiling
+line-profiler>=4.1.0
+py-spy>=0.3.14
+
+# Security
+bandit>=1.7.5
+safety>=2.3.0
+
+# Jupyter (for analysis)
+jupyter>=1.0.0
+notebook>=7.0.0

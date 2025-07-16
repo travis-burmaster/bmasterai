@@ -11,56 +11,344 @@ import os
 import json
 import hashlib
 import tempfile
+import time
+import asyncio
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from concurrent.futures import ThreadPoolExecutor
 
-import gradio as gr
-import requests
-from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, VectorParams, PointStruct
-from sentence_transformers import SentenceTransformer
-import PyPDF2
-import docx
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+# Optional caching dependency
+try:
+    import diskcache as dc
+    DISKCACHE_AVAILABLE = True
+except ImportError:
+    print("⚠️  diskcache not available - caching will be disabled")
+    DISKCACHE_AVAILABLE = False
+    
+    # Create a simple fallback cache
+    class SimpleCache:
+        def __init__(self, directory=None):
+            self._cache = {}
+        
+        def __setitem__(self, key, value):
+            self._cache[key] = value
+        
+        def __getitem__(self, key):
+            return self._cache[key]
+        
+        def __contains__(self, key):
+            return key in self._cache
+    
+    dc = type('dc', (), {'Cache': SimpleCache})()
 
-# Import BMasterAI framework components
-from bmasterai import (
-    configure_logging,
-    get_logger,
-    LogLevel,
-    EventType,
-    get_monitor,
-    get_integration_manager
-)
-from bmasterai.integrations import SlackConnector, EmailConnector
+# External dependencies
+try:
+    import gradio as gr
+    import requests
+    from qdrant_client import QdrantClient
+    from qdrant_client.models import Distance, VectorParams, PointStruct
+    from sentence_transformers import SentenceTransformer
+    import PyPDF2
+    import docx
+    from langchain.text_splitter import RecursiveCharacterTextSplitter
+    from dotenv import load_dotenv
+except ImportError as e:
+    print(f"Missing required dependencies: {e}")
+    print("Install with: pip install gradio requests qdrant-client sentence-transformers PyPDF2 python-docx langchain python-dotenv")
+    exit(1)
+
+# Import BMasterAI framework components (with fallbacks)
+BMASTERAI_AVAILABLE = True
+try:
+    from bmasterai.logging import configure_logging, get_logger, LogLevel, EventType
+    from bmasterai.monitoring import get_monitor
+    from bmasterai.integrations import get_integration_manager, SlackConnector, EmailConnector
+    BMASTERAI_AVAILABLE = True
+    print("✅ BMasterAI framework loaded successfully")
+    
+    # Ensure EventType has all required attributes (patch if missing)
+    if not hasattr(EventType, 'LLM_ERROR'):
+        EventType.LLM_ERROR = "llm_error"
+    if not hasattr(EventType, 'AGENT_STOP'):
+        EventType.AGENT_STOP = "agent_stop"
+except ImportError as e:
+    print(f"⚠️  BMasterAI framework not found: {e}")
+    print("Running in standalone mode with basic logging...")
+    
+    # Create fallback classes and functions
+    import logging
+    
+    class EventType:
+        TASK_START = "task_start"
+        TASK_COMPLETE = "task_complete"
+        TASK_ERROR = "task_error"
+        AGENT_START = "agent_start"
+        AGENT_STOP = "agent_stop"
+        LLM_REQUEST = "llm_request"
+        LLM_RESPONSE = "llm_response"
+        LLM_ERROR = "llm_error"
+    
+    class LogLevel:
+        DEBUG = logging.DEBUG
+        INFO = logging.INFO
+        WARNING = logging.WARNING
+        ERROR = logging.ERROR
+    
+    class FallbackLogger:
+        def __init__(self):
+            self.logger = logging.getLogger("bmasterai_rag")
+        
+        def log_event(self, agent_id, event_type, message, metadata=None):
+            self.logger.info(f"[{agent_id}] {event_type}: {message}")
+            if metadata:
+                self.logger.debug(f"Metadata: {metadata}")
+    
+    class FallbackMonitor:
+        def start_monitoring(self):
+            pass
+        
+        def track_agent_start(self, agent_id):
+            logging.info(f"Agent started: {agent_id}")
+        
+        def track_task_duration(self, agent_id, task_name, duration_ms):
+            logging.debug(f"Task {task_name} took {duration_ms}ms")
+        
+        def track_error(self, agent_id, error_type):
+            logging.warning(f"Error tracked: {error_type}")
+        
+        def track_llm_usage(self, agent_id, model, input_tokens, output_tokens):
+            logging.info(f"LLM usage: {input_tokens} in, {output_tokens} out")
+    
+    class FallbackIntegrationManager:
+        def __init__(self):
+            pass
+    
+    def configure_logging():
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
+    
+    def get_logger():
+        return FallbackLogger()
+    
+    def get_monitor():
+        return FallbackMonitor()
+    
+    def get_integration_manager():
+        return FallbackIntegrationManager()
+
+# Load environment variables
+load_dotenv()
+
+def get_env_var(key: str, default: Any = None, var_type: type = str) -> Any:
+    """Get environment variable with type conversion and validation"""
+    value = os.getenv(key, default)
+    if value is None:
+        return default
+    
+    # Clean the value by removing inline comments and whitespace
+    if isinstance(value, str):
+        value = value.split('#')[0].strip()
+        if not value:  # If empty after cleaning, return default
+            return default
+    
+    try:
+        if var_type == bool:
+            return value.lower() in ('true', '1', 'yes', 'on')
+        elif var_type == int:
+            return int(value)
+        elif var_type == float:
+            return float(value)
+        else:
+            return str(value)
+    except (ValueError, TypeError):
+        print(f"Warning: Invalid value for {key}: {value}. Using default: {default}")
+        return default
 
 
 @dataclass
 class BMasterAIRAGConfig:
-    """Configuration for BMasterAI RAG system"""
-    anthropic_api_key: str
-    qdrant_url: str = "http://localhost:6333"
-    qdrant_api_key: Optional[str] = None
-    model_name: str = "claude-3-5-sonnet-20241022"
-    embedding_model: str = "all-MiniLM-L6-v2"
-    collection_name: str = "bmasterai_documents"
-    max_tokens: int = 4096
-    temperature: float = 0.7
-    chunk_size: int = 1000
-    chunk_overlap: int = 200
-    top_k: int = 5
-    similarity_threshold: float = 0.7
-    system_prompt: str = """You are a helpful AI assistant that answers questions based on provided documents. 
-    Use the context provided to answer questions accurately. If the answer isn't in the provided context, 
-    say so clearly. Always cite relevant document sources when available."""
-
-
-class DocumentProcessor:
-    """Handle document processing and text extraction with BMasterAI logging"""
+    """Configuration for BMasterAI RAG system loaded from environment variables"""
     
-    def __init__(self, agent_id: str, chunk_size: int = 1000, chunk_overlap: int = 200):
+    def __init__(self):
+        # Required configuration
+        self.anthropic_api_key = get_env_var("ANTHROPIC_API_KEY")
+        if not self.anthropic_api_key or self.anthropic_api_key == "your-anthropic-api-key-here":
+            raise ValueError("ANTHROPIC_API_KEY must be set in .env file")
+        
+        # Vector Database Configuration
+        self.qdrant_url = get_env_var("QDRANT_URL", "http://localhost:6333")
+        self.qdrant_api_key = get_env_var("QDRANT_API_KEY") or None
+        
+        # Model Configuration
+        self.model_name = get_env_var("MODEL_NAME", "claude-3-5-sonnet-20241022")
+        self.embedding_model = get_env_var("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
+        self.collection_name = get_env_var("COLLECTION_NAME", "bmasterai_documents")
+        
+        # API Configuration
+        self.max_tokens = get_env_var("MAX_TOKENS", 4096, int)
+        self.temperature = get_env_var("TEMPERATURE", 0.7, float)
+        
+        # Document Processing Configuration
+        self.chunk_size = get_env_var("CHUNK_SIZE", 1000, int)
+        self.chunk_overlap = get_env_var("CHUNK_OVERLAP", 200, int)
+        self.top_k = get_env_var("TOP_K", 5, int)
+        self.similarity_threshold = get_env_var("SIMILARITY_THRESHOLD", 0.7, float)
+        
+        # Performance Configuration
+        self.max_file_size = get_env_var("MAX_FILE_SIZE", 50 * 1024 * 1024, int)
+        self.max_concurrent_uploads = get_env_var("MAX_CONCURRENT_UPLOADS", 5, int)
+        self.max_connections = get_env_var("MAX_CONNECTIONS", 5, int)
+        self.connection_timeout = get_env_var("CONNECTION_TIMEOUT", 30, int)
+        
+        # Cache Configuration
+        self.cache_dir = get_env_var("CACHE_DIR", "/tmp/bmasterai_cache")
+        self.enable_response_cache = get_env_var("ENABLE_RESPONSE_CACHE", True, bool)
+        self.enable_embedding_cache = get_env_var("ENABLE_EMBEDDING_CACHE", True, bool)
+        
+        # Server Configuration
+        self.gradio_server_name = get_env_var("GRADIO_SERVER_NAME", "0.0.0.0")
+        self.gradio_server_port = get_env_var("GRADIO_SERVER_PORT", 7860, int)
+        self.gradio_share = get_env_var("GRADIO_SHARE", False, bool)
+        self.gradio_auth = get_env_var("GRADIO_AUTH") or None
+        
+        # Logging Configuration
+        self.log_level = get_env_var("LOG_LEVEL", "INFO")
+        self.enable_json_logs = get_env_var("ENABLE_JSON_LOGS", False, bool)
+        self.enable_file_logs = get_env_var("ENABLE_FILE_LOGS", True, bool)
+        self.log_file_path = get_env_var("LOG_FILE_PATH", "logs/bmasterai_rag.log")
+        
+        # Monitoring Configuration
+        self.enable_performance_monitoring = get_env_var("ENABLE_PERFORMANCE_MONITORING", True, bool)
+        self.enable_usage_tracking = get_env_var("ENABLE_USAGE_TRACKING", True, bool)
+        
+        # Security Configuration
+        self.rate_limit_per_minute = get_env_var("RATE_LIMIT_PER_MINUTE", 60, int)
+        self.allowed_file_extensions = get_env_var("ALLOWED_FILE_EXTENSIONS", "pdf,docx,txt").split(",")
+        self.max_filename_length = get_env_var("MAX_FILENAME_LENGTH", 255, int)
+        
+        # Development Configuration
+        self.debug_mode = get_env_var("DEBUG_MODE", False, bool)
+        self.verbose_logging = get_env_var("VERBOSE_LOGGING", False, bool)
+        self.dev_mode = get_env_var("DEV_MODE", False, bool)
+        self.auto_reload = get_env_var("AUTO_RELOAD", False, bool)
+        
+        # System Prompt Configuration
+        default_system_prompt = """You are a helpful AI assistant that answers questions based on provided documents. 
+Use the context provided to answer questions accurately. If the answer isn't in the provided context, 
+say so clearly. Always cite relevant document sources when available."""
+        self.system_prompt = get_env_var("SYSTEM_PROMPT", default_system_prompt)
+        
+        # Optional Integrations
+        self.slack_webhook_url = get_env_var("SLACK_WEBHOOK_URL") or None
+        self.slack_channel = get_env_var("SLACK_CHANNEL", "#ai-notifications")
+        self.smtp_server = get_env_var("SMTP_SERVER") or None
+        self.smtp_port = get_env_var("SMTP_PORT", 587, int)
+        self.smtp_username = get_env_var("SMTP_USERNAME") or None
+        self.smtp_password = get_env_var("SMTP_PASSWORD") or None
+        self.smtp_from_email = get_env_var("SMTP_FROM_EMAIL") or None
+        
+        # Create cache directory if it doesn't exist
+        os.makedirs(self.cache_dir, exist_ok=True)
+        
+        # Create log directory if logging is enabled
+        if self.enable_file_logs:
+            log_dir = os.path.dirname(self.log_file_path)
+            if log_dir:
+                os.makedirs(log_dir, exist_ok=True)
+    
+    def validate_config(self) -> List[str]:
+        """Validate configuration and return list of issues"""
+        issues = []
+        
+        # Check required fields
+        if not self.anthropic_api_key:
+            issues.append("ANTHROPIC_API_KEY is required")
+        
+        # Check file size limits
+        if self.max_file_size <= 0:
+            issues.append("MAX_FILE_SIZE must be positive")
+        
+        # Check chunk configuration
+        if self.chunk_size <= 0:
+            issues.append("CHUNK_SIZE must be positive")
+        if self.chunk_overlap >= self.chunk_size:
+            issues.append("CHUNK_OVERLAP must be less than CHUNK_SIZE")
+        
+        # Check model parameters
+        if self.temperature < 0 or self.temperature > 2:
+            issues.append("TEMPERATURE must be between 0 and 2")
+        if self.max_tokens <= 0:
+            issues.append("MAX_TOKENS must be positive")
+        
+        # Check server configuration
+        if self.gradio_server_port <= 0 or self.gradio_server_port > 65535:
+            issues.append("GRADIO_SERVER_PORT must be between 1 and 65535")
+        
+        return issues
+    
+    def print_config_summary(self):
+        """Print configuration summary for debugging"""
+        print("🔧 BMasterAI RAG Configuration Summary:")
+        print(f"   Model: {self.model_name}")
+        print(f"   Embedding Model: {self.embedding_model}")
+        print(f"   Qdrant URL: {self.qdrant_url}")
+        print(f"   Collection: {self.collection_name}")
+        print(f"   Cache Directory: {self.cache_dir}")
+        print(f"   Server: {self.gradio_server_name}:{self.gradio_server_port}")
+        print(f"   Debug Mode: {self.debug_mode}")
+        print(f"   Performance Monitoring: {self.enable_performance_monitoring}")
+        if self.qdrant_api_key:
+            print(f"   Qdrant API Key: {'*' * len(self.qdrant_api_key[:4])}...")
+        print(f"   API Key: {'*' * len(self.anthropic_api_key[:4])}...")
+
+
+class CachedEmbeddingModel:
+    """Cached embedding model for better performance"""
+
+    def __init__(self, model_name: str, cache_dir: str = "/tmp/embedding_cache"):
+        self.model = SentenceTransformer(model_name)
+        self.cache = dc.Cache(cache_dir)
+        self.logger = get_logger()
+
+    def encode(self, texts: List[str]) -> List[List[float]]:
+        """Encode texts with caching"""
+        results = []
+        cache_hits = 0
+
+        for text in texts:
+            text_hash = hashlib.md5(text.encode()).hexdigest()
+
+            if text_hash in self.cache:
+                results.append(self.cache[text_hash])
+                cache_hits += 1
+            else:
+                embedding = self.model.encode(text).tolist()
+                self.cache[text_hash] = embedding
+                results.append(embedding)
+
+        if cache_hits > 0:
+            self.logger.log_event(
+                "embedding_cache",
+                EventType.TASK_COMPLETE,
+                f"Cache hits: {cache_hits}/{len(texts)}",
+                metadata={"cache_hit_rate": cache_hits / len(texts)}
+            )
+
+        return results
+
+    def encode_single(self, text: str) -> List[float]:
+        """Encode single text with caching"""
+        return self.encode([text])[0]
+
+
+class AsyncDocumentProcessor:
+    """Handle document processing with async capabilities"""
+
+    def __init__(self, agent_id: str, chunk_size: int = 1000, chunk_overlap: int = 200, max_workers: int = 4):
         self.agent_id = agent_id
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=chunk_size,
@@ -70,23 +358,29 @@ class DocumentProcessor:
         )
         self.logger = get_logger()
         self.monitor = get_monitor()
-    
-    def extract_text_from_pdf(self, file_path: str) -> str:
-        """Extract text from PDF file"""
+        self.executor = ThreadPoolExecutor(max_workers=max_workers)
+
+    async def extract_text_from_pdf_async(self, file_path: str) -> str:
+        """Extract text from PDF file asynchronously"""
+        loop = asyncio.get_event_loop()
         try:
-            with open(file_path, 'rb') as file:
-                reader = PyPDF2.PdfReader(file)
-                text = ""
-                for page in reader.pages:
-                    text += page.extract_text() + "\n"
-                
-                self.logger.log_event(
-                    self.agent_id,
-                    EventType.TASK_COMPLETE,
-                    f"PDF text extraction completed",
-                    metadata={"file_path": file_path, "text_length": len(text)}
-                )
-                return text.strip()
+            def extract_sync():
+                with open(file_path, 'rb') as file:
+                    reader = PyPDF2.PdfReader(file)
+                    text = ""
+                    for page in reader.pages:
+                        text += page.extract_text() + "\n"
+                    return text.strip()
+
+            text = await loop.run_in_executor(self.executor, extract_sync)
+
+            self.logger.log_event(
+                self.agent_id,
+                EventType.TASK_COMPLETE,
+                f"PDF text extraction completed",
+                metadata={"file_path": file_path, "text_length": len(text)}
+            )
+            return text
         except Exception as e:
             self.logger.log_event(
                 self.agent_id,
@@ -95,22 +389,27 @@ class DocumentProcessor:
                 metadata={"file_path": file_path, "error": str(e)}
             )
             return ""
-    
-    def extract_text_from_docx(self, file_path: str) -> str:
-        """Extract text from DOCX file"""
+
+    async def extract_text_from_docx_async(self, file_path: str) -> str:
+        """Extract text from DOCX file asynchronously"""
+        loop = asyncio.get_event_loop()
         try:
-            doc = docx.Document(file_path)
-            text = ""
-            for paragraph in doc.paragraphs:
-                text += paragraph.text + "\n"
-            
+            def extract_sync():
+                doc = docx.Document(file_path)
+                text = ""
+                for paragraph in doc.paragraphs:
+                    text += paragraph.text + "\n"
+                return text.strip()
+
+            text = await loop.run_in_executor(self.executor, extract_sync)
+
             self.logger.log_event(
                 self.agent_id,
                 EventType.TASK_COMPLETE,
                 f"DOCX text extraction completed",
                 metadata={"file_path": file_path, "text_length": len(text)}
             )
-            return text.strip()
+            return text
         except Exception as e:
             self.logger.log_event(
                 self.agent_id,
@@ -119,13 +418,17 @@ class DocumentProcessor:
                 metadata={"file_path": file_path, "error": str(e)}
             )
             return ""
-    
-    def extract_text_from_txt(self, file_path: str) -> str:
-        """Extract text from TXT file"""
+
+    async def extract_text_from_txt_async(self, file_path: str) -> str:
+        """Extract text from TXT file asynchronously"""
+        loop = asyncio.get_event_loop()
         try:
-            with open(file_path, 'r', encoding='utf-8') as file:
-                text = file.read().strip()
-                
+            def extract_sync():
+                with open(file_path, 'r', encoding='utf-8') as file:
+                    return file.read().strip()
+
+            text = await loop.run_in_executor(self.executor, extract_sync)
+
             self.logger.log_event(
                 self.agent_id,
                 EventType.TASK_COMPLETE,
@@ -141,24 +444,24 @@ class DocumentProcessor:
                 metadata={"file_path": file_path, "error": str(e)}
             )
             return ""
-    
-    def extract_text(self, file_path: str, filename: str) -> str:
-        """Extract text based on file extension"""
+
+    async def extract_text_async(self, file_path: str, filename: str) -> str:
+        """Extract text based on file extension asynchronously"""
         ext = filename.lower().split('.')[-1]
-        
+
         self.logger.log_event(
             self.agent_id,
             EventType.TASK_START,
-            f"Starting text extraction from {ext} file",
+            f"Starting async text extraction from {ext} file",
             metadata={"filename": filename, "extension": ext}
         )
-        
+
         if ext == 'pdf':
-            return self.extract_text_from_pdf(file_path)
+            return await self.extract_text_from_pdf_async(file_path)
         elif ext == 'docx':
-            return self.extract_text_from_docx(file_path)
+            return await self.extract_text_from_docx_async(file_path)
         elif ext == 'txt':
-            return self.extract_text_from_txt(file_path)
+            return await self.extract_text_from_txt_async(file_path)
         else:
             self.logger.log_event(
                 self.agent_id,
@@ -167,12 +470,66 @@ class DocumentProcessor:
                 metadata={"filename": filename}
             )
             return ""
-    
+
+    async def process_multiple_documents_async(self, file_paths_and_names: List[Tuple[str, str]]) -> List[Tuple[bool, str, Dict]]:
+        """Process multiple documents concurrently"""
+        start_time = datetime.now()
+
+        tasks = []
+        for file_path, filename in file_paths_and_names:
+            task = asyncio.create_task(self.process_single_document_async(file_path, filename))
+            tasks.append(task)
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        duration = (datetime.now() - start_time).total_seconds()
+        success_count = sum(1 for r in results if isinstance(r, tuple) and r[0])
+
+        self.logger.log_event(
+            self.agent_id,
+            EventType.TASK_COMPLETE,
+            f"Batch document processing completed",
+            metadata={
+                "total_documents": len(file_paths_and_names),
+                "successful_documents": success_count,
+                "processing_time": duration
+            }
+        )
+
+        return results
+
+    async def process_single_document_async(self, file_path: str, filename: str) -> Tuple[bool, str, Dict]:
+        """Process a single document asynchronously"""
+        try:
+            text = await self.extract_text_async(file_path, filename)
+            if not text:
+                return False, "Could not extract text", {}
+
+            # Prepare metadata
+            file_hash = hashlib.md5(text.encode()).hexdigest()
+            metadata = {
+                'filename': filename,
+                'file_hash': file_hash,
+                'upload_time': datetime.now().isoformat(),
+                'file_size': len(text)
+            }
+
+            # Chunk document
+            chunks = self.chunk_text(text, metadata)
+
+            return True, f"Successfully processed {filename}", {
+                'chunks': chunks,
+                'metadata': metadata
+            }
+
+        except Exception as e:
+            return False, f"Error processing {filename}: {str(e)}", {}
+
     def chunk_text(self, text: str, metadata: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Split text into chunks with metadata"""
         start_time = datetime.now()
         chunks = self.text_splitter.split_text(text)
-        
+
         chunked_docs = []
         for i, chunk in enumerate(chunks):
             if chunk.strip():  # Skip empty chunks
@@ -183,55 +540,94 @@ class DocumentProcessor:
                     'chunk_hash': hashlib.md5(chunk.encode()).hexdigest()
                 })
                 chunked_docs.append(chunk_metadata)
-        
+
         # Track performance
         duration = (datetime.now() - start_time).total_seconds()
         self.monitor.track_task_duration(self.agent_id, "text_chunking", duration * 1000)
-        
-        self.logger.log_event(
-            self.agent_id,
-            EventType.TASK_COMPLETE,
-            f"Text chunking completed",
-            metadata={
-                "chunks_created": len(chunked_docs),
-                "processing_time": duration
-            }
-        )
-        
+
         return chunked_docs
 
 
-class VectorStore:
-    """Qdrant vector database interface with BMasterAI monitoring"""
-    
+class ImprovedVectorStore:
+    """Enhanced Qdrant vector database interface with connection pooling"""
+
     def __init__(self, agent_id: str, config: BMasterAIRAGConfig):
         self.agent_id = agent_id
         self.config = config
-        self.client = QdrantClient(
-            url=config.qdrant_url,
-            api_key=config.qdrant_api_key
-        )
-        self.embedding_model = SentenceTransformer(config.embedding_model)
+        self.embedding_model = CachedEmbeddingModel(config.embedding_model, config.cache_dir)
         self.collection_name = config.collection_name
         self.logger = get_logger()
         self.monitor = get_monitor()
-        
+
+        # Connection pool
+        self.connection_pool = []
+        self.max_connections = 5
+        self._init_connection_pool()
+
         # Initialize collection
         self._init_collection()
-    
+
+    def _init_connection_pool(self):
+        """Initialize connection pool for better performance"""
+        for _ in range(self.max_connections):
+            try:
+                client = QdrantClient(
+                    url=self.config.qdrant_url,
+                    api_key=self.config.qdrant_api_key,
+                    timeout=30
+                )
+                self.connection_pool.append(client)
+            except Exception as e:
+                self.logger.log_event(
+                    self.agent_id,
+                    EventType.TASK_ERROR,
+                    f"Failed to create connection: {e}",
+                    metadata={"error": str(e)}
+                )
+
+    def get_connection(self) -> Optional[QdrantClient]:
+        """Get connection from pool"""
+        if self.connection_pool:
+            return self.connection_pool.pop()
+        else:
+            # Create new connection if pool is empty
+            try:
+                return QdrantClient(
+                    url=self.config.qdrant_url,
+                    api_key=self.config.qdrant_api_key,
+                    timeout=30
+                )
+            except Exception as e:
+                self.logger.log_event(
+                    self.agent_id,
+                    EventType.TASK_ERROR,
+                    f"Failed to create new connection: {e}",
+                    metadata={"error": str(e)}
+                )
+                return None
+
+    def return_connection(self, client: QdrantClient):
+        """Return connection to pool"""
+        if len(self.connection_pool) < self.max_connections:
+            self.connection_pool.append(client)
+
     def _init_collection(self):
         """Initialize Qdrant collection"""
+        client = self.get_connection()
+        if not client:
+            raise Exception("Could not establish connection to Qdrant")
+
         try:
             # Check if collection exists
-            collections = self.client.get_collections()
+            collections = client.get_collections()
             collection_exists = any(
-                col.name == self.collection_name 
+                col.name == self.collection_name
                 for col in collections.collections
             )
-            
+
             if not collection_exists:
                 # Create collection
-                self.client.create_collection(
+                client.create_collection(
                     collection_name=self.collection_name,
                     vectors_config=VectorParams(
                         size=384,  # all-MiniLM-L6-v2 embedding size
@@ -249,7 +645,7 @@ class VectorStore:
                     EventType.AGENT_START,
                     f"Collection {self.collection_name} already exists"
                 )
-                
+
         except Exception as e:
             self.logger.log_event(
                 self.agent_id,
@@ -258,56 +654,72 @@ class VectorStore:
                 metadata={"error": str(e)}
             )
             raise
-    
-    def add_documents(self, documents: List[Dict[str, Any]]) -> bool:
-        """Add documents to vector store"""
+        finally:
+            self.return_connection(client)
+
+    async def add_documents_batch(self, documents: List[Dict[str, Any]], batch_size: int = 100) -> bool:
+        """Add documents to vector store in batches"""
         start_time = datetime.now()
+        client = self.get_connection()
+
+        if not client:
+            return False
+
         try:
-            points = []
-            for doc in documents:
-                # Generate embedding
-                embedding = self.embedding_model.encode(doc['chunk_text'])
-                
-                # Create point
-                point = PointStruct(
-                    id=doc['chunk_hash'],
-                    vector=embedding.tolist(),
-                    payload={
-                        'filename': doc['filename'],
-                        'file_hash': doc['file_hash'],
-                        'chunk_id': doc['chunk_id'],
-                        'chunk_text': doc['chunk_text'],
-                        'upload_time': doc['upload_time'],
-                        'file_size': doc['file_size']
-                    }
+            # Process in batches
+            for i in range(0, len(documents), batch_size):
+                batch = documents[i:i + batch_size]
+
+                # Generate embeddings for batch
+                texts = [doc['chunk_text'] for doc in batch]
+                embeddings = self.embedding_model.encode(texts)
+
+                # Create points
+                points = []
+                for doc, embedding in zip(batch, embeddings):
+                    point = PointStruct(
+                        id=doc['chunk_hash'],
+                        vector=embedding,
+                        payload={
+                            'filename': doc['filename'],
+                            'file_hash': doc['file_hash'],
+                            'chunk_id': doc['chunk_id'],
+                            'chunk_text': doc['chunk_text'],
+                            'upload_time': doc['upload_time'],
+                            'file_size': doc['file_size']
+                        }
+                    )
+                    points.append(point)
+
+                # Insert batch
+                client.upsert(
+                    collection_name=self.collection_name,
+                    points=points
                 )
-                points.append(point)
-            
-            # Insert points
-            self.client.upsert(
-                collection_name=self.collection_name,
-                points=points
-            )
-            
+
+                # Small delay between batches
+                await asyncio.sleep(0.1)
+
             # Track performance
             duration = (datetime.now() - start_time).total_seconds()
             self.monitor.track_task_duration(
                 self.agent_id,
-                "vector_insertion",
+                "vector_insertion_batch",
                 duration * 1000
             )
-            
+
             self.logger.log_event(
                 self.agent_id,
                 EventType.TASK_COMPLETE,
-                f"Added {len(points)} document chunks to vector store",
+                f"Added {len(documents)} document chunks to vector store",
                 metadata={
-                    "chunks_added": len(points),
-                    "processing_time": duration
+                    "chunks_added": len(documents),
+                    "processing_time": duration,
+                    "batches": len(documents) // batch_size + 1
                 }
             )
             return True
-            
+
         except Exception as e:
             self.logger.log_event(
                 self.agent_id,
@@ -317,22 +729,30 @@ class VectorStore:
             )
             self.monitor.track_error(self.agent_id, "vector_insertion_error")
             return False
-    
+        finally:
+            self.return_connection(client)
+
     def search_documents(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
         """Search for similar documents"""
         start_time = datetime.now()
+        client = self.get_connection()
+
+        if not client:
+            return []
+
         try:
             # Generate query embedding
-            query_embedding = self.embedding_model.encode(query)
-            
-            # Search
-            results = self.client.search(
+            query_embedding = self.embedding_model.encode_single(query)
+
+            # Search using the new query_points method
+            search_result = client.query_points(
                 collection_name=self.collection_name,
-                query_vector=query_embedding.tolist(),
+                query=query_embedding,
                 limit=top_k,
                 with_payload=True
             )
-            
+            results = search_result.points
+
             # Format results
             formatted_results = []
             for result in results:
@@ -343,7 +763,7 @@ class VectorStore:
                     'chunk_id': result.payload['chunk_id'],
                     'upload_time': result.payload['upload_time']
                 })
-            
+
             # Track performance
             duration = (datetime.now() - start_time).total_seconds()
             self.monitor.track_task_duration(
@@ -351,7 +771,7 @@ class VectorStore:
                 "vector_search",
                 duration * 1000
             )
-            
+
             self.logger.log_event(
                 self.agent_id,
                 EventType.TASK_COMPLETE,
@@ -362,9 +782,9 @@ class VectorStore:
                     "search_time": duration
                 }
             )
-            
+
             return formatted_results
-            
+
         except Exception as e:
             self.logger.log_event(
                 self.agent_id,
@@ -374,11 +794,17 @@ class VectorStore:
             )
             self.monitor.track_error(self.agent_id, "vector_search_error")
             return []
-    
+        finally:
+            self.return_connection(client)
+
     def get_collection_info(self) -> Dict[str, Any]:
         """Get collection information"""
+        client = self.get_connection()
+        if not client:
+            return {'error': 'No connection available'}
+
         try:
-            info = self.client.get_collection(self.collection_name)
+            info = client.get_collection(self.collection_name)
             return {
                 'status': info.status,
                 'points_count': info.points_count,
@@ -393,17 +819,23 @@ class VectorStore:
                 metadata={"error": str(e)}
             )
             return {'error': str(e)}
-    
+        finally:
+            self.return_connection(client)
+
     def list_documents(self) -> List[Dict[str, Any]]:
         """List all documents in the collection"""
+        client = self.get_connection()
+        if not client:
+            return []
+
         try:
             # Use scroll to get all points
-            result = self.client.scroll(
+            result = client.scroll(
                 collection_name=self.collection_name,
                 limit=1000,  # Adjust based on your needs
                 with_payload=True
             )
-            
+
             documents = {}
             for point in result[0]:
                 filename = point.payload['filename']
@@ -416,9 +848,9 @@ class VectorStore:
                         'chunk_count': 0
                     }
                 documents[filename]['chunk_count'] += 1
-            
+
             return list(documents.values())
-            
+
         except Exception as e:
             self.logger.log_event(
                 self.agent_id,
@@ -427,18 +859,23 @@ class VectorStore:
                 metadata={"error": str(e)}
             )
             return []
+        finally:
+            self.return_connection(client)
 
 
-class AnthropicChat:
-    """Anthropic API interface with BMasterAI monitoring"""
-    
+class ImprovedAnthropicChat:
+    """Enhanced Anthropic API interface with retry logic"""
+
     def __init__(self, agent_id: str, config: BMasterAIRAGConfig):
         self.agent_id = agent_id
         self.config = config
         self.base_url = "https://api.anthropic.com/v1/messages"
         self.logger = get_logger()
         self.monitor = get_monitor()
-    
+
+        # Response cache
+        self.response_cache = dc.Cache(os.path.join(config.cache_dir, "responses"))
+
     def _prepare_headers(self) -> Dict[str, str]:
         """Prepare headers for API request"""
         return {
@@ -446,10 +883,53 @@ class AnthropicChat:
             "x-api-key": self.config.anthropic_api_key,
             "anthropic-version": "2023-06-01"
         }
-    
+
+    def _get_cache_key(self, query: str, context: str) -> str:
+        """Generate cache key for query and context"""
+        combined = f"{query}|{context}"
+        return hashlib.md5(combined.encode()).hexdigest()
+
+    def _make_api_request(self, payload: Dict) -> requests.Response:
+        """Make API request with simple retry logic"""
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                response = requests.post(
+                    self.base_url,
+                    headers=self._prepare_headers(),
+                    json=payload,
+                    timeout=30
+                )
+                return response
+            except (requests.exceptions.RequestException, requests.exceptions.Timeout) as e:
+                if attempt == max_retries - 1:
+                    raise e
+                time.sleep(2 ** attempt)  # Exponential backoff
+        
+    def _make_api_request_original(self, payload: Dict) -> requests.Response:
+        """Make API request with retry logic"""
+        return requests.post(
+            self.base_url,
+            headers=self._prepare_headers(),
+            json=payload,
+            timeout=60
+        )
+
     def generate_response(self, query: str, context: str) -> str:
-        """Generate response using context and query"""
+        """Generate response using context and query with caching"""
         start_time = datetime.now()
+
+        # Check cache first
+        cache_key = self._get_cache_key(query, context)
+        if cache_key in self.response_cache:
+            self.logger.log_event(
+                self.agent_id,
+                EventType.LLM_RESPONSE,
+                f"Cache hit for query",
+                metadata={"query_length": len(query), "cached": True}
+            )
+            return self.response_cache[cache_key]
+
         try:
             # Prepare context-aware prompt
             prompt = f"""Context from documents:
@@ -458,7 +938,7 @@ class AnthropicChat:
 User question: {query}
 
 Please answer the question based on the provided context. If the answer isn't in the context, say so clearly."""
-            
+
             # Prepare request payload
             payload = {
                 "model": self.config.model_name,
@@ -469,7 +949,7 @@ Please answer the question based on the provided context. If the answer isn't in
                     {"role": "user", "content": prompt}
                 ]
             }
-            
+
             self.logger.log_event(
                 self.agent_id,
                 EventType.LLM_REQUEST,
@@ -480,19 +960,17 @@ Please answer the question based on the provided context. If the answer isn't in
                     "context_length": len(context)
                 }
             )
-            
-            # Make API request
-            response = requests.post(
-                self.base_url,
-                headers=self._prepare_headers(),
-                json=payload,
-                timeout=30
-            )
-            
+
+            # Make API request with retry
+            response = self._make_api_request(payload)
+
             if response.status_code == 200:
                 result = response.json()
                 answer = result["content"][0]["text"]
-                
+
+                # Cache the response
+                self.response_cache[cache_key] = answer
+
                 # Track performance and usage
                 duration = (datetime.now() - start_time).total_seconds()
                 self.monitor.track_task_duration(
@@ -500,7 +978,7 @@ Please answer the question based on the provided context. If the answer isn't in
                     "llm_response_generation",
                     duration * 1000
                 )
-                
+
                 # Track LLM usage
                 usage = result.get("usage", {})
                 if usage:
@@ -510,7 +988,7 @@ Please answer the question based on the provided context. If the answer isn't in
                         usage.get("input_tokens", 0),
                         usage.get("output_tokens", 0)
                     )
-                
+
                 self.logger.log_event(
                     self.agent_id,
                     EventType.LLM_RESPONSE,
@@ -518,10 +996,11 @@ Please answer the question based on the provided context. If the answer isn't in
                     metadata={
                         "response_length": len(answer),
                         "generation_time": duration,
-                        "usage": usage
+                        "usage": usage,
+                        "cached": False
                     }
                 )
-                
+
                 return answer
             else:
                 error_msg = f"API Error {response.status_code}: {response.text}"
@@ -533,7 +1012,7 @@ Please answer the question based on the provided context. If the answer isn't in
                 )
                 self.monitor.track_error(self.agent_id, "llm_api_error")
                 return f"Error: {error_msg}"
-                
+
         except Exception as e:
             self.logger.log_event(
                 self.agent_id,
@@ -545,111 +1024,192 @@ Please answer the question based on the provided context. If the answer isn't in
             return f"Error generating response: {str(e)}"
 
 
-class BMasterAIRAGSystem:
-    """Main RAG system combining all components with BMasterAI framework"""
-    
+class EnhancedBMasterAIRAGSystem:
+    """Enhanced main RAG system with async processing and performance improvements"""
+
     def __init__(self, config: BMasterAIRAGConfig):
         self.config = config
         self.agent_id = "rag-system-001"
-        
+
         # Initialize BMasterAI components
         self.logger = get_logger()
         self.monitor = get_monitor()
         self.integration_manager = get_integration_manager()
-        
+
         # Start monitoring
         self.monitor.start_monitoring()
-        
+
         # Register agent
         self.monitor.track_agent_start(self.agent_id)
-        
-        # Initialize RAG components
-        self.doc_processor = DocumentProcessor(self.agent_id, config.chunk_size, config.chunk_overlap)
-        self.vector_store = VectorStore(self.agent_id, config)
-        self.chat = AnthropicChat(self.agent_id, config)
-        
+
+        # Initialize enhanced RAG components
+        self.doc_processor = AsyncDocumentProcessor(
+            self.agent_id,
+            config.chunk_size,
+            config.chunk_overlap,
+            max_workers=config.max_concurrent_uploads
+        )
+        self.vector_store = ImprovedVectorStore(self.agent_id, config)
+        self.chat = ImprovedAnthropicChat(self.agent_id, config)
+
         # Session tracking
         self.session_stats = {
             'documents_uploaded': 0,
             'queries_processed': 0,
+            'cache_hits': 0,
             'start_time': datetime.now().isoformat()
         }
-        
+
+        # Performance metrics
+        self.performance_metrics = {
+            'avg_upload_time': 0.0,
+            'avg_query_time': 0.0,
+            'success_rate': 100.0,
+            'total_errors': 0
+        }
+
         self.logger.log_event(
             self.agent_id,
             EventType.AGENT_START,
-            f"BMasterAI RAG System initialized",
+            f"Enhanced BMasterAI RAG System initialized",
             metadata={
                 "agent_id": self.agent_id,
                 "model": config.model_name,
-                "embedding_model": config.embedding_model
+                "embedding_model": config.embedding_model,
+                "async_enabled": True,
+                "caching_enabled": True
             }
         )
-    
-    def upload_document(self, file_path: str, filename: str) -> Tuple[bool, str]:
-        """Upload and process a document"""
+
+    async def upload_documents_async(self, file_paths_and_names: List[Tuple[str, str]]) -> Tuple[int, int, List[str]]:
+        """Upload multiple documents asynchronously"""
         start_time = datetime.now()
+
+        self.logger.log_event(
+            self.agent_id,
+            EventType.TASK_START,
+            f"Starting batch document upload: {len(file_paths_and_names)} files",
+            metadata={"file_count": len(file_paths_and_names)}
+        )
+
+        # Process documents concurrently
+        results = await self.doc_processor.process_multiple_documents_async(file_paths_and_names)
+
+        # Collect all chunks for batch insertion
+        all_chunks = []
+        success_count = 0
+        error_messages = []
+
+        for result in results:
+            if isinstance(result, Exception):
+                error_messages.append(f"Exception: {str(result)}")
+            elif result[0]:  # Success
+                success_count += 1
+                all_chunks.extend(result[2]['chunks'])
+            else:  # Failed
+                error_messages.append(result[1])
+
+        # Batch insert all chunks
+        if all_chunks:
+            insert_success = await self.vector_store.add_documents_batch(all_chunks)
+            if not insert_success:
+                error_messages.append("Failed to insert chunks into vector store")
+                success_count = 0
+
+        # Update session stats
+        self.session_stats['documents_uploaded'] += success_count
+
+        # Update performance metrics
+        duration = (datetime.now() - start_time).total_seconds()
+        self.performance_metrics['avg_upload_time'] = (
+            (self.performance_metrics['avg_upload_time'] + duration) / 2
+            if self.performance_metrics['avg_upload_time'] > 0 else duration
+        )
+
+        if len(file_paths_and_names) > 0:
+            self.performance_metrics['success_rate'] = (success_count / len(file_paths_and_names)) * 100
+
+        self.monitor.track_task_duration(
+            self.agent_id,
+            "batch_document_upload",
+            duration * 1000
+        )
+
+        self.logger.log_event(
+            self.agent_id,
+            EventType.TASK_COMPLETE,
+            f"Batch document upload completed",
+            metadata={
+                "total_files": len(file_paths_and_names),
+                "successful_files": success_count,
+                "total_chunks": len(all_chunks),
+                "processing_time": duration,
+                "success_rate": self.performance_metrics['success_rate']
+            }
+        )
+
+        # Send notification if configured
+        if success_count > 0:
+            self.integration_manager.send_notification(
+                f"✅ Batch upload completed: {success_count}/{len(file_paths_and_names)} files\n"
+                f"📊 Total chunks created: {len(all_chunks)}\n"
+                f"⏱️ Processing time: {duration:.2f}s"
+            )
+
+        return success_count, len(file_paths_and_names), error_messages
+
+    async def upload_document_async(self, file_path: str, filename: str) -> Tuple[bool, str]:
+        """Upload and process a single document asynchronously"""
+        start_time = datetime.now()
+
         try:
+            # Validate file
+            if not self._validate_file(file_path, filename):
+                return False, "File validation failed"
+
             self.logger.log_event(
                 self.agent_id,
                 EventType.TASK_START,
                 f"Starting document upload: {filename}",
                 metadata={"filename": filename}
             )
-            
-            # Extract text
-            text = self.doc_processor.extract_text(file_path, filename)
-            if not text:
-                return False, "Could not extract text from document"
-            
-            # Prepare metadata
-            file_hash = hashlib.md5(text.encode()).hexdigest()
-            metadata = {
-                'filename': filename,
-                'file_hash': file_hash,
-                'upload_time': datetime.now().isoformat(),
-                'file_size': len(text)
-            }
-            
-            # Chunk document
-            chunks = self.doc_processor.chunk_text(text, metadata)
-            if not chunks:
-                return False, "Could not chunk document"
-            
+
+            # Process document
+            success, message, data = await self.doc_processor.process_single_document_async(file_path, filename)
+
+            if not success:
+                return False, message
+
             # Add to vector store
-            success = self.vector_store.add_documents(chunks)
-            
-            if success:
-                self.session_stats['documents_uploaded'] += 1
-                duration = (datetime.now() - start_time).total_seconds()
-                
-                self.monitor.track_task_duration(
-                    self.agent_id,
-                    "document_upload",
-                    duration * 1000
-                )
-                
-                self.logger.log_event(
-                    self.agent_id,
-                    EventType.TASK_COMPLETE,
-                    f"Document upload completed: {filename}",
-                    metadata={
-                        "filename": filename,
-                        "chunks": len(chunks),
-                        "processing_time": duration
-                    }
-                )
-                
-                # Send notification if configured
-                self.integration_manager.send_notification(
-                    f"✅ Document uploaded successfully: {filename}\n"
-                    f"📊 Chunks created: {len(chunks)}"
-                )
-                
-                return True, f"Successfully uploaded {filename} with {len(chunks)} chunks"
-            else:
-                return False, "Failed to add document to vector store"
-                
+            chunks = data['chunks']
+            if chunks:
+                insert_success = await self.vector_store.add_documents_batch(chunks)
+                if not insert_success:
+                    return False, "Failed to add document to vector store"
+
+            # Update stats
+            self.session_stats['documents_uploaded'] += 1
+            duration = (datetime.now() - start_time).total_seconds()
+
+            self.monitor.track_task_duration(
+                self.agent_id,
+                "single_document_upload",
+                duration * 1000
+            )
+
+            self.logger.log_event(
+                self.agent_id,
+                EventType.TASK_COMPLETE,
+                f"Document upload completed: {filename}",
+                metadata={
+                    "filename": filename,
+                    "chunks": len(chunks),
+                    "processing_time": duration
+                }
+            )
+
+            return True, f"Successfully uploaded {filename} with {len(chunks)} chunks"
+
         except Exception as e:
             self.logger.log_event(
                 self.agent_id,
@@ -658,11 +1218,45 @@ class BMasterAIRAGSystem:
                 metadata={"filename": filename, "error": str(e)}
             )
             self.monitor.track_error(self.agent_id, "document_upload_error")
+            self.performance_metrics['total_errors'] += 1
             return False, f"Error uploading document: {str(e)}"
-    
+
+    def _validate_file(self, file_path: str, filename: str) -> bool:
+        """Validate uploaded file"""
+        try:
+            # Check file exists
+            if not os.path.exists(file_path):
+                return False
+
+            # Check file size
+            file_size = os.path.getsize(file_path)
+            if file_size > self.config.max_file_size:
+                return False
+
+            # Check file extension
+            allowed_extensions = ['.pdf', '.docx', '.txt']
+            file_ext = os.path.splitext(filename)[1].lower()
+            if file_ext not in allowed_extensions:
+                return False
+
+            return True
+
+        except Exception:
+            return False
+
     def search_and_answer(self, query: str) -> Tuple[str, List[Dict[str, Any]]]:
         """Search documents and generate answer"""
+        # Debug: Check what type of query we're receiving
+        print(f"DEBUG: search_and_answer received query type: {type(query)}, value: {repr(query)}")
+        
+        # Handle case where query might be a Gradio component
+        if hasattr(query, 'value'):
+            query = query.value
+        elif not isinstance(query, str):
+            query = str(query)
+            
         start_time = datetime.now()
+
         try:
             self.logger.log_event(
                 self.agent_id,
@@ -670,38 +1264,49 @@ class BMasterAIRAGSystem:
                 f"Processing query: {query[:100]}...",
                 metadata={"query_length": len(query)}
             )
-            
+
             # Search for relevant documents
             search_results = self.vector_store.search_documents(
-                query, 
+                query,
                 top_k=self.config.top_k
             )
-            
+
             if not search_results:
                 return "No relevant documents found for your query.", []
-            
+
+            # Filter by similarity threshold
+            filtered_results = [
+                result for result in search_results
+                if result['score'] >= self.config.similarity_threshold
+            ]
+
+            if not filtered_results:
+                return "No sufficiently relevant documents found for your query.", search_results
+
             # Prepare context
             context = "\n\n".join([
                 f"Document: {result['filename']}\n{result['text']}"
-                for result in search_results
-                if result['score'] >= self.config.similarity_threshold
+                for result in filtered_results
             ])
-            
-            if not context:
-                return "No sufficiently relevant documents found for your query.", search_results
-            
+
             # Generate response
             response = self.chat.generate_response(query, context)
-            
+
+            # Update stats
             self.session_stats['queries_processed'] += 1
             duration = (datetime.now() - start_time).total_seconds()
-            
+
+            self.performance_metrics['avg_query_time'] = (
+                (self.performance_metrics['avg_query_time'] + duration) / 2
+                if self.performance_metrics['avg_query_time'] > 0 else duration
+            )
+
             self.monitor.track_task_duration(
                 self.agent_id,
                 "query_processing",
                 duration * 1000
             )
-            
+
             self.logger.log_event(
                 self.agent_id,
                 EventType.TASK_COMPLETE,
@@ -710,12 +1315,12 @@ class BMasterAIRAGSystem:
                     "query_length": len(query),
                     "response_length": len(response),
                     "processing_time": duration,
-                    "documents_used": len(search_results)
+                    "documents_used": len(filtered_results)
                 }
             )
-            
+
             return response, search_results
-            
+
         except Exception as e:
             self.logger.log_event(
                 self.agent_id,
@@ -724,16 +1329,18 @@ class BMasterAIRAGSystem:
                 metadata={"error": str(e)}
             )
             self.monitor.track_error(self.agent_id, "query_processing_error")
+            self.performance_metrics['total_errors'] += 1
             return f"Error processing query: {str(e)}", []
-    
+
     def get_system_status(self) -> Dict[str, Any]:
-        """Get system status information"""
+        """Get enhanced system status information"""
         try:
             collection_info = self.vector_store.get_collection_info()
             agent_dashboard = self.monitor.get_agent_dashboard(self.agent_id)
-            
+
             return {
                 'session_stats': self.session_stats,
+                'performance_metrics': self.performance_metrics,
                 'collection_info': collection_info,
                 'agent_performance': agent_dashboard,
                 'system_health': self.monitor.get_system_health(),
@@ -742,63 +1349,69 @@ class BMasterAIRAGSystem:
                     'embedding_model': self.config.embedding_model,
                     'collection_name': self.config.collection_name,
                     'chunk_size': self.config.chunk_size,
-                    'top_k': self.config.top_k
+                    'top_k': self.config.top_k,
+                    'max_concurrent_uploads': self.config.max_concurrent_uploads,
+                    'caching_enabled': True
                 }
             }
         except Exception as e:
             return {'error': str(e)}
-    
+
     def shutdown(self):
         """Gracefully shutdown the RAG system"""
         self.monitor.track_agent_stop(self.agent_id)
         self.monitor.stop_monitoring()
-        
+
+        # Close executor
+        if hasattr(self.doc_processor, 'executor'):
+            self.doc_processor.executor.shutdown(wait=True)
+
         self.logger.log_event(
             self.agent_id,
             EventType.AGENT_STOP,
-            f"BMasterAI RAG System shutdown",
+            f"Enhanced BMasterAI RAG System shutdown",
             metadata={
                 "total_documents": self.session_stats['documents_uploaded'],
-                "total_queries": self.session_stats['queries_processed']
+                "total_queries": self.session_stats['queries_processed'],
+                "total_errors": self.performance_metrics['total_errors']
             }
         )
 
 
 class BMasterAIRAGApp:
-    """Gradio application for RAG system with BMasterAI framework"""
-    
+    """Complete Gradio application for RAG system with BMasterAI framework"""
+
     def __init__(self):
         # Configure BMasterAI logging
-        configure_logging(
-            log_level=LogLevel.INFO,
-            enable_json=os.getenv("ENABLE_JSON_LOGS", "false").lower() == "true",
-            enable_file=os.getenv("ENABLE_FILE_LOGS", "true").lower() == "true"
-        )
-        
-        # Initialize configuration
-        self.config = BMasterAIRAGConfig(
-            anthropic_api_key=os.getenv("ANTHROPIC_API_KEY", ""),
-            qdrant_url=os.getenv("QDRANT_URL", "http://localhost:6333"),
-            qdrant_api_key=os.getenv("QDRANT_API_KEY"),
-            model_name=os.getenv("MODEL_NAME", "claude-3-5-sonnet-20241022"),
-            embedding_model=os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2"),
-            collection_name=os.getenv("COLLECTION_NAME", "bmasterai_documents"),
-            max_tokens=int(os.getenv("MAX_TOKENS", "4096")),
-            temperature=float(os.getenv("TEMPERATURE", "0.7")),
-            chunk_size=int(os.getenv("CHUNK_SIZE", "1000")),
-            chunk_overlap=int(os.getenv("CHUNK_OVERLAP", "200")),
-            top_k=int(os.getenv("TOP_K", "5")),
-            similarity_threshold=float(os.getenv("SIMILARITY_THRESHOLD", "0.7"))
-        )
-        
+        try:
+            configure_logging()
+        except Exception as e:
+            print(f"⚠️  Could not configure BMasterAI logging: {e}")
+            # Fall back to basic Python logging
+            import logging
+            logging.basicConfig(
+                level=logging.INFO,
+                format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            )
+
+        # Initialize configuration from environment variables
+        self.config = BMasterAIRAGConfig()
+
         # Setup integrations if configured
+        self._setup_integrations()
+
+        # Initialize RAG system
+        self._initialize_rag_system()
+
+    def _setup_integrations(self):
+        """Setup external integrations"""
         integration_manager = get_integration_manager()
-        
+
         # Add Slack integration if configured
         if os.getenv("SLACK_WEBHOOK_URL"):
             slack = SlackConnector(webhook_url=os.getenv("SLACK_WEBHOOK_URL"))
             integration_manager.add_connector("slack", slack)
-        
+
         # Add email integration if configured
         if os.getenv("SMTP_SERVER") and os.getenv("SMTP_USERNAME"):
             email = EmailConnector(
@@ -808,125 +1421,172 @@ class BMasterAIRAGApp:
                 password=os.getenv("SMTP_PASSWORD")
             )
             integration_manager.add_connector("email", email)
-        
-        # Initialize RAG system
+
+    def _initialize_rag_system(self):
+        """Initialize the RAG system"""
         try:
-            self.rag_system = BMasterAIRAGSystem(self.config)
-            self.system_status = "✅ System initialized successfully"
+            self.rag_system = EnhancedBMasterAIRAGSystem(self.config)
+            self.system_status = "✅ Enhanced RAG System Initialized with BMasterAI Framework"
         except Exception as e:
-            self.system_status = f"❌ System initialization failed: {str(e)}"
+            get_logger().log_event(
+                "app",
+                EventType.TASK_ERROR,
+                f"Failed to initialize RAG system: {e}",
+                metadata={"error": str(e)}
+            )
+            self.system_status = f"❌ System Error: {e}"
             self.rag_system = None
-    
+
     def upload_file(self, file) -> str:
-        """Handle file upload"""
+        """Handle single file upload"""
         if not self.rag_system:
             return "❌ System not initialized"
-        
+
         if file is None:
             return "❌ No file selected"
-        
+
         try:
-            # Get file info
             filename = os.path.basename(file.name)
             file_path = file.name
-            
+
             # Check file type
             allowed_extensions = ['.pdf', '.docx', '.txt']
             file_ext = os.path.splitext(filename)[1].lower()
-            
+
             if file_ext not in allowed_extensions:
                 return f"❌ Unsupported file type: {file_ext}. Supported: {', '.join(allowed_extensions)}"
-            
-            # Upload document
-            success, message = self.rag_system.upload_document(file_path, filename)
-            
-            if success:
-                return f"✅ {message}"
-            else:
-                return f"❌ {message}"
-                
+
+            # Use async upload with asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+            try:
+                success, message = loop.run_until_complete(
+                    self.rag_system.upload_document_async(file_path, filename)
+                )
+
+                if success:
+                    return f"✅ {message}"
+                else:
+                    return f"❌ {message}"
+            finally:
+                loop.close()
+
         except Exception as e:
             return f"❌ Error uploading file: {str(e)}"
-    
+
     def upload_multiple_files(self, files) -> str:
         """Handle multiple file uploads"""
         if not self.rag_system:
             return "❌ System not initialized"
-        
+
         if not files:
             return "❌ No files selected"
-        
-        results = []
-        success_count = 0
-        
-        for file in files:
-            try:
+
+        try:
+            # Prepare file paths and names
+            file_paths_and_names = []
+            invalid_files = []
+
+            for file in files:
                 filename = os.path.basename(file.name)
                 file_path = file.name
-                
+
                 # Check file type
                 allowed_extensions = ['.pdf', '.docx', '.txt']
                 file_ext = os.path.splitext(filename)[1].lower()
-                
+
                 if file_ext not in allowed_extensions:
-                    results.append(f"❌ {filename}: Unsupported file type")
+                    invalid_files.append(f"❌ {filename}: Unsupported file type")
                     continue
-                
-                # Upload document
-                success, message = self.rag_system.upload_document(file_path, filename)
-                
-                if success:
-                    results.append(f"✅ {filename}: {message}")
-                    success_count += 1
-                else:
-                    results.append(f"❌ {filename}: {message}")
-                    
-            except Exception as e:
-                results.append(f"❌ {filename}: Error - {str(e)}")
+
+                file_paths_and_names.append((file_path, filename))
+
+            if not file_paths_and_names:
+                return "❌ No valid files to upload"
+
+            # Use async batch upload
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+            try:
+                success_count, total_count, error_messages = loop.run_until_complete(
+                    self.rag_system.upload_documents_async(file_paths_and_names)
+                )
+
+                results = []
+                results.append(f"📊 Summary: {success_count}/{total_count} files uploaded successfully")
+
+                if invalid_files:
+                    results.extend(invalid_files)
+
+                if error_messages:
+                    results.extend([f"❌ {msg}" for msg in error_messages])
+
+                if success_count > 0:
+                    results.append(f"✅ {success_count} files processed successfully")
+
+                return "\n".join(results)
+            finally:
+                loop.close()
+
+        except Exception as e:
+            return f"❌ Error uploading files: {str(e)}"
+
+    def chat_interface(self, message: str, history: List[Dict[str, str]]) -> Tuple[str, List[Dict[str, str]]]:
+        """Enhanced chat interface for questions"""
+        # Debug: Check what type of message we're receiving
+        print(f"DEBUG: chat_interface received message type: {type(message)}, value: {repr(message)}")
         
-        summary = f"\n📊 Summary: {success_count}/{len(files)} files uploaded successfully\n\n"
-        return summary + "\n".join(results)
-    
-    def chat_interface(self, message: str, history: List[List[str]]) -> Tuple[str, List[List[str]]]:
-        """Chat interface for questions"""
+        # Handle case where message might be a Gradio component
+        if hasattr(message, 'value'):
+            message = message.value
+        elif not isinstance(message, str):
+            message = str(message)
+        
         if not self.rag_system:
-            history.append([message, "❌ System not initialized"])
+            history.append({"role": "user", "content": message})
+            history.append({"role": "assistant", "content": "❌ System not initialized"})
             return "", history
-        
+
         if not message.strip():
             return "", history
-        
+
         try:
+            # Add user message to history
+            history.append({"role": "user", "content": message})
+            
             # Get answer from RAG system
             answer, sources = self.rag_system.search_and_answer(message)
-            
+
             # Format response with sources
             if sources:
                 source_info = f"\n\n📚 **Sources ({len(sources)} documents):**\n"
                 for i, source in enumerate(sources[:3], 1):  # Show top 3 sources
                     source_info += f"{i}. **{source['filename']}** (Score: {source['score']:.3f})\n"
                     source_info += f"   {source['text'][:150]}...\n\n"
-                
+
                 full_response = answer + source_info
             else:
                 full_response = answer
-            
-            history.append([message, full_response])
+
+            # Add assistant response to history
+            history.append({"role": "assistant", "content": full_response})
             return "", history
-            
+
         except Exception as e:
             error_response = f"❌ Error processing question: {str(e)}"
-            history.append([message, error_response])
+            history.append({"role": "assistant", "content": error_response})
             return "", history
-    
+
     def get_system_status(self) -> str:
         """Get formatted system status"""
         if not self.rag_system:
             return "❌ System not initialized"
-        
+
         try:
             status = self.rag_system.get_system_status()
-            
+
             status_text = f"""
 ## 🖥️ System Status: {self.system_status}
 
@@ -934,6 +1594,12 @@ class BMasterAIRAGApp:
 - **Documents Uploaded**: {status['session_stats']['documents_uploaded']}
 - **Queries Processed**: {status['session_stats']['queries_processed']}
 - **Session Started**: {status['session_stats']['start_time']}
+
+### ⚡ Performance Metrics:
+- **Average Upload Time**: {status['performance_metrics']['avg_upload_time']:.2f}s
+- **Average Query Time**: {status['performance_metrics']['avg_query_time']:.2f}s
+- **Success Rate**: {status['performance_metrics']['success_rate']:.1f}%
+- **Total Errors**: {status['performance_metrics']['total_errors']}
 
 ### 📚 Collection Information:
 - **Status**: {status['collection_info'].get('status', 'Unknown')}
@@ -946,74 +1612,77 @@ class BMasterAIRAGApp:
 - **Collection**: {status['config']['collection_name']}
 - **Chunk Size**: {status['config']['chunk_size']}
 - **Top-K Results**: {status['config']['top_k']}
+- **Max Concurrent Uploads**: {status['config']['max_concurrent_uploads']}
+- **Caching**: {'✅ Enabled' if status['config']['caching_enabled'] else '❌ Disabled'}
 
 ### 🔗 System Health:
 - **Active Agents**: {status['system_health'].get('active_agents', 0)}
 - **Total Agents**: {status['system_health'].get('total_agents', 0)}
 """
-            
+
             return status_text
-            
+
         except Exception as e:
             return f"❌ Error getting system status: {str(e)}"
-    
+
     def list_documents(self) -> str:
         """List all uploaded documents"""
         if not self.rag_system:
             return "❌ System not initialized"
-        
+
         try:
             documents = self.rag_system.vector_store.list_documents()
-            
+
             if not documents:
                 return "📚 No documents uploaded yet"
-            
+
             doc_list = "📚 **Uploaded Documents:**\n\n"
             for i, doc in enumerate(documents, 1):
                 doc_list += f"{i}. **{doc['filename']}**\n"
                 doc_list += f"   - Chunks: {doc['chunk_count']}\n"
                 doc_list += f"   - Size: {doc['file_size']} characters\n"
                 doc_list += f"   - Uploaded: {doc['upload_time']}\n\n"
-            
+
             return doc_list
-            
+
         except Exception as e:
             return f"❌ Error listing documents: {str(e)}"
-    
+
     def search_documents(self, query: str) -> str:
         """Search documents without generating answer"""
         if not self.rag_system:
             return "❌ System not initialized"
-        
+
         if not query.strip():
             return "❌ Please enter a search query"
-        
+
         try:
             results = self.rag_system.vector_store.search_documents(query, top_k=10)
-            
+
             if not results:
                 return "🔍 No relevant documents found"
-            
+
             search_results = f"🔍 **Search Results for:** {query}\n\n"
             for i, result in enumerate(results, 1):
                 search_results += f"{i}. **{result['filename']}** (Score: {result['score']:.3f})\n"
                 search_results += f"   {result['text'][:200]}...\n\n"
-            
+
             return search_results
-            
+
         except Exception as e:
             return f"❌ Error searching documents: {str(e)}"
-    
+
     def get_performance_metrics(self) -> str:
-        """Get performance metrics"""
+        """Get enhanced performance metrics"""
         if not self.rag_system:
             return "❌ System not initialized"
-        
+
         try:
             dashboard = self.rag_system.monitor.get_agent_dashboard(self.rag_system.agent_id)
-            
+
             metrics_text = "📈 **Performance Metrics:**\n\n"
-            
+
+            # Task performance
             if dashboard.get('performance'):
                 for task_name, metrics in dashboard['performance'].items():
                     metrics_text += f"**{task_name.replace('_', ' ').title()}:**\n"
@@ -1021,19 +1690,43 @@ class BMasterAIRAGApp:
                     metrics_text += f"- Min Duration: {metrics.get('min_duration_ms', 0):.2f}ms\n"
                     metrics_text += f"- Max Duration: {metrics.get('max_duration_ms', 0):.2f}ms\n"
                     metrics_text += f"- Total Calls: {metrics.get('total_calls', 0)}\n\n"
-            
+
+            # System metrics
             metrics_text += f"**System Metrics:**\n"
             metrics_text += f"- Total Errors: {dashboard.get('metrics', {}).get('total_errors', 0)}\n"
             metrics_text += f"- Agent Status: {dashboard.get('status', 'Unknown')}\n"
-            
+
+            # Cache performance
+            metrics_text += f"- Cache Performance: Enabled\n"
+            metrics_text += f"- Async Processing: Enabled\n"
+
             return metrics_text
-            
+
         except Exception as e:
             return f"❌ Error getting performance metrics: {str(e)}"
-    
+
+    def clear_cache(self) -> str:
+        """Clear system caches"""
+        if not self.rag_system:
+            return "❌ System not initialized"
+
+        try:
+            # Clear embedding cache
+            if hasattr(self.rag_system.vector_store.embedding_model, 'cache'):
+                self.rag_system.vector_store.embedding_model.cache.clear()
+
+            # Clear response cache
+            if hasattr(self.rag_system.chat, 'response_cache'):
+                self.rag_system.chat.response_cache.clear()
+
+            return "✅ Cache cleared successfully"
+
+        except Exception as e:
+            return f"❌ Error clearing cache: {str(e)}"
+
     def create_interface(self) -> gr.Blocks:
-        """Create the complete Gradio interface"""
-        
+        """Create the complete enhanced Gradio interface"""
+
         # Custom CSS for better styling
         custom_css = """
         .gradio-container {
@@ -1063,24 +1756,31 @@ class BMasterAIRAGApp:
             border: 2px dashed #28a745;
             margin: 10px 0;
         }
+        .performance-box {
+            background-color: #fff3cd;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #ffc107;
+            margin: 10px 0;
+        }
         """
-        
-        with gr.Blocks(css=custom_css, title="BMasterAI RAG System", theme=gr.themes.Soft()) as demo:
-            
+
+        with gr.Blocks(css=custom_css, title="Enhanced BMasterAI RAG System", theme=gr.themes.Soft()) as demo:
+
             # Header
             gr.HTML("""
             <div class="header-text">
-                🧠 BMasterAI RAG System
+            🧠 Enhanced BMasterAI RAG System
             </div>
             <div style="text-align: center; margin-bottom: 30px;">
-                <p style="font-size: 1.2em; color: #666;">
-                    Advanced Document Q&A with Qdrant Vector Database & Anthropic Claude
-                </p>
+            <p style="font-size: 1.2em; color: #666;">
+            Advanced Document Q&A with Async Processing, Caching & Performance Optimization
+            </p>
             </div>
             """)
-            
+
             with gr.Tabs():
-                
+
                 # Chat Tab
                 with gr.TabItem("💬 Chat with Documents", elem_id="chat-tab"):
                     with gr.Row():
@@ -1090,9 +1790,9 @@ class BMasterAIRAGApp:
                                 height=500,
                                 show_label=True,
                                 elem_id="chatbot",
-                                bubble_full_width=False
+                                type="messages"
                             )
-                            
+
                             with gr.Row():
                                 msg = gr.Textbox(
                                     label="Ask a question about your documents",
@@ -1101,30 +1801,29 @@ class BMasterAIRAGApp:
                                     scale=4
                                 )
                                 submit_btn = gr.Button("Ask", variant="primary", scale=1)
-                            
+
                             with gr.Row():
                                 clear_btn = gr.Button("Clear Chat", variant="secondary")
                                 example_btn = gr.Button("Example Questions", variant="secondary")
-                        
+
                         with gr.Column(scale=1):
                             gr.HTML("<h3>💡 Quick Actions</h3>")
-                            
+
                             # Example questions
                             with gr.Accordion("Example Questions", open=True):
                                 example_questions = [
-                                    "What are the main topics in the documents?",
-                                    "Summarize the key findings",
-                                    "What are the recommendations?",
-                                    "Are there any important dates or deadlines?"
+                                    "What information is in the database"                             
                                 ]
-                                
+
                                 for question in example_questions:
                                     example_q_btn = gr.Button(f"❓ {question}", size="sm")
+                                    # Just set the question text in the input box
                                     example_q_btn.click(
-                                        lambda q=question: (q, []),
-                                        outputs=[msg, chatbot]
+                                        fn=lambda q=question: q,
+                                        inputs=None,
+                                        outputs=[msg]
                                     )
-                            
+
                             # Quick search
                             with gr.Accordion("Quick Search", open=False):
                                 search_input = gr.Textbox(
@@ -1134,19 +1833,20 @@ class BMasterAIRAGApp:
                                 )
                                 search_btn = gr.Button("Search", size="sm")
                                 search_results = gr.Markdown("Search results will appear here...")
-                
+
                 # Document Upload Tab
                 with gr.TabItem("📁 Upload Documents", elem_id="upload-tab"):
                     with gr.Row():
                         with gr.Column():
                             gr.HTML("""
                             <div class="upload-box">
-                                <h3>📤 Upload Your Documents</h3>
-                                <p>Supported formats: PDF, DOCX, TXT</p>
-                                <p>Upload individual files or multiple files at once</p>
+                            <h3>📤 Upload Your Documents</h3>
+                            <p>Supported formats: PDF, DOCX, TXT</p>
+                            <p>Enhanced with async processing and batch uploads</p>
+                            <p>Maximum file size: 50MB per file</p>
                             </div>
                             """)
-                            
+
                             # Single file upload
                             with gr.Group():
                                 gr.HTML("<h4>Single File Upload</h4>")
@@ -1157,10 +1857,10 @@ class BMasterAIRAGApp:
                                 )
                                 single_upload_btn = gr.Button("Upload File", variant="primary")
                                 single_result = gr.Textbox(label="Upload Result", interactive=False, lines=3)
-                            
+
                             # Multiple file upload
                             with gr.Group():
-                                gr.HTML("<h4>Multiple File Upload</h4>")
+                                gr.HTML("<h4>Batch File Upload (Async)</h4>")
                                 multiple_files = gr.File(
                                     label="Choose multiple documents",
                                     file_count="multiple",
@@ -1169,264 +1869,167 @@ class BMasterAIRAGApp:
                                 )
                                 multiple_upload_btn = gr.Button("Upload All Files", variant="primary")
                                 multiple_result = gr.Textbox(label="Upload Results", interactive=False, lines=8)
-                        
+
                         with gr.Column():
                             gr.HTML("<h3>📚 Document Library</h3>")
-                            
+
                             document_list = gr.Markdown("Loading document list...")
                             refresh_docs_btn = gr.Button("Refresh Document List")
-                            
+
                             gr.HTML("<h3>📊 Upload Statistics</h3>")
                             upload_stats = gr.Markdown("Loading statistics...")
                             refresh_stats_btn = gr.Button("Refresh Statistics")
-                
+
+                            # Cache management
+                            gr.HTML("<h3>⚡ Cache Management</h3>")
+                            cache_info = gr.Markdown("Cache status: Enabled")
+                            clear_cache_btn = gr.Button("Clear Cache", variant="secondary")
+                            cache_result = gr.Textbox(label="Cache Result", interactive=False, lines=2)
+
                 # System Status Tab
                 with gr.TabItem("🖥️ System Status", elem_id="status-tab"):
-                    with gr.Row():
-                        with gr.Column():
-                            system_status_display = gr.Markdown("Loading system status...")
-                            refresh_status_btn = gr.Button("Refresh Status", variant="primary")
-                        
-                        with gr.Column():
-                            performance_metrics = gr.Markdown("Loading performance metrics...")
-                            refresh_metrics_btn = gr.Button("Refresh Metrics", variant="primary")
-                
-                # Configuration Tab
-                with gr.TabItem("⚙️ Configuration", elem_id="config-tab"):
-                    with gr.Row():
-                        with gr.Column():
-                            gr.HTML("<h3>🔧 System Configuration</h3>")
-                            
-                            # Display current configuration
-                            config_display = gr.JSON(
-                                value={
-                                    "model_name": self.config.model_name,
-                                    "embedding_model": self.config.embedding_model,
-                                    "collection_name": self.config.collection_name,
-                                    "chunk_size": self.config.chunk_size,
-                                    "chunk_overlap": self.config.chunk_overlap,
-                                    "top_k": self.config.top_k,
-                                    "similarity_threshold": self.config.similarity_threshold,
-                                    "max_tokens": self.config.max_tokens,
-                                    "temperature": self.config.temperature
-                                },
-                                label="Current Configuration"
-                            )
-                        
-                        with gr.Column():
-                            gr.HTML("<h3>🔗 Integration Status</h3>")
-                            
-                            integration_status = gr.Markdown("""
-                            **Available Integrations:**
-                            - Slack: Configure with SLACK_WEBHOOK_URL
-                            - Email: Configure with SMTP settings
-                            - Monitoring: Always enabled with BMasterAI
-                            
-                            **Environment Variables:**
-                            - ANTHROPIC_API_KEY: Required
-                            - QDRANT_URL: Vector database URL
-                            - QDRANT_API_KEY: Optional for cloud
-                            """)
-                
-                # Help Tab
-                with gr.TabItem("❓ Help & Documentation", elem_id="help-tab"):
-                    gr.HTML("""
-                    <div style="padding: 20px;">
-                        <h2>🚀 Getting Started</h2>
-                        <ol>
-                            <li><strong>Upload Documents:</strong> Go to the "Upload Documents" tab and upload your PDF, DOCX, or TXT files</li>
-                            <li><strong>Ask Questions:</strong> Use the "Chat with Documents" tab to ask questions about your uploaded content</li>
-                            <li><strong>Monitor System:</strong> Check the "System Status" tab for performance metrics and health information</li>
-                        </ol>
-                        
-                        <h2>📚 Supported File Types</h2>
-                        <ul>
-                            <li><strong>PDF:</strong> Portable Document Format files</li>
-                            <li><strong>DOCX:</strong> Microsoft Word documents</li>
-                            <li><strong>TXT:</strong> Plain text files</li>
-                        </ul>
-                        
-                        <h2>🔧 Configuration</h2>
-                        <p>The system can be configured using environment variables:</p>
-                        <ul>
-                            <li><code>ANTHROPIC_API_KEY</code>: Your Anthropic API key (required)</li>
-                            <li><code>QDRANT_URL</code>: Qdrant database URL (default: http://localhost:6333)</li>
-                            <li><code>QDRANT_API_KEY</code>: Qdrant API key for cloud instances</li>
-                            <li><code>MODEL_NAME</code>: Anthropic model to use</li>
-                            <li><code>CHUNK_SIZE</code>: Document chunk size for processing</li>
-                            <li><code>TOP_K</code>: Number of relevant documents to retrieve</li>
-                        </ul>
-                        
-                        <h2>🚨 Troubleshooting</h2>
-                        <ul>
-                            <li><strong>Upload fails:</strong> Check file format and size</li>
-                            <li><strong>No answers:</strong> Ensure documents are uploaded and relevant to your question</li>
-                            <li><strong>System errors:</strong> Check the System Status tab for details</li>
-                        </ul>
-                        
-                        <h2>📞 Support</h2>
-                        <p>For support and documentation, visit:</p>
-                        <ul>
-                            <li><a href="https://github.com/travis-burmaster/bmasterai">BMasterAI GitHub Repository</a></li>
-                            <li><a href="mailto:travis@burmaster.com">Email Support</a></li>
-                        </ul>
-                    </div>
-                    """)
-            
-            # Event handlers
-            def submit_message(message, history):
-                if message.strip():
-                    return self.chat_interface(message, history)
-                return message, history
-            
-            # Wire up the interface
-            submit_btn.click(submit_message, inputs=[msg, chatbot], outputs=[msg, chatbot])
-            msg.submit(submit_message, inputs=[msg, chatbot], outputs=[msg, chatbot])
-            
-            clear_btn.click(lambda: ([], ""), outputs=[chatbot, msg])
-            
-            # File upload handlers
-            single_upload_btn.click(
-                self.upload_file,
-                inputs=[single_file],
-                outputs=[single_result]
+                    system_status_md = gr.Markdown(self.get_system_status())
+
+            # Event bindings
+
+            # Chat interactions
+            submit_btn.click(
+                self.chat_interface,
+                inputs=[msg, chatbot],
+                outputs=[msg, chatbot]
             )
-            
-            multiple_upload_btn.click(
-                self.upload_multiple_files,
-                inputs=[multiple_files],
-                outputs=[multiple_result]
+            clear_btn.click(
+                lambda: ([], []),
+                inputs=None,
+                outputs=[msg, chatbot]
             )
-            
-            # Document management
-            refresh_docs_btn.click(
-                self.list_documents,
-                outputs=[document_list]
+            example_btn.click(
+                lambda: ("", []),
+                inputs=None,
+                outputs=[msg, chatbot]
             )
-            
-            # Search functionality
+
+            # Quick search
             search_btn.click(
                 self.search_documents,
-                inputs=[search_input],
-                outputs=[search_results]
+                inputs=search_input,
+                outputs=search_results
             )
-            
-            # Status and metrics
-            refresh_status_btn.click(
-                self.get_system_status,
-                outputs=[system_status_display]
+
+            # Single file upload
+            single_upload_btn.click(
+                self.upload_file,
+                inputs=single_file,
+                outputs=single_result
             )
-            
-            refresh_metrics_btn.click(
-                self.get_performance_metrics,
-                outputs=[performance_metrics]
+
+            # Multiple file upload
+            multiple_upload_btn.click(
+                self.upload_multiple_files,
+                inputs=multiple_files,
+                outputs=multiple_result
             )
-            
+
+            # Refresh document list
+            refresh_docs_btn.click(
+                self.list_documents,
+                inputs=None,
+                outputs=document_list
+            )
+
+            # Refresh upload stats
             refresh_stats_btn.click(
                 self.get_system_status,
-                outputs=[upload_stats]
+                inputs=None,
+                outputs=upload_stats
             )
-            
-            # Auto-refresh on load
-            demo.load(self.get_system_status, outputs=[system_status_display])
-            demo.load(self.get_performance_metrics, outputs=[performance_metrics])
-            demo.load(self.list_documents, outputs=[document_list])
-            demo.load(self.get_system_status, outputs=[upload_stats])
-        
+
+            # Clear cache
+            clear_cache_btn.click(
+                self.clear_cache,
+                inputs=None,
+                outputs=cache_result
+            )
+
         return demo
 
 
 def main():
-    """
-    Main function to launch the BMasterAI RAG Gradio application
-    """
-    
-    # Environment setup instructions
-    required_vars = ["ANTHROPIC_API_KEY"]
-    missing_vars = [var for var in required_vars if not os.getenv(var)]
-    
-    if missing_vars:
-        print("\n" + "="*60)
-        print("🔑 SETUP REQUIRED:")
-        print("Missing required environment variables:")
-        for var in missing_vars:
-            print(f"  {var}='your-{var.lower().replace('_', '-')}'")
-        
-        print("\nSet them with:")
-        for var in missing_vars:
-            print(f"export {var}='your-{var.lower().replace('_', '-')}'")
-        
-        print("\nOr create a .env file with:")
-        for var in missing_vars:
-            print(f"{var}=your-{var.lower().replace('_', '-')}")
-        
-        print("\n🌐 Get your keys from:")
-        print("  Anthropic: https://console.anthropic.com/")
-        print("  Qdrant Cloud: https://cloud.qdrant.io/ (optional)")
-        print("="*60 + "\n")
-    
+    """Main function to run the Enhanced BMasterAI RAG System"""
     try:
-        # Create and launch the application
-        print("🚀 Initializing BMasterAI RAG Gradio application...")
+        print("🚀 Starting Enhanced BMasterAI RAG System...")
+        
+        # Load and validate configuration
+        config = BMasterAIRAGConfig()
+        
+        # Validate configuration
+        issues = config.validate_config()
+        if issues:
+            print("❌ Configuration issues found:")
+            for issue in issues:
+                print(f"   - {issue}")
+            exit(1)
+        
+        # Print configuration summary if in debug mode
+        if config.debug_mode:
+            config.print_config_summary()
+        
+        # Configure logging based on environment
+        try:
+            # Try to configure BMasterAI logging
+            configure_logging()
+        except Exception as e:
+            print(f"⚠️  Could not configure BMasterAI logging: {e}")
+            # Fall back to basic Python logging
+            import logging
+            logging.basicConfig(
+                level=getattr(logging, config.log_level.upper(), logging.INFO),
+                format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            )
+        
+        # Create the Gradio app (it will initialize its own RAG system)
         app = BMasterAIRAGApp()
         demo = app.create_interface()
         
-        # Launch configuration
-        server_name = os.getenv("GRADIO_SERVER_NAME", "0.0.0.0")
-        server_port = int(os.getenv("GRADIO_SERVER_PORT", "7860"))
-        share = os.getenv("GRADIO_SHARE", "false").lower() == "true"
+        # Prepare launch arguments
+        launch_kwargs = {
+            'server_name': config.gradio_server_name,
+            'server_port': config.gradio_server_port,
+            'share': config.gradio_share,
+            'debug': config.debug_mode,
+            'show_error': config.debug_mode,
+            'quiet': not config.verbose_logging
+        }
         
-        print(f"🌐 Launching Gradio interface on {server_name}:{server_port}")
-        print(f"📊 System Status: {app.system_status}")
+        # Add authentication if configured
+        if config.gradio_auth and config.gradio_auth.strip():
+            # Remove any inline comments
+            auth_value = config.gradio_auth.split('#')[0].strip()
+            if auth_value and ':' in auth_value:
+                username, password = auth_value.split(':', 1)
+                launch_kwargs['auth'] = (username.strip(), password.strip())
+                print(f"🔐 Authentication enabled for user: {username.strip()}")
+            elif auth_value:
+                print("⚠️  GRADIO_AUTH format should be 'username:password'")
+            else:
+                print("ℹ️  Authentication disabled (GRADIO_AUTH is empty)")
         
-        if not missing_vars:
-            print("✅ All required environment variables configured!")
-        else:
-            print("⚠️  Some environment variables missing - limited functionality")
+        print(f"🌐 Starting server on {config.gradio_server_name}:{config.gradio_server_port}")
+        print(f"📊 Performance monitoring: {'enabled' if config.enable_performance_monitoring else 'disabled'}")
+        print(f"💾 Caching: {'enabled' if config.enable_response_cache else 'disabled'}")
         
-        print("\n🎯 Features available:")
-        print("  📁 Document Upload (PDF, DOCX, TXT)")
-        print("  💬 Interactive Q&A Chat")
-        print("  🔍 Document Search")
-        print("  📊 System Monitoring")
-        print("  ⚙️  Configuration Management")
+        # Launch the application
+        demo.launch(**launch_kwargs)
         
-        demo.launch(
-            server_name=server_name,
-            server_port=server_port,
-            share=share,
-            show_error=True,
-            debug=False
-        )
-        
+    except KeyboardInterrupt:
+        print("\n🛑 Shutting down Enhanced BMasterAI RAG System...")
     except Exception as e:
-        print(f"❌ Error launching application: {str(e)}")
-        print("\n💡 Troubleshooting:")
-        print("1. Check your environment variables")
-        print("2. Verify Anthropic API key")
-        print("3. Ensure Qdrant is running (if using local instance)")
-        print("4. Check network connectivity")
-    
-    finally:
-        # Cleanup
-        try:
-            if 'app' in locals() and app.rag_system:
-                app.rag_system.shutdown()
-        except:
-            pass
-        print("\n✅ BMasterAI RAG Gradio application stopped!")
+        print(f"❌ Error starting system: {e}")
+        if config and config.debug_mode:
+            import traceback
+            traceback.print_exc()
+        exit(1)
 
 
 if __name__ == "__main__":
-    main()AGSystem(self.config)
-            self.system_status = "✅ RAG System Initialized with BMasterAI Framework"
-        except Exception as e:
-            get_logger().log_event(
-                "app",
-                EventType.TASK_ERROR,
-                f"Failed to initialize RAG system: {e}",
-                metadata={"error": str(e)}
-            )
-            self.system_status = f"❌ System Error: {e}"
-            self.rag_system = None
-    
+    main()

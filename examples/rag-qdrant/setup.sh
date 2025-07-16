@@ -98,49 +98,139 @@ if [ ! -f ".env" ]; then
 # Enhanced BMasterAI RAG Configuration
 # Copy this file and fill in your actual values
 
-# Required - Get from https://console.anthropic.com/
+# =============================================================================
+# REQUIRED CONFIGURATION
+# =============================================================================
+
+# Anthropic API Key - Get from https://console.anthropic.com/
 ANTHROPIC_API_KEY=your-anthropic-api-key-here
+
+# =============================================================================
+# VECTOR DATABASE CONFIGURATION
+# =============================================================================
 
 # Qdrant Configuration
 QDRANT_URL=http://localhost:6333
-QDRANT_API_KEY=  # Optional for local instance
+QDRANT_API_KEY=  # Optional for local instance, required for Qdrant Cloud
 
-# Model Configuration
+# For Qdrant Cloud, use:
+# QDRANT_URL=https://your-cluster-url.qdrant.tech
+# QDRANT_API_KEY=your-qdrant-cloud-api-key
+
+# =============================================================================
+# MODEL CONFIGURATION
+# =============================================================================
+
+# LLM Model Configuration
 MODEL_NAME=claude-3-5-sonnet-20241022
-EMBEDDING_MODEL=all-MiniLM-L6-v2
-COLLECTION_NAME=bmasterai_documents
-
-# Performance Configuration
-MAX_CONCURRENT_UPLOADS=5
-MAX_FILE_SIZE=52428800
-CACHE_DIR=/tmp/bmasterai_cache
-CHUNK_SIZE=1000
-CHUNK_OVERLAP=200
-TOP_K=5
-SIMILARITY_THRESHOLD=0.7
-
-# API Configuration
 MAX_TOKENS=4096
 TEMPERATURE=0.7
 
-# Server Configuration
+# Embedding Model Configuration
+EMBEDDING_MODEL=all-MiniLM-L6-v2
+COLLECTION_NAME=bmasterai_documents
+
+# =============================================================================
+# DOCUMENT PROCESSING CONFIGURATION
+# =============================================================================
+
+# Text Chunking
+CHUNK_SIZE=1000
+CHUNK_OVERLAP=200
+
+# Search Configuration
+TOP_K=5
+SIMILARITY_THRESHOLD=0.7
+
+# File Upload Configuration
+MAX_FILE_SIZE=52428800  # 50MB in bytes
+MAX_CONCURRENT_UPLOADS=5
+
+# =============================================================================
+# PERFORMANCE & CACHING
+# =============================================================================
+
+# Cache Configuration
+CACHE_DIR=/tmp/bmasterai_cache
+ENABLE_RESPONSE_CACHE=true
+ENABLE_EMBEDDING_CACHE=true
+
+# Connection Pooling
+MAX_CONNECTIONS=5
+CONNECTION_TIMEOUT=30
+
+# =============================================================================
+# SERVER CONFIGURATION
+# =============================================================================
+
+# Gradio Server Settings
 GRADIO_SERVER_NAME=0.0.0.0
 GRADIO_SERVER_PORT=7860
 GRADIO_SHARE=false
+GRADIO_AUTH=  # Optional: username:password for basic auth
+
+# =============================================================================
+# LOGGING & MONITORING
+# =============================================================================
 
 # Logging Configuration
+LOG_LEVEL=INFO
 ENABLE_JSON_LOGS=false
 ENABLE_FILE_LOGS=true
+LOG_FILE_PATH=logs/bmasterai_rag.log
 
-# Optional Integrations
+# Monitoring
+ENABLE_PERFORMANCE_MONITORING=true
+ENABLE_USAGE_TRACKING=true
+
+# =============================================================================
+# OPTIONAL INTEGRATIONS
+# =============================================================================
+
+# Slack Integration (optional)
 SLACK_WEBHOOK_URL=
+SLACK_CHANNEL=#ai-notifications
+
+# Email Integration (optional)
 SMTP_SERVER=
 SMTP_PORT=587
 SMTP_USERNAME=
 SMTP_PASSWORD=
+SMTP_FROM_EMAIL=
+
+# =============================================================================
+# SYSTEM PROMPT CUSTOMIZATION
+# =============================================================================
+
+# Custom system prompt (optional - will use default if empty)
+SYSTEM_PROMPT=
+
+# =============================================================================
+# SECURITY CONFIGURATION
+# =============================================================================
+
+# Rate Limiting (requests per minute)
+RATE_LIMIT_PER_MINUTE=60
+
+# File Upload Security
+ALLOWED_FILE_EXTENSIONS=pdf,docx,txt
+MAX_FILENAME_LENGTH=255
+
+# =============================================================================
+# DEVELOPMENT/DEBUG SETTINGS
+# =============================================================================
+
+# Debug Mode
+DEBUG_MODE=false
+VERBOSE_LOGGING=false
+
+# Development Server
+DEV_MODE=false
+AUTO_RELOAD=false
 EOF
-    print_status "Created .env template file"
+    print_status "Created comprehensive .env template file"
     print_warning "Please edit .env file with your actual configuration values"
+    print_warning "At minimum, set your ANTHROPIC_API_KEY"
 else
     print_status ".env file already exists"
 fi
@@ -171,8 +261,8 @@ if [ ! -f ".env" ]; then
     exit 1
 fi
 
-# Load environment variables
-export $(cat .env | grep -v '^#' | xargs)
+# Load environment variables (filter out empty lines and comments)
+export $(cat .env | grep -v '^#' | grep -v '^$' | xargs)
 
 # Check required environment variables
 if [ -z "$ANTHROPIC_API_KEY" ] || [ "$ANTHROPIC_API_KEY" = "your-anthropic-api-key-here" ]; then

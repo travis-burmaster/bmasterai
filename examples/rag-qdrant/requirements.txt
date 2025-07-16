@@ -1,19 +1,117 @@
+# Enhanced BMasterAI RAG System Requirements
+# Production-ready RAG with async processing, caching, and monitoring
+
+# Core Framework
+bmasterai>=1.0.0
+
+# Web Interface
 gradio>=4.0.0
-requests>=2.28.0
-python-dotenv>=1.0.0
+
+# HTTP Requests & API
+requests>=2.31.0
+tenacity>=8.2.0  # Retry logic with exponential backoff
+
+# Vector Database
 qdrant-client>=1.7.0
+
+# Natural Language Processing
 sentence-transformers>=2.2.0
+transformers>=4.35.0
+torch>=2.0.0
+
+# Document Processing
 PyPDF2>=3.0.0
 python-docx>=0.8.11
-langchain>=0.1.0
-torch>=2.0.0
+langchain>=0.0.350
+
+# Async Processing
+# asyncio  # Built-in Python module
+aiofiles>=23.2.0  # Async file operations
+
+# Caching
+diskcache>=5.6.3  # Persistent disk caching
+cachetools>=5.3.0  # In-memory caching utilities
+
+# Data Processing
+pandas>=2.0.0
 numpy>=1.24.0
-transformers>=4.30.0
+scikit-learn>=1.3.0
 
-# For development and testing
-pytest>=7.0.0
-black>=22.0.0
-flake8>=5.0.0
+# Configuration & Environment
+python-dotenv>=1.0.0
+pydantic>=2.0.0  # Data validation
+# pathlib  # Built-in Python module
 
-# Optional: For enhanced logging and monitoring
-prometheus-client>=0.15.0
+# Logging & Monitoring
+structlog>=23.0.0
+colorlog>=6.7.0
+
+# Security & Validation
+bleach>=6.0.0  # HTML sanitization
+validators>=0.20.0  # Input validation
+
+# System & Performance
+psutil>=5.9.0  # System monitoring
+memory-profiler>=0.60.0  # Memory usage tracking
+
+# Optional Integrations
+slack-sdk>=3.20.0  # Slack notifications
+# smtplib  # Built-in Python module for email
+jinja2>=3.1.0  # Template engine for notifications
+
+# Data Export
+openpyxl>=3.1.0  # Excel export
+xlsxwriter>=3.1.0  # Excel writing
+tabulate>=0.9.0  # Table formatting
+
+# Utilities
+tqdm>=4.65.0  # Progress bars
+click>=8.1.0  # CLI interface
+rich>=13.0.0  # Rich text and beautiful formatting
+humanize>=4.7.0  # Human-readable file sizes and times
+
+# Optional: GPU Support for Faster Embeddings
+# torch[cuda]>=2.0.0  # Uncomment for CUDA GPU support
+# sentence-transformers[cuda]>=2.2.0  # Uncomment for CUDA GPU support
+
+# Optional: Advanced Document Processing
+# unstructured>=0.10.0  # Advanced document parsing
+# layoutparser>=0.3.0  # Document layout analysis
+# easyocr>=1.7.0  # OCR for image-based documents
+# python-magic>=0.4.27  # File type detection
+
+# Optional: Enhanced NLP
+# spacy>=3.7.0  # Advanced NLP processing
+# nltk>=3.8.0  # Natural language toolkit
+
+# Optional: Monitoring & Analytics
+# prometheus-client>=0.17.0  # Metrics collection
+# grafana-api>=1.0.0  # Dashboard integration
+# elastic-apm>=6.15.0  # Application performance monitoring
+
+# Optional: Production Deployment
+# gunicorn>=21.0.0  # WSGI server
+# uvicorn>=0.23.0  # ASGI server
+# docker>=6.1.0  # Docker integration
+# kubernetes>=27.0.0  # Kubernetes deployment
+
+# Platform-specific requirements
+# Linux/Unix systems
+# python-magic-bin>=0.4.14  # Required for file type detection on some systems
+
+# Windows systems
+# pywin32>=306  # Windows-specific utilities
+
+# macOS systems
+# No specific requirements
+
+# Minimum Python version requirement
+# python>=3.8
+
+# Note: Pin versions for production deployment
+# Example production requirements.txt:
+# gradio==4.7.1
+# requests==2.31.0
+# qdrant-client==1.7.0
+# sentence-transformers==2.2.2
+# etc.

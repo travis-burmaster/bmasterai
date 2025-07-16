@@ -1246,14 +1246,9 @@ class EnhancedBMasterAIRAGSystem:
 
     def search_and_answer(self, query: str) -> Tuple[str, List[Dict[str, Any]]]:
         """Search documents and generate answer"""
-        # Debug: Check what type of query we're receiving
-        print(f"DEBUG: search_and_answer received query type: {type(query)}, value: {repr(query)}")
-        
-        # Handle case where query might be a Gradio component
-        if hasattr(query, 'value'):
-            query = query.value
-        elif not isinstance(query, str):
-            query = str(query)
+        # Ensure query is a string
+        if not isinstance(query, str):
+            query = str(query) if query is not None else ""
             
         start_time = datetime.now()
 
@@ -1535,14 +1530,9 @@ class BMasterAIRAGApp:
 
     def chat_interface(self, message: str, history: List[Dict[str, str]]) -> Tuple[str, List[Dict[str, str]]]:
         """Enhanced chat interface for questions"""
-        # Debug: Check what type of message we're receiving
-        print(f"DEBUG: chat_interface received message type: {type(message)}, value: {repr(message)}")
-        
-        # Handle case where message might be a Gradio component
-        if hasattr(message, 'value'):
-            message = message.value
-        elif not isinstance(message, str):
-            message = str(message)
+        # Ensure message is a string
+        if not isinstance(message, str):
+            message = str(message) if message is not None else ""
         
         if not self.rag_system:
             history.append({"role": "user", "content": message})

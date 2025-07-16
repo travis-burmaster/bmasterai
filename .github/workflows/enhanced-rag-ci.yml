@@ -1,0 +1,185 @@
+name: Enhanced RAG System CI/CD
+
+on:
+  push:
+    branches: [ enhanced-rag-system ]
+    paths:
+      - 'examples/rag-qdrant/**'
+  pull_request:
+    branches: [ master ]
+    paths:
+      - 'examples/rag-qdrant/**'
+
+env:
+  WORKING_DIRECTORY: examples/rag-qdrant
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        python-version: [3.8, 3.9, 3.10, 3.11]
+    
+    services:
+      qdrant:
+        image: qdrant/qdrant:latest
+        ports:
+          - 6333:6333
+        options: >-
+          --health-cmd "curl -f http://localhost:6333/health"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Cache pip packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      working-directory: ${{ env.WORKING_DIRECTORY }}
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+    
+    - name: Lint with flake8
+      working-directory: ${{ env.WORKING_DIRECTORY }}
+      run: |
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    
+    - name: Format check with black
+      working-directory: ${{ env.WORKING_DIRECTORY }}
+      run: |
+        black --check .
+    
+    - name: Type check with mypy
+      working-directory: ${{ env.WORKING_DIRECTORY }}
+      run: |
+        mypy bmasterai-gradio-rag.py --ignore-missing-imports
+    
+    - name: Test with pytest
+      working-directory: ${{ env.WORKING_DIRECTORY }}
+      env:
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        QDRANT_URL: http://localhost:6333
+        CACHE_DIR: /tmp/test_cache
+      run: |
+        pytest tests/ -v --cov=. --cov-report=xml
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./examples/rag-qdrant/coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: true
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.11
+    
+    - name: Install security tools
+      run: |
+        pip install bandit safety
+    
+    - name: Run bandit security scan
+      working-directory: ${{ env.WORKING_DIRECTORY }}
+      run: |
+        bandit -r . -x tests/ -f json -o bandit-report.json
+    
+    - name: Run safety check
+      working-directory: ${{ env.WORKING_DIRECTORY }}
+      run: |
+        safety check --json --output safety-report.json
+    
+    - name: Upload security reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: security-reports
+        path: |
+          ${{ env.WORKING_DIRECTORY }}/bandit-report.json
+          ${{ env.WORKING_DIRECTORY }}/safety-report.json
+
+  build:
+    needs: [test, security]
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Build Docker image
+      working-directory: ${{ env.WORKING_DIRECTORY }}
+      run: |
+        docker build -t bmasterai-rag:latest .
+    
+    - name: Test Docker image
+      working-directory: ${{ env.WORKING_DIRECTORY }}
+      run: |
+        docker run --rm -d --name test-container -p 7860:7860 bmasterai-rag:latest
+        sleep 10
+        docker logs test-container
+        docker stop test-container
+
+  performance:
+    needs: [test]
+    runs-on: ubuntu-latest
+    
+    services:
+      qdrant:
+        image: qdrant/qdrant:latest
+        ports:
+          - 6333:6333
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.11
+    
+    - name: Install dependencies
+      working-directory: ${{ env.WORKING_DIRECTORY }}
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest-benchmark
+    
+    - name: Run performance benchmarks
+      working-directory: ${{ env.WORKING_DIRECTORY }}
+      env:
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        QDRANT_URL: http://localhost:6333
+        CACHE_DIR: /tmp/perf_cache
+      run: |
+        pytest tests/ -k benchmark --benchmark-json=benchmark-results.json
+    
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-results
+        path: ${{ env.WORKING_DIRECTORY }}/benchmark-results.json

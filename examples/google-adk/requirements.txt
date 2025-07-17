@@ -1,0 +1,54 @@
+# BMasterAI AI Consultant Agent Requirements
+
+# Core BMasterAI Framework
+bmasterai>=1.0.0
+
+# Google ADK Integration
+google-adk>=1.5.0
+google-genai>=0.3.0
+
+# Web Search and API Integration
+requests>=2.31.0
+urllib3>=2.0.0
+
+# Data Processing and Utilities
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+dataclasses-json>=0.6.0
+typing-extensions>=4.0.0
+
+# Date and Time Utilities
+python-dateutil>=2.8.0
+
+# JSON and Data Serialization
+orjson>=3.9.0
+
+# Monitoring and Logging (if not included in bmasterai)
+structlog>=23.0.0
+prometheus-client>=0.17.0
+
+# Optional: Enhanced Integrations
+slack-sdk>=3.21.0
+discord-webhook>=1.3.0
+pymongo>=4.0.0  # For MongoDB integration
+psycopg2-binary>=2.9.0  # For PostgreSQL integration
+
+# Optional: Advanced Analytics
+pandas>=2.0.0
+numpy>=1.24.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Optional: Web Interface Enhancement
+streamlit>=1.25.0
+gradio>=3.35.0
+
+# Development and Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.4.0
+
+# Security
+cryptography>=41.0.0

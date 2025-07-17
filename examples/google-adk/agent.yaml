@@ -1,0 +1,189 @@
+# BMasterAI AI Consultant Agent Configuration
+
+# Application Settings
+app:
+  name: "ai_consultant_agent_bmasterai"
+  version: "1.0.0"
+  description: "AI Business Consultant with Google ADK and BMasterAI integration"
+  
+# Google ADK Configuration
+google_adk:
+  model: "gemini-2.5-flash"
+  api_key: "${GOOGLE_API_KEY}"
+  timeout: 30
+  max_retries: 3
+
+# Perplexity AI Configuration
+perplexity:
+  api_key: "${PERPLEXITY_API_KEY}"
+  model: "sonar"
+  timeout: 30
+  max_tokens: 4000
+
+# BMasterAI Logging Configuration
+logging:
+  level: INFO
+  enable_console: true
+  enable_file: true
+  enable_json: true
+  log_file: "logs/ai_consultant_agent.log"
+  json_log_file: "logs/ai_consultant_agent.jsonl"
+  max_file_size: "10MB"
+  backup_count: 5
+
+# BMasterAI Monitoring Configuration
+monitoring:
+  enabled: true
+  collection_interval: 30  # seconds
+  enable_system_metrics: true
+  enable_custom_metrics: true
+  metrics_retention_days: 30
+
+# Alert Configuration
+alerts:
+  - metric: "agent_errors"
+    threshold: 3
+    condition: "greater_than"
+    duration_minutes: 5
+    severity: "high"
+    
+  - metric: "task_duration"
+    threshold: 30000  # 30 seconds in milliseconds
+    condition: "greater_than"
+    duration_minutes: 2
+    severity: "medium"
+    
+  - metric: "consultation_requests"
+    threshold: 50
+    condition: "greater_than"
+    duration_minutes: 60
+    severity: "low"
+    
+  - metric: "cpu_percent"
+    threshold: 80
+    condition: "greater_than"
+    duration_minutes: 5
+    severity: "medium"
+    
+  - metric: "memory_percent"
+    threshold: 90
+    condition: "greater_than"
+    duration_minutes: 3
+    severity: "high"
+
+# Integration Configuration
+integrations:
+  slack:
+    enabled: true
+    webhook_url: "${SLACK_WEBHOOK_URL}"
+    channel: "#ai-consultant-alerts"
+    username: "AI Consultant Bot"
+    icon_emoji: ":robot_face:"
+    
+  email:
+    enabled: true
+    smtp_server: "${SMTP_SERVER:smtp.gmail.com}"
+    smtp_port: "${SMTP_PORT:587}"
+    username: "${EMAIL_USERNAME}"
+    password: "${EMAIL_PASSWORD}"
+    use_tls: true
+    use_ssl: false
+    from_email: "${EMAIL_FROM:ai-consultant@company.com}"
+    
+  discord:
+    enabled: false
+    webhook_url: "${DISCORD_WEBHOOK_URL}"
+    username: "AI Consultant"
+    avatar_url: ""
+    
+  teams:
+    enabled: false
+    webhook_url: "${TEAMS_WEBHOOK_URL}"
+    
+  database:
+    enabled: true
+    type: "sqlite"
+    connection_string: "data/ai_consultant_agent.db"
+    # For PostgreSQL:
+    # type: "postgresql"
+    # connection_string: "postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
+    # For MongoDB:
+    # type: "mongodb"
+    # connection_string: "mongodb://${MONGO_USER}:${MONGO_PASSWORD}@${MONGO_HOST}:${MONGO_PORT}/${MONGO_DB}"
+
+# Agent Configuration
+agent:
+  default_timeout: 300  # 5 minutes
+  max_retries: 3
+  enable_monitoring: true
+  enable_logging: true
+  
+  # Tool Configuration
+  tools:
+    perplexity_search:
+      enabled: true
+      timeout: 30
+      max_tokens: 4000
+      
+    market_analysis:
+      enabled: true
+      timeout: 60
+      
+    strategic_recommendations:
+      enabled: true
+      timeout: 90
+      
+    competitor_analysis:
+      enabled: true
+      timeout: 120
+      
+    risk_assessment:
+      enabled: true
+      timeout: 90
+
+# Performance Tuning
+performance:
+  max_concurrent_consultations: 10
+  consultation_timeout: 600  # 10 minutes
+  cache_enabled: true
+  cache_ttl: 3600  # 1 hour
+  
+# Security Configuration
+security:
+  api_key_encryption: true
+  log_sanitization: true
+  max_query_length: 5000
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 60
+    requests_per_hour: 1000
+
+# Development Settings
+development:
+  debug: false
+  verbose_logging: false
+  enable_profiling: false
+  
+# Web Interface (if using Streamlit/Gradio)
+web_interface:
+  enabled: false
+  port: 8501
+  theme: "dark"
+  title: "AI Business Consultant"
+  
+# Backup and Recovery
+backup:
+  enabled: true
+  interval_hours: 24
+  retention_days: 30
+  backup_path: "backups/"
+  
+# Reporting
+reporting:
+  enabled: true
+  daily_reports: true
+  weekly_reports: true
+  monthly_reports: true
+  report_recipients:
+    - "admin@company.com"
+    - "analytics@company.com"

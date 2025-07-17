@@ -8,6 +8,9 @@ from openai import OpenAI
 from config import config
 import streamlit as st
 
+# Import BMasterAI integration
+from utils.bmasterai_integration import bmasterai_manager
+
 class AIClient:
     """Enhanced AI client with streaming support and multiple providers."""
     
@@ -17,9 +20,28 @@ class AIClient:
     
     def stream_chat_completion(self, messages: list, model: str = None) -> Generator[str, None, None]:
         """Stream chat completion responses from OpenAI."""
+        model = model or config.openai_model
+        prompt_length = sum(len(m.get("content", "")) for m in messages)
+        
+        # Log LLM request with BMasterAI
+        bmasterai_manager.log_llm_request(
+            model=model,
+            prompt_length=prompt_length,
+            metadata={
+                "message_count": len(messages),
+                "streaming": True,
+                "max_tokens": config.max_tokens,
+                "temperature": config.temperature
+            }
+        )
+        
+        # Start task timing
+        task_start = bmasterai_manager.log_task_start(
+            task_name="stream_chat_completion",
+            metadata={"model": model}
+        )
+        
         try:
-            model = model or config.openai_model
-            
             stream = self.openai_client.chat.completions.create(
                 model=model,
                 messages=messages,
@@ -28,18 +50,71 @@ class AIClient:
                 stream=True
             )
             
+            # Track response
+            response_length = 0
+            
             for chunk in stream:
                 if chunk.choices[0].delta.content is not None:
-                    yield chunk.choices[0].delta.content
+                    content = chunk.choices[0].delta.content
+                    response_length += len(content)
+                    yield content
+            
+            # Log successful completion
+            bmasterai_manager.log_llm_response(
+                model=model,
+                response_length=response_length,
+                metadata={
+                    "streaming": True,
+                    "success": True
+                }
+            )
+            
+            # Log task completion
+            bmasterai_manager.log_task_complete(
+                task_name="stream_chat_completion",
+                start_time=task_start,
+                metadata={
+                    "model": model,
+                    "response_length": response_length
+                }
+            )
                     
         except Exception as e:
+            # Log error
+            bmasterai_manager.log_error(
+                error_type="llm_streaming_error",
+                error_message=str(e),
+                metadata={
+                    "model": model
+                }
+            )
+            
             yield f"Error: {str(e)}"
     
     def chat_completion(self, messages: list, model: str = None) -> Dict[str, Any]:
         """Get non-streaming chat completion from OpenAI."""
+        model = model or config.openai_model
+        prompt_length = sum(len(m.get("content", "")) for m in messages)
+        
+        # Log LLM request with BMasterAI
+        bmasterai_manager.log_llm_request(
+            model=model,
+            prompt_length=prompt_length,
+            metadata={
+                "message_count": len(messages),
+                "streaming": False,
+                "max_tokens": config.max_tokens,
+                "temperature": config.temperature
+            }
+        )
+        
+        # Start task timing
+        task_start = bmasterai_manager.log_task_start(
+            task_name="chat_completion",
+            metadata={"model": model}
+        )
+        
         try:
-            model = model or config.openai_model
-            
             response = self.openai_client.chat.completions.create(
                 model=model,
                 messages=messages,
@@ -47,14 +122,51 @@ class AIClient:
                 temperature=config.temperature
             )
             
+            # Extract usage statistics
+            usage = response.usage.dict() if response.usage else {}
+            input_tokens = usage.get("prompt_tokens", 0)
+            output_tokens = usage.get("completion_tokens", 0)
+            
+            # Log successful completion
+            bmasterai_manager.log_llm_response(
+                model=model,
+                response_length=len(response.choices[0].message.content),
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                metadata={
+                    "streaming": False,
+                    "success": True,
+                    "total_tokens": usage.get("total_tokens", 0)
+                }
+            )
+            
+            # Log task completion
+            bmasterai_manager.log_task_complete(
+                task_name="chat_completion",
+                start_time=task_start,
+                metadata={
+                    "model": model,
+                    "total_tokens": usage.get("total_tokens", 0)
+                }
+            )
+            
             return {
                 "success": True,
                 "content": response.choices[0].message.content,
-                "usage": response.usage.dict() if response.usage else {},
+                "usage": usage,
                 "model": response.model
             }
             
         except Exception as e:
+            # Log error
+            bmasterai_manager.log_error(
+                error_type="llm_completion_error",
+                error_message=str(e),
+                metadata={
+                    "model": model
+                }
+            )
+            
             return {
                 "success": False,
                 "error": str(e),

@@ -83,6 +83,14 @@ class ChatInterface:
     
     def handle_user_input(self, user_input: str):
         """Handle user input and generate AI response."""
+        # Log user interaction with BMasterAI
+        from utils.bmasterai_integration import bmasterai_manager
+        bmasterai_manager.log_user_interaction(user_input, {
+            "session_id": id(st.session_state),
+            "message_count": len(st.session_state.get("messages", [])),
+            "has_context": bool(st.session_state.get("consultation_context", {}))
+        })
+        
         # Add user message to chat history
         st.session_state.messages.append({"role": "user", "content": user_input})
         

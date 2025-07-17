@@ -2,7 +2,7 @@
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-0.2.0-green.svg)](https://github.com/travis-burmaster/bmasterai)
+[![Version](https://img.shields.io/badge/version-0.2.1-green.svg)](https://github.com/travis-burmaster/bmasterai)
 [![Kubernetes](https://img.shields.io/badge/kubernetes-ready-brightgreen.svg)](https://kubernetes.io/)
 [![Docker](https://img.shields.io/badge/docker-supported-blue.svg)](https://www.docker.com/)
 
@@ -321,6 +321,103 @@ from bmasterai.integrations import DatabaseConnector
 db = DatabaseConnector(db_type="sqlite", connection_string="agents.db")
 db.store_agent_data(agent_id, name, status, metadata)
 history = db.get_agent_history(agent_id)
+```
+
+## 🔄 Model Context Protocol (MCP)
+
+BMasterAI now includes support for the Model Context Protocol (MCP), enabling seamless integration with external tools and services through standardized interfaces.
+
+### What is MCP?
+
+Model Context Protocol is a standardized way for AI models to interact with external tools and services. It allows BMasterAI agents to:
+
+- Access external data sources and APIs
+- Execute specialized functions
+- Integrate with domain-specific tools
+- Extend agent capabilities without code changes
+
+### MCP Configuration
+
+Configure MCP servers in your project:
+
+```json
+{
+  "mcpServers": {
+    "aws-docs": {
+      "command": "uvx",
+      "args": ["awslabs.aws-documentation-mcp-server@latest"],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      },
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}
+```
+
+### Using MCP in Your Agents
+
+```python
+from bmasterai.mcp import MCPClient
+
+# Initialize MCP client
+mcp_client = MCPClient()
+
+# Register available MCP servers
+mcp_client.register_server("aws-docs")
+
+# Use MCP tools in your agent
+response = agent.execute_with_tools(
+    "Find information about EC2 instance types",
+    tools=mcp_client.get_tools("aws-docs")
+)
+
+# Access specific MCP tool
+result = mcp_client.execute_tool(
+    server_name="aws-docs",
+    tool_name="search_documentation",
+    parameters={"query": "EKS cluster autoscaling"}
+)
+```
+
+### Available MCP Servers
+
+BMasterAI supports various MCP servers out of the box:
+
+- **AWS Documentation**: Access AWS service documentation
+- **Code Analysis**: Code parsing, analysis, and transformation
+- **Data Processing**: Data extraction, transformation, and analysis
+- **Web Search**: Internet search capabilities
+- **Custom Tools**: Build and integrate your own MCP servers
+
+### Creating Custom MCP Servers
+
+Extend BMasterAI with your own MCP servers:
+
+```python
+from bmasterai.mcp import MCPServer, Tool
+
+class CustomMCPServer(MCPServer):
+    def __init__(self):
+        super().__init__("custom-tools")
+        self.register_tool(
+            Tool(
+                name="custom_function",
+                description="Performs a custom operation",
+                parameters={
+                    "input": {"type": "string", "description": "Input data"}
+                },
+                handler=self.custom_function
+            )
+        )
+    
+    def custom_function(self, input):
+        # Custom implementation
+        return {"result": process_data(input)}
+
+# Register your custom server
+mcp_client.register_custom_server(CustomMCPServer())
 ```
 
 ## 🏗️ Architecture

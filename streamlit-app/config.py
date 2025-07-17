@@ -1,7 +1,7 @@
 """Configuration management for the AI Consultant Streamlit app."""
 
 import os
-from typing import Optional
+from typing import Optional, Dict, Any
 from pydantic_settings import BaseSettings
 from pydantic import validator
 from dotenv import load_dotenv
@@ -35,6 +35,17 @@ class Config(BaseSettings):
     # Security Configuration
     session_timeout: int = 3600
     max_conversation_length: int = 50
+    
+    # BMasterAI Configuration
+    bmasterai_enabled: bool = True
+    bmasterai_log_level: str = "INFO"
+    bmasterai_enable_json_logs: bool = False
+    bmasterai_enable_file_logs: bool = True
+    bmasterai_log_file: str = "logs/bmasterai.log"
+    bmasterai_agent_id: str = "streamlit-app"
+    bmasterai_enable_monitoring: bool = True
+    bmasterai_enable_slack: bool = False
+    bmasterai_enable_email: bool = False
     
     @validator('openai_api_key')
     def validate_openai_api_key(cls, v):

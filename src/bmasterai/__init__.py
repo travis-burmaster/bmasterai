@@ -12,6 +12,7 @@ __email__ = "travis@burmaster.com"
 from .logging import configure_logging, get_logger, LogLevel, EventType
 from .monitoring import get_monitor
 from .integrations import get_integration_manager
+from .mcp_server import  mcp_server
 
 __all__ = [
     "configure_logging",
@@ -20,4 +21,5 @@ __all__ = [
     "EventType",
     "get_monitor",
     "get_integration_manager",
+    "mcp_server"
 ]

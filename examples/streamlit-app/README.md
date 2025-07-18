@@ -17,7 +17,7 @@ A comprehensive AI-powered business consultant built with Streamlit that provide
 1. **Clone the repository**:
    ```bash
    git clone <repository-url>
-   cd ai-consultant-streamlit
+   cd examples/streamlit-app
    ```
 
 2. **Install dependencies**:

@@ -25,7 +25,7 @@ st.markdown("""
     }
     
     .stChatMessage {
-        background-color: white;
+        background-color: blue;
         border-radius: 8px;
         padding: 15px;
         margin: 10px 0;

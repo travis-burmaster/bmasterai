@@ -39,6 +39,13 @@ class MCPConfig:
     timeout_seconds: int = 30
 
 @dataclass
+class AnthropicConfig:
+    enabled: bool = True
+    timeout_seconds: int = 30
+    max_tokens: int = 4096
+    api_key: Optional[str] = None
+
+@dataclass
 class AgentConfig:
     default_timeout: int = 300
     max_retries: int = 3
@@ -79,6 +86,7 @@ class ConfigManager:
             'MCP_SERVER_HOST': ['integrations', 'mcp', 'server_host'],
             'MCP_SERVER_PORT': ['integrations', 'mcp', 'server_port'],
             'LOG_LEVEL': ['logging', 'level'],
+            'ANTHROPIC_API_KEY': ['integrations', 'anthropic', 'api_key'],
         }
         
         for env_var, config_path in env_mappings.items():
@@ -122,6 +130,12 @@ class ConfigManager:
         """Get MCP configuration"""
         mcp_config = self._config.get('integrations', {}).get('mcp', {})
         return MCPConfig(**mcp_config)
+    
+    def get_anthropic_config(self) -> AnthropicConfig:
+        """Get Anthropic configuration"""
+        anthropic_config = self._config.get('integrations', {}).get('anthropic', {})
+        anthropic_config['api_key'] = os.getenv('ANTHROPIC_API_KEY')
+        return AnthropicConfig(**anthropic_config)
     
     def get_agent_config(self) -> AgentConfig:
         """Get agent configuration"""

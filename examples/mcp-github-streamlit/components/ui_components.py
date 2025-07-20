@@ -832,11 +832,11 @@ def render_settings():
         st.warning("⚠️ GitHub token not found. Some features may be limited.")
     
     # LLM API status
-    llm_api_key = os.getenv('ABACUSAI_API_KEY')
+    llm_api_key = os.getenv('ANTHROPIC_API_KEY')
     if llm_api_key:
-        st.success("✅ LLM API key is configured")
+        st.success("✅ Anthropic API key is configured")
     else:
-        st.error("❌ LLM API key not found. Analysis will not work.")
+        st.error("❌ Anthropic API key not found. Analysis will not work.")
     
     # Save settings
     if st.button("Save Settings", type="primary"):

@@ -140,3 +140,7 @@ config.yaml
 # OS
 .DS_Store
 Thumbs.db
+
+# Node.js
+node_modules/
+package-lock.json

@@ -1,0 +1,22 @@
+{
+  "name": "bmasterai",
+  "version": "0.2.1",
+  "description": "Advanced Multi-Agent AI Framework",
+  "scripts": {
+    "docs": "echo 'Documentation generation placeholder'",
+    "test": "echo 'Test placeholder'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/travis-burmaster/bmasterai.git"
+  },
+  "keywords": [
+    "ai",
+    "multi-agent", 
+    "python",
+    "kubernetes"
+  ],
+  "author": "Travis Burmaster",
+  "license": "MIT",
+  "private": false
+}

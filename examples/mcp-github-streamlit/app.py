@@ -1,10 +1,36 @@
-
 """Main Streamlit application for MCP GitHub Analyzer"""
 import streamlit as st
 import asyncio
 import os
 import time
+import json
 from typing import Dict, Any, Optional
+
+# Fix for JSON parsing error in Streamlit metrics
+def fix_streamlit_config():
+    """Fix Streamlit configuration issues"""
+    try:
+        # Disable metrics collection to prevent JSON parsing errors
+        os.environ['STREAMLIT_SERVER_ENABLE_STATIC_SERVING'] = 'false'
+        os.environ['STREAMLIT_BROWSER_GATHER_USAGE_STATS'] = 'false' 
+        os.environ['STREAMLIT_SERVER_ENABLE_CORS'] = 'false'
+        os.environ['STREAMLIT_SERVER_ENABLE_XSRF_PROTECTION'] = 'false'
+        
+        # Alternative: Configure Streamlit to not use metrics (if config is available)
+        try:
+            if hasattr(st, '_config'):
+                st._config.set_option('browser.gatherUsageStats', False)
+                st._config.set_option('server.enableCORS', False)
+                st._config.set_option('server.enableXsrfProtection', False)
+        except Exception:
+            pass  # Ignore if config is not accessible
+            
+    except Exception as e:
+        # If we can't set configs, continue anyway
+        pass
+
+# Apply Streamlit fixes before page config
+fix_streamlit_config()
 
 # Configure page
 st.set_page_config(
@@ -25,6 +51,33 @@ from utils.bmasterai_logging import configure_logging, get_logger, LogLevel
 from utils.bmasterai_monitoring import get_monitor
 from config import get_config_manager
 from agents.coordinator import get_workflow_coordinator
+
+def safe_session_init():
+    """Safely initialize session state with error handling"""
+    try:
+        # Clear potentially corrupted session state
+        if 'initialized' not in st.session_state:
+            # Clear all existing session state to prevent corruption
+            for key in list(st.session_state.keys()):
+                try:
+                    del st.session_state[key]
+                except Exception:
+                    pass
+            
+            # Initialize fresh session state
+            st.session_state.initialized = True
+            st.session_state.analysis_results = {}
+            st.session_state.current_analysis = None
+            st.session_state.user_actions = []
+            
+    except Exception as e:
+        st.error(f"Session initialization error: {e}")
+        # Force clear all session state
+        try:
+            st.session_state.clear()
+        except Exception:
+            pass
+        st.rerun()
 
 # Initialize application
 @st.cache_resource
@@ -69,14 +122,22 @@ def initialize_application():
 
 # Main application
 def main():
-    """Main application function"""
+    """Main application function with safe session initialization"""
+    
+    # Safe session initialization
+    safe_session_init()
     
     # Initialize application components
     logger, monitor, config_manager = initialize_application()
     
-    # Initialize session management
-    session_manager = get_session_manager()
-    session_id = session_manager.initialize_session()
+    # Initialize session management with error handling  
+    try:
+        session_manager = get_session_manager()
+        session_id = session_manager.initialize_session()
+    except Exception as e:
+        st.error(f"Session manager initialization failed: {e}")
+        st.info("Please refresh the page to reset the session.")
+        st.stop()
     
     # Render header
     render_header()
@@ -311,13 +372,39 @@ def render_workflow_results(workflow_result: Dict[str, Any]):
                 else:
                     st.info("No manual suggestions found.")
 
-# Error handling for the entire app
+# Enhanced error handling for the entire app
 def run_app():
-    """Run the application with error handling"""
+    """Run the application with enhanced error handling"""
     try:
         main()
+        
+    except json.JSONDecodeError as e:
+        st.error("Browser storage corruption detected. Please clear your browser cache and refresh.")
+        st.markdown("""
+        ### 🔧 Quick Fix Instructions:
+        1. **Clear Browser Storage:**
+           - Press F12 to open developer tools
+           - Go to Application → Storage
+           - Clear Local Storage and Session Storage
+           - Refresh the page
+        
+        2. **Or use Private/Incognito browsing mode**
+        
+        3. **If the issue persists:**
+           - Try a different browser
+           - Disable browser extensions
+           - Check console for additional errors
+        """)
+        
     except Exception as e:
-        st.error(f"Application error: {str(e)}")
+        error_msg = str(e)
+        
+        # Check if it's a Streamlit-specific error
+        if "MetricsManager" in error_msg or "JSON" in error_msg:
+            st.error("Streamlit configuration error detected.")
+            st.info("This is likely due to corrupted browser storage. Please refresh and clear your cache.")
+        else:
+            st.error(f"Application error: {error_msg}")
         
         # Log error if logger is available
         try:
@@ -325,21 +412,41 @@ def run_app():
             logger.log_event(
                 agent_id="streamlit_app",
                 event_type="task_error",
-                message=f"Application error: {str(e)}",
+                message=f"Application error: {error_msg}",
                 level="ERROR",
-                metadata={"error": str(e)}
+                metadata={"error": error_msg, "error_type": type(e).__name__}
             )
         except:
             pass  # Logger might not be initialized
         
-        st.markdown("### 🔧 Troubleshooting")
-        st.markdown("""
-        If you're experiencing issues:
-        1. Check that all environment variables are set correctly
-        2. Ensure the MCP server is running (if using real MCP)
-        3. Verify your GitHub token permissions
-        4. Check the application logs for more details
-        """)
+        # Enhanced troubleshooting
+        with st.expander("🔧 Troubleshooting Guide"):
+            st.markdown("""
+            **For JSON/MetricsManager errors:**
+            1. Clear browser cache and local storage
+            2. Try incognito/private browsing mode
+            3. Disable browser extensions temporarily
+            
+            **For general application issues:**
+            1. Check that all environment variables are set correctly
+            2. Ensure the MCP server is running (if using real MCP)
+            3. Verify your GitHub token permissions
+            4. Check the application logs for more details
+            
+            **Environment Variables Required:**
+            - `GITHUB_TOKEN`: Your GitHub personal access token
+            - `ANTHROPIC_API_KEY`: Your Anthropic API key (if using)
+            - `MCP_SERVER_HOST`: MCP server host (default: localhost)
+            - `MCP_SERVER_PORT`: MCP server port (default: 8080)
+            """)
+            
+        # Add a reset button
+        if st.button("🔄 Reset Application State"):
+            try:
+                st.session_state.clear()
+                st.rerun()
+            except Exception:
+                st.info("Please refresh the page manually to reset the application state.")
 
 if __name__ == "__main__":
     run_app()

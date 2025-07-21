@@ -1,0 +1,18 @@
+[browser]
+gatherUsageStats = false
+
+[server]
+enableCORS = false
+enableXsrfProtection = false
+enableStaticServing = false
+
+[client]
+showErrorDetails = true
+toolbarMode = "minimal"
+
+[runner]
+magicEnabled = true
+fastReruns = true
+
+[logger]
+level = "error"

@@ -21,7 +21,7 @@ from components.ui_components import (
     render_analysis_history, render_settings, render_pr_results, render_feature_request_results
 )
 from utils.session_manager import get_session_manager
-from utils.bmasterai_logging import configure_logging, get_logger, LogLevel
+from utils.bmasterai_logging import configure_logging, get_logger, LogLevel, EventType
 from utils.bmasterai_monitoring import get_monitor
 from config import get_config_manager
 from agents.coordinator import get_workflow_coordinator
@@ -541,7 +541,7 @@ def run_app():
             logger = get_logger()
             logger.log_event(
                 agent_id="streamlit_app",
-                event_type="task_error",
+                event_type=EventType.TASK_ERROR,
                 message=f"Application error: {str(e)}",
                 level=LogLevel.ERROR,
                 metadata={"error": str(e)}

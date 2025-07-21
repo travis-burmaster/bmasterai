@@ -28,7 +28,7 @@ class WorkflowCoordinator:
         try:
             self.logger.log_event(
                 agent_id="workflow_coordinator",
-                event_type="workflow_start",
+                event_type=EventType.TASK_START,
                 message=f"Starting analysis workflow {workflow_id}",
                 metadata={"config": config, "workflow_id": workflow_id}
             )

@@ -57,7 +57,7 @@ The enhanced version now includes a powerful **Feature Addition Mode** alongside
 
 4. **Run the application:**
    ```bash
-   
+   streamlit run app.py
    ```
 
 ## 🔧 Configuration

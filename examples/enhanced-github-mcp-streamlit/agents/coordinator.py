@@ -106,7 +106,7 @@ class WorkflowCoordinator:
         try:
             self.logger.log_event(
                 agent_id="workflow_coordinator",
-                event_type="feature_request_start",
+                event_type=EventType.TASK_START,
                 message=f"Starting feature request workflow {workflow_id}",
                 metadata={"config": config, "workflow_id": workflow_id}
             )

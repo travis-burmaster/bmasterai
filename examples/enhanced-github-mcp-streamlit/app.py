@@ -17,11 +17,11 @@ st.set_page_config(
 # Import components and utilities
 from components.ui_components import (
     render_header, render_sidebar, render_mode_selector, render_repository_input,
-    render_feature_addition_form, render_analysis_results, render_monitoring_dashboard,
-    render_analysis_history, render_settings, render_pr_results, render_feature_implementation_results
+    render_feature_request_form, render_analysis_results, render_monitoring_dashboard,
+    render_analysis_history, render_settings, render_pr_results, render_feature_request_results
 )
 from utils.session_manager import get_session_manager
-from utils.bmasterai_logging import configure_logging, get_logger, LogLevel
+from utils.bmasterai_logging import configure_logging, get_logger, LogLevel, EventType
 from utils.bmasterai_monitoring import get_monitor
 from config import get_config_manager
 from agents.coordinator import get_workflow_coordinator
@@ -50,17 +50,6 @@ def initialize_application():
         monitor = get_monitor()
         monitor.start_monitoring(monitoring_config.collection_interval)
         
-        # Log application start
-        # logger.log_event(
-        #     agent_id="streamlit_app",
-        #     event_type="agent_start",
-        #     message="MCP GitHub Analyzer application started",
-        #     metadata={
-        #         "version": "1.0.0",
-        #         "environment": os.getenv("ENVIRONMENT", "development")
-        #     }
-        # )
-        
         return logger, monitor, config_manager
         
     except Exception as e:
@@ -84,9 +73,11 @@ def main():
     # Render sidebar and get current page
     current_page = render_sidebar()
     
-    # Main content area
+    # Main content area - UPDATED to handle new page structure
     if current_page == "🔍 Repository Analysis":
         render_analysis_page(session_manager, logger)
+    elif current_page == "🚀 Feature Request":
+        render_feature_request_page(session_manager, logger)
     elif current_page == "📊 Monitoring Dashboard":
         render_monitoring_dashboard()
     elif current_page == "📋 Analysis History":
@@ -95,18 +86,10 @@ def main():
         render_settings()
 
 def render_analysis_page(session_manager, logger):
-    """Render the main repository analysis page"""
+    """Render the main repository analysis page (security and bugs focus)"""
     
-    # Mode selector
-    selected_mode = render_mode_selector()
-    
-    # Render appropriate form based on mode
-    if selected_mode == "🔍 Security Analysis":
-        analysis_config = render_repository_input()
-        feature_config = None
-    else:  # Feature Addition mode
-        feature_config = render_feature_addition_form()
-        analysis_config = None
+    # Repository analysis form (security and bugs focused)
+    analysis_config = render_repository_input()
     
     # Handle security analysis
     if analysis_config:
@@ -118,7 +101,7 @@ def render_analysis_page(session_manager, logger):
         })
         
         # Execute analysis
-        with st.spinner("🔄 Analyzing repository..."):
+        with st.spinner("🔄 Analyzing repository for security issues and bugs..."):
             analysis_result = run_analysis(analysis_config, logger)
         
         # Save results to session
@@ -139,39 +122,6 @@ def render_analysis_page(session_manager, logger):
             else:
                 st.error(f"Analysis failed: {analysis_result.get('error', 'Unknown error')}")
     
-    # Handle feature implementation
-    if feature_config:
-        # Track user action
-        session_manager.track_user_action("feature_implementation_started", {
-            "repo_url": feature_config["repo_url"],
-            "feature_prompt": feature_config["feature_prompt"],
-            "base_branch": feature_config["base_branch"],
-            "auto_pr": feature_config["auto_pr"]
-        })
-        
-        # Execute feature implementation
-        with st.spinner("🚀 Implementing feature..."):
-            feature_result = run_feature_implementation(feature_config, logger)
-        
-        # Save results to session
-        if feature_result:
-            session_manager.save_analysis_result(
-                feature_config["repo_url"], 
-                feature_result,
-                analysis_type="feature_implementation"
-            )
-            
-            # Display results
-            if feature_result.get("success"):
-                if "steps" in feature_result:
-                    # Full workflow result
-                    render_feature_workflow_results(feature_result)
-                else:
-                    # Simple feature result
-                    render_feature_implementation_results(feature_result["steps"]["feature_implementation"])
-            else:
-                st.error(f"Feature implementation failed: {feature_result.get('error', 'Unknown error')}")
-    
     # Show recent analysis if available
     current_analysis = session_manager.get_current_analysis()
     if current_analysis and not analysis_config:
@@ -182,6 +132,53 @@ def render_analysis_page(session_manager, logger):
                 render_workflow_results(current_analysis["result"])
             else:
                 render_analysis_results(current_analysis["result"])
+
+def render_feature_request_page(session_manager, logger):
+    """Render the feature request page with enhanced functionality"""
+    
+    try:
+        # Feature request form
+        feature_config = render_feature_request_form()
+        
+        # Handle feature implementation
+        if feature_config:
+            # Track user action
+            session_manager.track_user_action("feature_request_started", {
+                "repo_url": feature_config["repo_url"],
+                "feature_description": feature_config["feature_description"],
+                "base_branch": feature_config["base_branch"],
+                "create_pr": feature_config["create_pr"]
+            })
+            
+            # Execute feature implementation
+            with st.spinner("🚀 Implementing feature request..."):
+                feature_result = run_feature_request(feature_config, logger)
+            
+            # Save results to session
+            if feature_result:
+                session_manager.save_analysis_result(
+                    feature_config["repo_url"], 
+                    feature_result,
+                    analysis_type="feature_request"
+                )
+                
+                # Display results
+                if feature_result.get("success"):
+                    render_feature_request_results(feature_result)
+                else:
+                    st.error(f"Feature request failed: {feature_result.get('error', 'Unknown error')}")
+    
+    except Exception as e:
+        st.error(f"Error in feature request page: {str(e)}")
+        logger.log_event(
+            agent_id="streamlit_app",
+            event_type=EventType.TASK_ERROR,
+            message=f"Feature request page error: {str(e)}",
+            level=LogLevel.ERROR,
+            metadata={"error": str(e)}
+        )
+        import traceback
+        st.code(traceback.format_exc())
 
 def run_analysis(config: Dict[str, Any], logger) -> Optional[Dict[str, Any]]:
     """Run repository analysis with proper error handling"""
@@ -244,17 +241,17 @@ def run_analysis(config: Dict[str, Any], logger) -> Optional[Dict[str, Any]]:
     except Exception as e:
         logger.log_event(
             agent_id="streamlit_app",
-            event_type="task_error",
+            event_type=EventType.TASK_ERROR,
             message=f"Analysis execution failed: {str(e)}",
-            level="ERROR",
+            level=LogLevel.ERROR,
             metadata={"repo_url": config.get("repo_url"), "error": str(e)}
         )
         
         st.error(f"An error occurred during analysis: {str(e)}")
         return {"success": False, "error": str(e)}
 
-def run_feature_implementation(config: Dict[str, Any], logger) -> Optional[Dict[str, Any]]:
-    """Run feature implementation with proper error handling"""
+def run_feature_request(config: Dict[str, Any], logger) -> Optional[Dict[str, Any]]:
+    """Run feature request implementation with proper error handling"""
     try:
         # Get workflow coordinator
         coordinator = get_workflow_coordinator()
@@ -282,7 +279,13 @@ def run_feature_implementation(config: Dict[str, Any], logger) -> Optional[Dict[
         
         # Execute feature implementation workflow
         async def run_feature_workflow():
-            return await coordinator.execute_feature_implementation(config)
+            try:
+                return await coordinator.execute_feature_request(config)
+            except Exception as e:
+                st.error(f"Error in feature workflow: {str(e)}")
+                import traceback
+                st.code(traceback.format_exc())
+                return {"success": False, "error": str(e)}
         
         # Run async workflow
         try:
@@ -314,9 +317,9 @@ def run_feature_implementation(config: Dict[str, Any], logger) -> Optional[Dict[
     except Exception as e:
         logger.log_event(
             agent_id="streamlit_app",
-            event_type="task_error",
-            message=f"Feature implementation execution failed: {str(e)}",
-            level="ERROR",
+            event_type=EventType.TASK_ERROR,
+            message=f"Feature request execution failed: {str(e)}",
+            level=LogLevel.ERROR,
             metadata={"repo_url": config.get("repo_url"), "error": str(e)}
         )
         
@@ -380,7 +383,7 @@ def render_feature_workflow_results(workflow_result: Dict[str, Any]):
         implementation_tab, plan_tab, testing_tab = st.tabs(["🚀 Implementation Details", "📋 Implementation Plan", "🧪 Testing Strategy"])
         
         with implementation_tab:
-            render_feature_implementation_results(feature_implementation)
+            render_feature_request_results(feature_implementation)
         
         with plan_tab:
             feature_plan = feature_implementation.get("feature_plan", {})
@@ -557,9 +560,9 @@ def run_app():
             logger = get_logger()
             logger.log_event(
                 agent_id="streamlit_app",
-                event_type="task_error",
+                event_type=EventType.TASK_ERROR,
                 message=f"Application error: {str(e)}",
-                level="ERROR",
+                level=LogLevel.ERROR,
                 metadata={"error": str(e)}
             )
         except:

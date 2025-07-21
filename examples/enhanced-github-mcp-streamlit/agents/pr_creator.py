@@ -623,6 +623,211 @@ This PR implements several automated improvements to enhance the repository's qu
         else:
             return "Low - Minor improvements and cleanup"
     
+    async def create_feature_pr(self, repo_url: str, branch_name: str, base_branch: str, 
+                               feature_description: str, code_generation_result: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a pull request for a new feature"""
+        task_id = str(uuid.uuid4())
+        start_time = time.time()
+        
+        # Log task start
+        self.logger.log_task_start(
+            agent_id=self.agent_id,
+            task_name="create_feature_pr",
+            task_id=task_id,
+            metadata={
+                "repo_url": repo_url,
+                "branch_name": branch_name,
+                "feature_description": feature_description
+            }
+        )
+        
+        try:
+            # Generate PR description for feature
+            pr_description = await self._generate_feature_pr_description(
+                feature_description, code_generation_result
+            )
+            
+            # Create pull request via MCP
+            pr_result = await self._create_feature_pr_via_mcp(
+                repo_url, branch_name, base_branch, pr_description, code_generation_result
+            )
+            
+            duration_ms = (time.time() - start_time) * 1000
+            
+            result = {
+                "task_id": task_id,
+                "branch_name": branch_name,
+                "base_branch": base_branch,
+                "feature_description": feature_description,
+                "pr_description": pr_description,
+                "pr_result": pr_result,
+                "files_modified": len(code_generation_result.get("files", [])),
+                "summary": {
+                    "feature_implemented": True,
+                    "files_count": len(code_generation_result.get("files", [])),
+                    "estimated_impact": "Feature implementation"
+                }
+            }
+            
+            # Log successful completion
+            self.logger.log_task_complete(
+                agent_id=self.agent_id,
+                task_name="create_feature_pr",
+                task_id=task_id,
+                duration_ms=duration_ms,
+                metadata={
+                    "branch_name": branch_name,
+                    "files_count": len(code_generation_result.get("files", [])),
+                    "pr_number": pr_result.get("pull_request", {}).get("number")
+                }
+            )
+            
+            # Track performance metrics
+            self.monitor.track_task_duration(self.agent_id, "create_feature_pr", duration_ms)
+            
+            return {"success": True, "result": result}
+            
+        except Exception as e:
+            duration_ms = (time.time() - start_time) * 1000
+            
+            # Log error
+            self.logger.log_task_error(
+                agent_id=self.agent_id,
+                task_name="create_feature_pr",
+                task_id=task_id,
+                error=str(e),
+                duration_ms=duration_ms,
+                metadata={"repo_url": repo_url, "branch_name": branch_name}
+            )
+            
+            # Track error
+            self.monitor.track_error(self.agent_id, "feature_pr_creation_error")
+            
+            return {"success": False, "error": str(e), "task_id": task_id}
+    
+    async def _generate_feature_pr_description(self, feature_description: str, 
+                                             code_generation_result: Dict[str, Any]) -> str:
+        """Generate PR description for feature implementation"""
+        try:
+            files = code_generation_result.get("files", [])
+            files_summary = []
+            for file_info in files:
+                files_summary.append(f"- {file_info.get('path', 'Unknown')}: {file_info.get('description', 'Modified')}")
+            
+            prompt = f"""
+            Create a professional GitHub Pull Request description for a new feature implementation.
+
+            Feature Description: {feature_description}
+
+            Files Modified:
+            {chr(10).join(files_summary)}
+
+            Include:
+            1. Clear feature overview
+            2. Implementation details
+            3. Files changed and why
+            4. Testing recommendations
+            5. Review checklist
+
+            Make it professional and easy to review.
+            """
+            
+            response = await self.llm_client.call_llm(
+                model="gpt-4.1-mini",
+                prompt=prompt,
+                max_tokens=1000
+            )
+            
+            return response.get("response", self._generate_fallback_feature_pr_description(feature_description, files))
+            
+        except Exception as e:
+            self.logger.log_event(
+                agent_id=self.agent_id,
+                event_type=EventType.TASK_ERROR,
+                message=f"Failed to generate feature PR description: {str(e)}",
+                level=LogLevel.ERROR
+            )
+            return self._generate_fallback_feature_pr_description(feature_description, files)
+    
+    def _generate_fallback_feature_pr_description(self, feature_description: str, 
+                                                files: List[Dict[str, Any]]) -> str:
+        """Generate fallback feature PR description"""
+        files_list = "\n".join([f"- {f.get('path', 'Unknown file')}" for f in files])
+        
+        return f"""# Feature Implementation: {feature_description}
+
+## Overview
+
+This PR implements the requested feature: {feature_description}
+
+## Files Modified
+
+{files_list}
+
+## Implementation Details
+
+- Feature has been implemented according to specifications
+- Code follows project conventions and best practices
+- All changes are focused on the specific feature requirements
+
+## Testing
+
+- [ ] Feature functionality has been tested
+- [ ] No existing functionality is broken
+- [ ] Edge cases have been considered
+
+## Review Checklist
+
+- [ ] Code follows project style guidelines
+- [ ] Feature works as expected
+- [ ] No security vulnerabilities introduced
+- [ ] Documentation updated if needed
+
+---
+
+*This PR was generated automatically by BMasterAI Feature Agent*
+"""
+    
+    async def _create_feature_pr_via_mcp(self, repo_url: str, branch_name: str, base_branch: str,
+                                       description: str, code_generation_result: Dict[str, Any]) -> Dict[str, Any]:
+        """Create feature pull request via MCP client"""
+        try:
+            # For now, return a mock result since the actual MCP implementation would be complex
+            return {
+                "success": True,
+                "pull_request": {
+                    "number": 43,
+                    "title": f"🚀 Feature: {code_generation_result.get('feature_name', 'New Feature')}",
+                    "url": f"https://github.com/mock/repo/pull/43",
+                    "branch": branch_name,
+                    "base_branch": base_branch,
+                    "status": "open"
+                },
+                "message": "Feature pull request created successfully (mock)"
+            }
+                
+        except Exception as e:
+            self.logger.log_event(
+                agent_id=self.agent_id,
+                event_type=EventType.TASK_ERROR,
+                message=f"MCP feature PR creation failed: {str(e)}",
+                level=LogLevel.ERROR
+            )
+            
+            # Return mock result for demonstration
+            return {
+                "success": True,
+                "pull_request": {
+                    "number": 43,
+                    "title": f"🚀 Feature: {code_generation_result.get('feature_name', 'New Feature')}",
+                    "url": f"https://github.com/mock/repo/pull/43",
+                    "branch": branch_name,
+                    "base_branch": base_branch,
+                    "status": "open"
+                },
+                "message": "Feature pull request created successfully (mock)"
+            }
+
     def stop(self):
         """Stop the agent and clean up resources"""
         self.logger.log_agent_stop(

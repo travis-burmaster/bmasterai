@@ -208,7 +208,22 @@ class FeatureAgent:
                 message=f"Failed to analyze repository structure: {str(e)}",
                 level=LogLevel.ERROR
             )
-            raise
+            
+            # Return a safe default structure
+            return {
+                "repo_data": {},
+                "file_structure": {
+                    "files": [],
+                    "directories": [],
+                    "important_files": {},
+                    "config_files": [],
+                    "source_files": []
+                },
+                "project_type": "unknown",
+                "main_language": "unknown",
+                "languages": {},
+                "readme_content": ""
+            }
     
     async def _build_file_tree(self, repo_info: Dict[str, str], contents: List[Dict]) -> Dict[str, Any]:
         """Build a comprehensive file tree of the repository"""
@@ -235,7 +250,15 @@ class FeatureAgent:
             ".gitignore": "gitignore"
         }
         
+        # Ensure contents is a list
+        if not isinstance(contents, list):
+            contents = []
+            
         for item in contents:
+            # Ensure item is a dictionary with required keys
+            if not isinstance(item, dict) or "type" not in item or "name" not in item:
+                continue
+                
             if item["type"] == "file":
                 file_tree["files"].append(item["name"])
                 
@@ -337,12 +360,27 @@ class FeatureAgent:
         """Generate a detailed plan for implementing the requested feature"""
         
         # Prepare context for LLM
+        file_structure = repo_structure.get("file_structure", {})
+        important_files = file_structure.get("important_files", {})
+        source_files = file_structure.get("source_files", [])
+        
+        # Safely extract key files
+        key_files = []
+        if isinstance(important_files, dict):
+            key_files = list(important_files.values())
+        
+        # Safely extract source files
+        if not isinstance(source_files, list):
+            source_files = []
+        
         context = {
             "repository": repo_info["full_name"],
-            "project_type": repo_structure["project_type"],
-            "main_language": repo_structure.get("main_language"),
-            "file_structure": repo_structure["file_structure"],
-            "readme_summary": repo_structure.get("readme_content", "")[:1000] if repo_structure.get("readme_content") else ""
+            "project_type": repo_structure.get("project_type", "unknown"),
+            "main_language": repo_structure.get("main_language", "unknown"),
+            "file_structure": file_structure,
+            "readme_summary": repo_structure.get("readme_content", "")[:1000] if repo_structure.get("readme_content") else "",
+            "key_files": key_files,
+            "source_files": source_files
         }
         
         prompt = f"""
@@ -352,8 +390,8 @@ Repository Context:
 - Repository: {context['repository']}
 - Project Type: {context['project_type']}
 - Main Language: {context['main_language']}
-- Key Files: {', '.join(context['file_structure'].get('important_files', {}).values())}
-- Source Files: {', '.join(context['file_structure'].get('source_files', [])[:10])}
+- Key Files: {', '.join(context['key_files'])}
+- Source Files: {', '.join(context['source_files'][:10])}
 
 README Summary:
 {context['readme_summary']}
@@ -418,22 +456,23 @@ Respond in JSON format with the following structure:
     ]
 }}
 """
-        
         try:
-            response_data = await self.llm_client.call_llm_structured(
-                model="claude-3-sonnet-20240229",
+            # Call the LLM and get structured response directly
+            plan = await self.llm_client.call_llm_structured(
+                model="claude-3-5-sonnet-20241022",
                 prompt=prompt,
                 max_tokens=4000
             )
             
-            # Extract the response content
-            if isinstance(response_data, dict) and "error" not in response_data:
-                response = json.dumps(response_data)
-            else:
-                response = json.dumps(response_data)
+            # The call_llm_structured method already returns a parsed dict
+            # No need to convert to JSON string and parse again
             
-            # Parse JSON response
-            plan = json.loads(response)
+            # Validate that we got a proper dict response
+            if not isinstance(plan, dict):
+                raise ValueError(f"Expected dict response, got {type(plan)}")
+            
+            if "error" in plan:
+                raise ValueError(f"LLM returned error: {plan['error']}")
             
             self.logger.log_event(
                 agent_id=self.agent_id,
@@ -547,7 +586,7 @@ Return only the complete file content, no explanations or markdown formatting.
         
         try:
             response_data = await self.llm_client.call_llm(
-                model="claude-3-sonnet-20240229",
+                model="claude-3-5-sonnet-20241022",
                 prompt=prompt,
                 max_tokens=6000,
                 temperature=0.2

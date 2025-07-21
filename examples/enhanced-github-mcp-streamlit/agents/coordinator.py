@@ -86,7 +86,7 @@ class WorkflowCoordinator:
         except Exception as e:
             self.logger.log_event(
                 agent_id="workflow_coordinator",
-                event_type="workflow_error",
+                event_type=EventType.TASK_ERROR,
                 message=f"Workflow {workflow_id} failed: {str(e)}",
                 level=LogLevel.ERROR,
                 metadata={"error": str(e), "workflow_id": workflow_id}

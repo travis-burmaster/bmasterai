@@ -1,4 +1,3 @@
-
 """BMasterAI-style logging implementation for MCP GitHub Analyzer"""
 import json
 import logging
@@ -6,7 +5,7 @@ import time
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Union
 from pathlib import Path
 import os
 
@@ -17,6 +16,15 @@ class LogLevel(Enum):
     WARNING = "WARNING"
     ERROR = "ERROR"
     CRITICAL = "CRITICAL"
+    
+    @classmethod
+    def from_string(cls, level_str: str) -> 'LogLevel':
+        """Convert string to LogLevel enum"""
+        try:
+            return cls(level_str.upper())
+        except ValueError:
+            # Default to INFO if invalid level provided
+            return cls.INFO
 
 class EventType(Enum):
     """Event types for structured logging"""
@@ -41,13 +49,17 @@ class StructuredLogger:
         self.session_id = str(uuid.uuid4())
         
     def configure_logging(self, 
-                         log_level: LogLevel = LogLevel.INFO,
+                         log_level: Union[LogLevel, str] = LogLevel.INFO,
                          enable_console: bool = True,
                          enable_file: bool = True,
                          enable_json: bool = True,
                          log_file: str = "logs/mcp_github_analyzer.log",
                          json_log_file: str = "logs/mcp_github_analyzer.jsonl"):
         """Configure logging following BMasterAI patterns"""
+        
+        # Convert string to LogLevel if needed
+        if isinstance(log_level, str):
+            log_level = LogLevel.from_string(log_level)
         
         # Create logs directory if it doesn't exist
         log_dir = Path(log_file).parent
@@ -70,29 +82,47 @@ class StructuredLogger:
         
         # File handler
         if enable_file:
-            file_handler = logging.FileHandler(log_file)
-            file_formatter = logging.Formatter(
-                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-            )
-            file_handler.setFormatter(file_formatter)
-            self.logger.addHandler(file_handler)
+            try:
+                file_handler = logging.FileHandler(log_file)
+                file_formatter = logging.Formatter(
+                    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+                )
+                file_handler.setFormatter(file_formatter)
+                self.logger.addHandler(file_handler)
+            except Exception as e:
+                # If file logging fails, just continue with console logging
+                print(f"Warning: Could not set up file logging: {e}")
         
         # JSON handler
         if enable_json:
-            json_handler = logging.FileHandler(json_log_file)
-            json_handler.setFormatter(JsonFormatter())
-            self.logger.addHandler(json_handler)
+            try:
+                json_handler = logging.FileHandler(json_log_file)
+                json_handler.setFormatter(JsonFormatter())
+                self.logger.addHandler(json_handler)
+            except Exception as e:
+                # If JSON logging fails, just continue
+                print(f"Warning: Could not set up JSON logging: {e}")
         
         return self
     
     def log_event(self,
                  agent_id: str,
-                 event_type: EventType,
+                 event_type: Union[EventType, str],
                  message: str,
-                 level: LogLevel = LogLevel.INFO,
+                 level: Union[LogLevel, str] = LogLevel.INFO,
                  metadata: Optional[Dict[str, Any]] = None,
                  duration_ms: Optional[float] = None):
         """Log an event with structured metadata"""
+        
+        # Convert string types to enums if needed
+        if isinstance(event_type, str):
+            try:
+                event_type = EventType(event_type)
+            except ValueError:
+                event_type = EventType.USER_ACTION  # Default fallback
+        
+        if isinstance(level, str):
+            level = LogLevel.from_string(level)
         
         log_entry = {
             "timestamp": datetime.utcnow().isoformat(),
@@ -108,8 +138,13 @@ class StructuredLogger:
             log_entry["duration_ms"] = duration_ms
         
         # Log to structured logger
-        log_level = getattr(logging, level.value)
-        self.logger.log(log_level, json.dumps(log_entry))
+        try:
+            log_level = getattr(logging, level.value)
+            self.logger.log(log_level, json.dumps(log_entry))
+        except Exception as e:
+            # Fallback to basic logging if structured logging fails
+            print(f"Logging error: {e}")
+            print(f"Message: {message}")
         
         return log_entry
     
@@ -197,7 +232,7 @@ class JsonFormatter(logging.Formatter):
 # Global logger instance
 _logger_instance = None
 
-def configure_logging(log_level: LogLevel = LogLevel.INFO,
+def configure_logging(log_level: Union[LogLevel, str] = LogLevel.INFO,
                      enable_console: bool = True,
                      enable_file: bool = True,
                      enable_json: bool = True,

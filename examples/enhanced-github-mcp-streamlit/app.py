@@ -136,36 +136,49 @@ def render_analysis_page(session_manager, logger):
 def render_feature_request_page(session_manager, logger):
     """Render the feature request page with enhanced functionality"""
     
-    # Feature request form
-    feature_config = render_feature_request_form()
-    
-    # Handle feature implementation
-    if feature_config:
-        # Track user action
-        session_manager.track_user_action("feature_request_started", {
-            "repo_url": feature_config["repo_url"],
-            "feature_description": feature_config["feature_description"],
-            "base_branch": feature_config["base_branch"],
-            "create_pr": feature_config["create_pr"]
-        })
+    try:
+        # Feature request form
+        feature_config = render_feature_request_form()
         
-        # Execute feature implementation
-        with st.spinner("🚀 Implementing feature request..."):
-            feature_result = run_feature_request(feature_config, logger)
-        
-        # Save results to session
-        if feature_result:
-            session_manager.save_analysis_result(
-                feature_config["repo_url"], 
-                feature_result,
-                analysis_type="feature_request"
-            )
+        # Handle feature implementation
+        if feature_config:
+            # Track user action
+            session_manager.track_user_action("feature_request_started", {
+                "repo_url": feature_config["repo_url"],
+                "feature_description": feature_config["feature_description"],
+                "base_branch": feature_config["base_branch"],
+                "create_pr": feature_config["create_pr"]
+            })
             
-            # Display results
-            if feature_result.get("success"):
-                render_feature_request_results(feature_result)
-            else:
-                st.error(f"Feature request failed: {feature_result.get('error', 'Unknown error')}")
+            # Execute feature implementation
+            with st.spinner("🚀 Implementing feature request..."):
+                feature_result = run_feature_request(feature_config, logger)
+            
+            # Save results to session
+            if feature_result:
+                session_manager.save_analysis_result(
+                    feature_config["repo_url"], 
+                    feature_result,
+                    analysis_type="feature_request"
+                )
+                
+                # Display results
+                if feature_result.get("success"):
+                    render_feature_request_results(feature_result)
+                else:
+                    st.error(f"Feature request failed: {feature_result.get('error', 'Unknown error')}")
+    
+    except Exception as e:
+        st.error(f"Error in feature request page: {str(e)}")
+        logger.log_event(
+            agent_id="streamlit_app",
+            event_type=EventType.TASK_ERROR,
+            message=f"Feature request page error: {str(e)}",
+            level=LogLevel.ERROR,
+            metadata={"error": str(e)}
+        )
+        import traceback
+        st.code(traceback.format_exc())
 
 def run_analysis(config: Dict[str, Any], logger) -> Optional[Dict[str, Any]]:
     """Run repository analysis with proper error handling"""
@@ -266,7 +279,13 @@ def run_feature_request(config: Dict[str, Any], logger) -> Optional[Dict[str, An
         
         # Execute feature implementation workflow
         async def run_feature_workflow():
-            return await coordinator.execute_feature_request(config)
+            try:
+                return await coordinator.execute_feature_request(config)
+            except Exception as e:
+                st.error(f"Error in feature workflow: {str(e)}")
+                import traceback
+                st.code(traceback.format_exc())
+                return {"success": False, "error": str(e)}
         
         # Run async workflow
         try:

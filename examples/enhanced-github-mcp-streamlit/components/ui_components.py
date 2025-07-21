@@ -139,119 +139,126 @@ def render_feature_request_form():
     st.markdown("## 🚀 Feature Request")
     st.markdown("Generate and implement new features or fixes with automatic branch creation and code generation.")
     
-    with st.form("feature_request_form"):
-        # Repository URL
-        repo_url = st.text_input(
-            "GitHub Repository URL",
-            placeholder="https://github.com/owner/repository",
-            help="Enter the full GitHub repository URL where you want to implement the feature"
-        )
-        
-        # Feature description
-        feature_description = st.text_area(
-            "Feature Description",
-            placeholder="Describe the feature you want to add or the bug you want to fix. Be as detailed as possible.\n\nExamples:\n- Add a user authentication system with JWT tokens\n- Fix the memory leak in the data processing module\n- Implement dark mode toggle for the UI\n- Add input validation for the contact form",
-            height=150,
-            help="Provide a detailed description of what you want to implement"
-        )
-        
-        # Branch configuration
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            base_branch = st.text_input(
-                "Base Branch",
-                value="main",
-                help="Branch to create the feature branch from"
+    try:
+        with st.form("feature_request_form"):
+            # Repository URL
+            repo_url = st.text_input(
+                "GitHub Repository URL",
+                placeholder="https://github.com/owner/repository",
+                help="Enter the full GitHub repository URL where you want to implement the feature"
             )
-        
-        with col2:
-            feature_branch_name = st.text_input(
-                "Feature Branch Name (optional)",
-                placeholder="Auto-generated if empty",
-                help="Name for the new feature branch. Leave empty for auto-generation based on feature description"
+            
+            # Feature description
+            feature_description = st.text_area(
+                "Feature Description",
+                placeholder="Describe the feature you want to add or the bug you want to fix. Be as detailed as possible.\n\nExamples:\n- Add a user authentication system with JWT tokens\n- Fix the memory leak in the data processing module\n- Implement dark mode toggle for the UI\n- Add input validation for the contact form",
+                height=150,
+                help="Provide a detailed description of what you want to implement"
             )
+            
+            # Branch configuration
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                base_branch = st.text_input(
+                    "Base Branch",
+                    value="main",
+                    help="Branch to create the feature branch from"
+                )
+            
+            with col2:
+                feature_branch_name = st.text_input(
+                    "Feature Branch Name (optional)",
+                    placeholder="Auto-generated if empty",
+                    help="Name for the new feature branch. Leave empty for auto-generation based on feature description"
+                )
+            
+            # Advanced options
+            with st.expander("🔧 Advanced Options"):
+                col3, col4 = st.columns(2)
+                
+                with col3:
+                    create_pr = st.checkbox(
+                        "Create Pull Request",
+                        value=True,
+                        help="Automatically create a pull request after implementing the feature"
+                    )
+                    
+                    include_tests = st.checkbox(
+                        "Generate Tests",
+                        value=True,
+                        help="Generate test files and test cases for the new feature"
+                    )
+                    
+                    include_docs = st.checkbox(
+                        "Update Documentation",
+                        value=True,
+                        help="Update relevant documentation files"
+                    )
+                
+                with col4:
+                    complexity_level = st.selectbox(
+                        "Implementation Complexity",
+                        ["simple", "moderate", "complex"],
+                        index=1,
+                        help="Expected complexity level of the implementation"
+                    )
+                    
+                    code_style = st.selectbox(
+                        "Code Style",
+                        ["auto-detect", "pep8", "google", "numpy"],
+                        index=0,
+                        help="Code style to follow for generated code"
+                    )
+                    
+                    review_before_commit = st.checkbox(
+                        "Review Before Commit",
+                        value=False,
+                        help="Show generated code for review before committing to branch"
+                    )
         
-        # Advanced options
-        with st.expander("🔧 Advanced Options"):
-            col3, col4 = st.columns(2)
+            submitted = st.form_submit_button("🚀 Generate & Implement Feature", type="primary")
             
-            with col3:
-                create_pr = st.checkbox(
-                    "Create Pull Request",
-                    value=True,
-                    help="Automatically create a pull request after implementing the feature"
-                )
+            if submitted:
+                if not repo_url:
+                    st.error("Please enter a repository URL")
+                    return None
                 
-                include_tests = st.checkbox(
-                    "Generate Tests",
-                    value=True,
-                    help="Generate test files and test cases for the new feature"
-                )
+                if not repo_url.startswith("https://github.com/"):
+                    st.error("Please enter a valid GitHub repository URL")
+                    return None
                 
-                include_docs = st.checkbox(
-                    "Update Documentation",
-                    value=True,
-                    help="Update relevant documentation files"
-                )
-            
-            with col4:
-                complexity_level = st.selectbox(
-                    "Implementation Complexity",
-                    ["simple", "moderate", "complex"],
-                    index=1,
-                    help="Expected complexity level of the implementation"
-                )
+                if not feature_description.strip():
+                    st.error("Please provide a detailed feature description")
+                    return None
                 
-                code_style = st.selectbox(
-                    "Code Style",
-                    ["auto-detect", "pep8", "google", "numpy"],
-                    index=0,
-                    help="Code style to follow for generated code"
-                )
+                # Generate branch name if not provided
+                if not feature_branch_name.strip():
+                    # Create branch name from feature description
+                    import re
+                    branch_name = re.sub(r'[^a-zA-Z0-9\s]', '', feature_description.lower())
+                    branch_name = re.sub(r'\s+', '-', branch_name.strip())
+                    branch_name = branch_name[:50]  # Limit length
+                    feature_branch_name = f"feature/{branch_name}"
                 
-                review_before_commit = st.checkbox(
-                    "Review Before Commit",
-                    value=False,
-                    help="Show generated code for review before committing to branch"
-                )
-        
-        submitted = st.form_submit_button("🚀 Generate & Implement Feature", type="primary")
-        
-        if submitted:
-            if not repo_url:
-                st.error("Please enter a repository URL")
-                return None
-            
-            if not repo_url.startswith("https://github.com/"):
-                st.error("Please enter a valid GitHub repository URL")
-                return None
-            
-            if not feature_description.strip():
-                st.error("Please provide a detailed feature description")
-                return None
-            
-            # Generate branch name if not provided
-            if not feature_branch_name.strip():
-                # Create branch name from feature description
-                import re
-                branch_name = re.sub(r'[^a-zA-Z0-9\s]', '', feature_description.lower())
-                branch_name = re.sub(r'\s+', '-', branch_name.strip())
-                branch_name = branch_name[:50]  # Limit length
-                feature_branch_name = f"feature/{branch_name}"
-            
-            return {
-                "repo_url": repo_url,
-                "feature_description": feature_description.strip(),
-                "base_branch": base_branch,
-                "feature_branch_name": feature_branch_name.strip(),
-                "create_pr": create_pr,
-                "include_tests": include_tests,
-                "include_docs": include_docs,
-                "complexity_level": complexity_level,
-                "code_style": code_style,
-                "review_before_commit": review_before_commit
-            }
+                return {
+                    "repo_url": repo_url,
+                    "feature_description": feature_description.strip(),
+                    "base_branch": base_branch,
+                    "feature_branch_name": feature_branch_name.strip(),
+                    "create_pr": create_pr,
+                    "include_tests": include_tests,
+                    "include_docs": include_docs,
+                    "complexity_level": complexity_level,
+                    "code_style": code_style,
+                    "review_before_commit": review_before_commit
+                }
+    
+    except Exception as e:
+        st.error(f"Error in feature request form: {str(e)}")
+        import traceback
+        st.code(traceback.format_exc())
+        return None
     
     return None
 

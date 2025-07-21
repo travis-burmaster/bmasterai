@@ -6,7 +6,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 import uuid
 
-from utils.bmasterai_logging import get_logger, LogLevel
+from utils.bmasterai_logging import get_logger, LogLevel, EventType
 from agents.github_analyzer import GitHubAnalyzerAgent
 from agents.feature_agent import FeatureAgent
 from agents.pr_creator import PRCreatorAgent
@@ -187,7 +187,7 @@ class WorkflowCoordinator:
         except Exception as e:
             self.logger.log_event(
                 agent_id="workflow_coordinator",
-                event_type="feature_request_error",
+                event_type=EventType.TASK_ERROR,
                 message=f"Feature request workflow {workflow_id} failed: {str(e)}",
                 level=LogLevel.ERROR,
                 metadata={"error": str(e), "workflow_id": workflow_id}

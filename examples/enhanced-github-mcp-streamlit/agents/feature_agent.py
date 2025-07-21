@@ -459,7 +459,7 @@ Respond in JSON format with the following structure:
         try:
             # Call the LLM and get structured response directly
             plan = await self.llm_client.call_llm_structured(
-                model="claude-3-sonnet-20240229",
+                model="claude-3-5-sonnet-20241022",
                 prompt=prompt,
                 max_tokens=4000
             )
@@ -586,7 +586,7 @@ Return only the complete file content, no explanations or markdown formatting.
         
         try:
             response_data = await self.llm_client.call_llm(
-                model="claude-3-sonnet-20240229",
+                model="claude-3-5-sonnet-20241022",
                 prompt=prompt,
                 max_tokens=6000,
                 temperature=0.2

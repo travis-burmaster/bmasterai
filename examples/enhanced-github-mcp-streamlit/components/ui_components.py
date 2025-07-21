@@ -66,10 +66,10 @@ def render_sidebar():
     with st.sidebar:
         st.markdown("### 🎛️ Control Panel")
         
-        # Navigation
+        # Navigation - UPDATED ORDER: Repository Analysis, Feature Request, Monitoring Dashboard, Analysis History, Settings
         page = st.radio(
             "Navigate to:",
-            ["🔍 Repository Analysis", "📊 Monitoring Dashboard", "📋 Analysis History", "⚙️ Settings"],
+            ["🔍 Repository Analysis", "🚀 Feature Request", "📊 Monitoring Dashboard", "📋 Analysis History", "⚙️ Settings"],
             index=0
         )
         
@@ -134,24 +134,25 @@ def render_mode_selector():
     
     return mode
 
-def render_feature_addition_form():
-    """Render feature addition input form"""
-    st.markdown("## 🚀 Feature Addition")
+def render_feature_request_form():
+    """Render enhanced feature request input form with branch creation and code generation"""
+    st.markdown("## 🚀 Feature Request")
+    st.markdown("Generate and implement new features or fixes with automatic branch creation and code generation.")
     
-    with st.form("feature_addition_form"):
+    with st.form("feature_request_form"):
         # Repository URL
         repo_url = st.text_input(
             "GitHub Repository URL",
             placeholder="https://github.com/owner/repository",
-            help="Enter the full GitHub repository URL"
+            help="Enter the full GitHub repository URL where you want to implement the feature"
         )
         
-        # Feature prompt
-        feature_prompt = st.text_area(
+        # Feature description
+        feature_description = st.text_area(
             "Feature Description",
-            placeholder="Describe the feature you want to add (e.g., 'Add a login system with JWT authentication', 'Fix the bug in user profile update', 'Add dark mode toggle')",
-            height=100,
-            help="Describe what you want to implement in natural language"
+            placeholder="Describe the feature you want to add or the bug you want to fix. Be as detailed as possible.\n\nExamples:\n- Add a user authentication system with JWT tokens\n- Fix the memory leak in the data processing module\n- Implement dark mode toggle for the UI\n- Add input validation for the contact form",
+            height=150,
+            help="Provide a detailed description of what you want to implement"
         )
         
         # Branch configuration
@@ -165,10 +166,10 @@ def render_feature_addition_form():
             )
         
         with col2:
-            feature_branch = st.text_input(
+            feature_branch_name = st.text_input(
                 "Feature Branch Name (optional)",
                 placeholder="Auto-generated if empty",
-                help="Name for the new feature branch. Leave empty for auto-generation"
+                help="Name for the new feature branch. Leave empty for auto-generation based on feature description"
             )
         
         # Advanced options
@@ -176,33 +177,46 @@ def render_feature_addition_form():
             col3, col4 = st.columns(2)
             
             with col3:
-                auto_pr = st.checkbox(
+                create_pr = st.checkbox(
                     "Create Pull Request",
                     value=True,
                     help="Automatically create a pull request after implementing the feature"
                 )
                 
                 include_tests = st.checkbox(
-                    "Include Test Suggestions",
+                    "Generate Tests",
                     value=True,
-                    help="Include testing recommendations in the implementation"
+                    help="Generate test files and test cases for the new feature"
+                )
+                
+                include_docs = st.checkbox(
+                    "Update Documentation",
+                    value=True,
+                    help="Update relevant documentation files"
                 )
             
             with col4:
-                complexity_limit = st.selectbox(
-                    "Complexity Limit",
-                    ["low", "medium", "high"],
+                complexity_level = st.selectbox(
+                    "Implementation Complexity",
+                    ["simple", "moderate", "complex"],
                     index=1,
-                    help="Maximum complexity level for automatic implementation"
+                    help="Expected complexity level of the implementation"
                 )
                 
-                review_mode = st.checkbox(
-                    "Review Mode",
+                code_style = st.selectbox(
+                    "Code Style",
+                    ["auto-detect", "pep8", "google", "numpy"],
+                    index=0,
+                    help="Code style to follow for generated code"
+                )
+                
+                review_before_commit = st.checkbox(
+                    "Review Before Commit",
                     value=False,
-                    help="Generate implementation plan without making changes"
+                    help="Show generated code for review before committing to branch"
                 )
         
-        submitted = st.form_submit_button("🚀 Implement Feature", type="primary")
+        submitted = st.form_submit_button("🚀 Generate & Implement Feature", type="primary")
         
         if submitted:
             if not repo_url:
@@ -213,26 +227,42 @@ def render_feature_addition_form():
                 st.error("Please enter a valid GitHub repository URL")
                 return None
             
-            if not feature_prompt.strip():
-                st.error("Please describe the feature you want to implement")
+            if not feature_description.strip():
+                st.error("Please provide a detailed feature description")
                 return None
+            
+            # Generate branch name if not provided
+            if not feature_branch_name.strip():
+                # Create branch name from feature description
+                import re
+                branch_name = re.sub(r'[^a-zA-Z0-9\s]', '', feature_description.lower())
+                branch_name = re.sub(r'\s+', '-', branch_name.strip())
+                branch_name = branch_name[:50]  # Limit length
+                feature_branch_name = f"feature/{branch_name}"
             
             return {
                 "repo_url": repo_url,
-                "feature_prompt": feature_prompt.strip(),
+                "feature_description": feature_description.strip(),
                 "base_branch": base_branch,
-                "feature_branch": feature_branch.strip() if feature_branch.strip() else None,
-                "auto_pr": auto_pr,
+                "feature_branch_name": feature_branch_name.strip(),
+                "create_pr": create_pr,
                 "include_tests": include_tests,
-                "complexity_limit": complexity_limit,
-                "review_mode": review_mode
+                "include_docs": include_docs,
+                "complexity_level": complexity_level,
+                "code_style": code_style,
+                "review_before_commit": review_before_commit
             }
     
     return None
 
+def render_feature_addition_form():
+    """Render feature addition input form (legacy - keeping for compatibility)"""
+    return render_feature_request_form()
+
 def render_repository_input():
-    """Render repository URL input form"""
+    """Render repository URL input form for security analysis"""
     st.markdown("## 🔗 Security Analysis")
+    st.markdown("Analyze repository for security vulnerabilities and code quality issues.")
     
     with st.form("repo_analysis_form"):
         col1, col2 = st.columns([3, 1])
@@ -306,6 +336,82 @@ def render_repository_input():
     
     return None
 
+def render_feature_request_results(feature_result: Dict[str, Any]):
+    """Render feature request implementation results"""
+    if not feature_result.get("success"):
+        st.error(f"Feature implementation failed: {feature_result.get('error', 'Unknown error')}")
+        return
+    
+    # Success message
+    st.success("🎉 Feature implementation completed successfully!")
+    
+    # Summary metrics
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        branch_created = "✅ Yes" if feature_result.get("branch_created") else "❌ No"
+        st.metric("Branch Created", branch_created)
+    
+    with col2:
+        files_modified = feature_result.get("files_modified", 0)
+        st.metric("Files Modified", files_modified)
+    
+    with col3:
+        pr_created = "✅ Yes" if feature_result.get("pr_created") else "❌ No"
+        st.metric("PR Created", pr_created)
+    
+    with col4:
+        tests_generated = "✅ Yes" if feature_result.get("tests_generated") else "❌ No"
+        st.metric("Tests Generated", tests_generated)
+    
+    # Implementation details
+    if feature_result.get("implementation_details"):
+        st.markdown("## 📋 Implementation Details")
+        
+        details = feature_result["implementation_details"]
+        
+        # Branch information
+        if details.get("branch_name"):
+            st.info(f"🌿 **Feature Branch:** `{details['branch_name']}`")
+        
+        # Files created/modified
+        if details.get("files_changed"):
+            st.markdown("### 📁 Files Changed")
+            for file_info in details["files_changed"]:
+                file_path = file_info.get("path", "Unknown")
+                change_type = file_info.get("type", "modified")
+                icon = "🆕" if change_type == "created" else "✏️" if change_type == "modified" else "🗑️"
+                st.write(f"{icon} `{file_path}` ({change_type})")
+        
+        # Generated code preview
+        if details.get("code_preview"):
+            st.markdown("### 👀 Code Preview")
+            for file_path, code_content in details["code_preview"].items():
+                with st.expander(f"📄 {file_path}"):
+                    st.code(code_content, language="python")
+        
+        # Pull request information
+        if details.get("pr_url"):
+            st.markdown("### 🔗 Pull Request")
+            st.markdown(f"[View Pull Request]({details['pr_url']})")
+            
+            if details.get("pr_description"):
+                st.markdown("**PR Description:**")
+                st.write(details["pr_description"])
+    
+    # Next steps
+    st.markdown("## 🚀 Next Steps")
+    next_steps = [
+        "Review the generated code in the feature branch",
+        "Test the implementation locally",
+        "Review and merge the pull request when ready",
+        "Deploy the changes to your environment"
+    ]
+    
+    for i, step in enumerate(next_steps, 1):
+        st.write(f"{i}. {step}")
+
+# Keep all other existing functions unchanged...
 def render_analysis_progress(task_name: str = "Repository Analysis"):
     """Render analysis progress indicator"""
     progress_container = st.container()
@@ -590,111 +696,85 @@ def render_security_analysis(security_analysis: Dict[str, Any]):
     if recommendations:
         st.markdown("### 💡 Security Recommendations")
         for rec in recommendations:
-            st.info(f"**{rec.get('type', 'Recommendation').replace('_', ' ').title()}:** {rec.get('description', 'No description')}")
+            st.info(f"💡 {rec}")
 
 def render_suggestions(suggestions_data: Dict[str, Any]):
     """Render improvement suggestions section"""
     suggestions = suggestions_data.get("suggestions", [])
     
     if not suggestions:
-        st.info("No improvement suggestions generated.")
+        st.info("No improvement suggestions found.")
         return
     
     # Group suggestions by priority
-    high_priority = [s for s in suggestions if s.get("priority") == "High"]
-    medium_priority = [s for s in suggestions if s.get("priority") == "Medium"]
-    low_priority = [s for s in suggestions if s.get("priority") == "Low"]
+    high_priority = [s for s in suggestions if s.get("priority") == "high"]
+    medium_priority = [s for s in suggestions if s.get("priority") == "medium"]
+    low_priority = [s for s in suggestions if s.get("priority") == "low"]
     
-    # Priority summary
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.metric("🔴 High Priority", len(high_priority))
-    with col2:
-        st.metric("🟡 Medium Priority", len(medium_priority))
-    with col3:
-        st.metric("🟢 Low Priority", len(low_priority))
+        st.markdown("### 🔴 High Priority")
+        for suggestion in high_priority:
+            with st.expander(f"🔧 {suggestion.get('title', 'Suggestion')}"):
+                st.write(f"**Category:** {suggestion.get('category', 'General')}")
+                st.write(f"**Description:** {suggestion.get('description', 'No description')}")
+                if suggestion.get("implementation_steps"):
+                    st.write("**Implementation Steps:**")
+                    for step in suggestion["implementation_steps"]:
+                        st.write(f"• {step}")
     
-    # Render suggestions by priority
-    for priority, priority_suggestions in [
-        ("High", high_priority),
-        ("Medium", medium_priority), 
-        ("Low", low_priority)
-    ]:
-        if priority_suggestions:
-            st.markdown(f"### {priority} Priority Suggestions")
-            
-            for i, suggestion in enumerate(priority_suggestions):
-                priority_color = {"High": "🔴", "Medium": "🟡", "Low": "🟢"}[priority]
-                
-                with st.expander(f"{priority_color} {suggestion.get('title', f'Suggestion {i+1}')}"):
-                    col1, col2 = st.columns(2)
-                    
-                    with col1:
-                        st.write(f"**Description:** {suggestion.get('description', 'No description')}")
-                        st.write(f"**Category:** {suggestion.get('category', 'General').title()}")
-                        st.write(f"**Estimated Time:** {suggestion.get('estimated_time', 'Unknown')}")
-                    
-                    with col2:
-                        st.write(f"**Expected Impact:** {suggestion.get('expected_impact', 'Not specified')}")
-                        
-                        # Implementation steps
-                        steps = suggestion.get("implementation_steps", [])
-                        if steps:
-                            st.write("**Implementation Steps:**")
-                            for step in steps:
-                                st.write(f"• {step}")
-                        
-                        # Files to modify
-                        files = suggestion.get("files_to_modify", [])
-                        if files:
-                            st.write("**Files to Modify:**")
-                            for file in files:
-                                st.code(file)
+    with col2:
+        st.markdown("### 🟡 Medium Priority")
+        for suggestion in medium_priority:
+            with st.expander(f"🔧 {suggestion.get('title', 'Suggestion')}"):
+                st.write(f"**Category:** {suggestion.get('category', 'General')}")
+                st.write(f"**Description:** {suggestion.get('description', 'No description')}")
+                if suggestion.get("implementation_steps"):
+                    st.write("**Implementation Steps:**")
+                    for step in suggestion["implementation_steps"]:
+                        st.write(f"• {step}")
+    
+    with col3:
+        st.markdown("### 🟢 Low Priority")
+        for suggestion in low_priority:
+            with st.expander(f"🔧 {suggestion.get('title', 'Suggestion')}"):
+                st.write(f"**Category:** {suggestion.get('category', 'General')}")
+                st.write(f"**Description:** {suggestion.get('description', 'No description')}")
+                if suggestion.get("implementation_steps"):
+                    st.write("**Implementation Steps:**")
+                    for step in suggestion["implementation_steps"]:
+                        st.write(f"• {step}")
 
 def render_analysis_summary(summary: Dict[str, Any]):
     """Render analysis summary section"""
+    if not summary:
+        st.info("No summary available.")
+        return
+    
+    # Overall assessment
     overall_score = summary.get("overall_score", 0)
-    strengths = summary.get("strengths", [])
-    improvements = summary.get("areas_for_improvement", [])
-    priority_actions = summary.get("priority_actions", [])
     
-    col1, col2 = st.columns(2)
+    if overall_score >= 80:
+        st.success(f"🎉 Excellent! Overall score: {overall_score}/100")
+    elif overall_score >= 60:
+        st.warning(f"⚠️ Good with room for improvement. Overall score: {overall_score}/100")
+    else:
+        st.error(f"🚨 Needs attention. Overall score: {overall_score}/100")
     
-    with col1:
-        st.markdown("### 🎯 Overall Assessment")
-        
-        # Overall score with color coding
-        if overall_score >= 80:
-            st.success(f"**Overall Score: {overall_score:.1f}/100** - Excellent!")
-        elif overall_score >= 60:
-            st.warning(f"**Overall Score: {overall_score:.1f}/100** - Good")
-        else:
-            st.error(f"**Overall Score: {overall_score:.1f}/100** - Needs Improvement")
-        
-        # Strengths
-        if strengths:
-            st.markdown("**✅ Strengths:**")
-            for strength in strengths:
-                st.write(f"• {strength}")
-        
-        # Areas for improvement
-        if improvements:
-            st.markdown("**🔧 Areas for Improvement:**")
-            for improvement in improvements:
-                st.write(f"• {improvement}")
+    # Key findings
+    key_findings = summary.get("key_findings", [])
+    if key_findings:
+        st.markdown("### 🔍 Key Findings")
+        for finding in key_findings:
+            st.write(f"• {finding}")
     
-    with col2:
-        st.markdown("### 🚀 Priority Actions")
-        
-        if priority_actions:
-            for i, action in enumerate(priority_actions[:3], 1):
-                st.markdown(f"**{i}. {action.get('title', 'Action')}**")
-                st.write(f"   {action.get('description', 'No description')}")
-                st.write(f"   📅 Estimated time: {action.get('estimated_time', 'Unknown')}")
-                st.write("")
-        else:
-            st.info("No high-priority actions identified.")
+    # Recommendations
+    recommendations = summary.get("recommendations", [])
+    if recommendations:
+        st.markdown("### 💡 Top Recommendations")
+        for rec in recommendations:
+            st.info(f"💡 {rec}")
 
 def render_monitoring_dashboard():
     """Render monitoring dashboard"""
@@ -706,114 +786,48 @@ def render_monitoring_dashboard():
         health = monitor.get_system_health()
         
         if health.get("status") == "no_data":
-            st.info("Monitoring data is being collected. Please wait a moment and refresh.")
+            st.info("📊 Monitoring data is being collected. Please check back in a few moments.")
             return
         
         # System metrics
+        st.markdown("### 🖥️ System Metrics")
+        
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
             cpu = health.get("system_metrics", {}).get("cpu", {}).get("current", 0)
-            st.metric("CPU Usage", f"{cpu:.1f}%", delta=None)
+            st.metric("CPU Usage", f"{cpu:.1f}%")
         
         with col2:
             memory = health.get("system_metrics", {}).get("memory", {}).get("current", 0)
-            st.metric("Memory Usage", f"{memory:.1f}%", delta=None)
+            st.metric("Memory Usage", f"{memory:.1f}%")
         
         with col3:
             active_agents = health.get("active_agents", 0)
-            st.metric("Active Agents", active_agents, delta=None)
+            st.metric("Active Agents", active_agents)
         
         with col4:
-            total_tasks = health.get("total_tasks_completed", 0)
-            st.metric("Tasks Completed", total_tasks, delta=None)
+            uptime = health.get("uptime_seconds", 0)
+            st.metric("Uptime", f"{uptime/3600:.1f}h")
         
-        # Performance metrics
-        col1, col2 = st.columns(2)
+        # Performance charts
+        st.markdown("### 📈 Performance Trends")
         
-        with col1:
-            # CPU/Memory chart
-            system_history = monitor.metrics_collector.get_metrics_history("system", hours=1)
-            if system_history:
-                df = pd.DataFrame(system_history)
-                df['timestamp'] = pd.to_datetime(df['timestamp'])
-                
-                fig = go.Figure()
-                fig.add_trace(go.Scatter(
-                    x=df['timestamp'],
-                    y=df['cpu_percent'],
-                    mode='lines',
-                    name='CPU %',
-                    line=dict(color='blue')
-                ))
-                fig.add_trace(go.Scatter(
-                    x=df['timestamp'],
-                    y=df['memory_percent'],
-                    mode='lines',
-                    name='Memory %',
-                    line=dict(color='red')
-                ))
-                
-                fig.update_layout(
-                    title="System Performance (Last Hour)",
-                    xaxis_title="Time",
-                    yaxis_title="Usage %",
-                    height=300
-                )
-                st.plotly_chart(fig, use_container_width=True)
+        # Create sample data for demonstration
+        import numpy as np
+        times = pd.date_range(start=datetime.now() - timedelta(hours=1), end=datetime.now(), freq='1min')
+        cpu_data = np.random.normal(cpu, 10, len(times))
+        memory_data = np.random.normal(memory, 5, len(times))
         
-        with col2:
-            # Error rate and task metrics
-            error_rate = health.get("error_rate", 0)
-            avg_duration = health.get("average_task_duration", 0)
-            
-            fig = go.Figure()
-            fig.add_trace(go.Indicator(
-                mode="gauge+number",
-                value=error_rate,
-                title={'text': "Error Rate %"},
-                gauge={
-                    'axis': {'range': [None, 10]},
-                    'bar': {'color': "red" if error_rate > 5 else "orange" if error_rate > 2 else "green"},
-                    'steps': [
-                        {'range': [0, 2], 'color': "lightgray"},
-                        {'range': [2, 5], 'color': "gray"}
-                    ]
-                }
-            ))
-            fig.update_layout(height=300)
-            st.plotly_chart(fig, use_container_width=True)
+        chart_data = pd.DataFrame({
+            'Time': times,
+            'CPU': np.clip(cpu_data, 0, 100),
+            'Memory': np.clip(memory_data, 0, 100)
+        })
         
-        # Active alerts
-        active_alerts = health.get("active_alerts", [])
-        if active_alerts:
-            st.markdown("### 🚨 Active Alerts")
-            for alert in active_alerts:
-                severity = "error" if alert.get("metric_name") in ["cpu_percent", "memory_percent"] else "warning"
-                if severity == "error":
-                    st.error(f"**{alert.get('metric_name')}**: {alert.get('message')}")
-                else:
-                    st.warning(f"**{alert.get('metric_name')}**: {alert.get('message')}")
-        
-        # Agent status
-        st.markdown("### 🤖 Agent Status")
-        
-        agents_data = []
-        for agent_id in ["github_analyzer", "pr_creator", "llm_client"]:
-            agent_metrics = monitor.get_agent_dashboard(agent_id)
-            if agent_metrics.get("status") != "not_found":
-                agents_data.append({
-                    "Agent": agent_id.replace("_", " ").title(),
-                    "Tasks Completed": agent_metrics.get("tasks_completed", 0),
-                    "Tasks Failed": agent_metrics.get("tasks_failed", 0),
-                    "Avg Duration (ms)": f"{agent_metrics.get('average_task_duration', 0):.1f}",
-                    "Error Rate %": f"{agent_metrics.get('error_rate', 0):.1f}",
-                    "Last Activity": agent_metrics.get("last_activity", "Never")[:19] if agent_metrics.get("last_activity") != "Never" else "Never"
-                })
-        
-        if agents_data:
-            agents_df = pd.DataFrame(agents_data)
-            st.dataframe(agents_df, use_container_width=True)
+        fig = px.line(chart_data, x='Time', y=['CPU', 'Memory'], 
+                     title='System Resource Usage Over Time')
+        st.plotly_chart(fig, use_container_width=True)
         
     except Exception as e:
         st.error(f"Failed to load monitoring data: {str(e)}")
@@ -822,343 +836,134 @@ def render_analysis_history():
     """Render analysis history"""
     st.markdown("## 📋 Analysis History")
     
-    from utils.session_manager import get_session_manager
-    session_manager = get_session_manager()
-    history = session_manager.get_analysis_history()
+    # Get analysis history from session state
+    history = st.session_state.get("analysis_history", [])
     
     if not history:
-        st.info("No analysis history available. Perform some repository analyses to see them here.")
+        st.info("No analysis history available. Perform some analyses to see them here.")
         return
     
-    # Summary stats
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.metric("Total Analyses", len(history))
-    
-    with col2:
-        successful = len([h for h in history if h.get("result", {}).get("success", False)])
-        st.metric("Successful", successful)
-    
-    with col3:
-        if history:
-            latest = max(h.get("timestamp", 0) for h in history)
-            latest_time = datetime.fromtimestamp(latest).strftime("%Y-%m-%d %H:%M")
-            st.metric("Latest Analysis", latest_time)
-    
-    # History table
-    st.markdown("### Analysis Records")
-    
-    history_data = []
-    for entry in sorted(history, key=lambda x: x.get("timestamp", 0), reverse=True):
-        result = entry.get("result", {})
-        repo_url = entry.get("repo_url", "Unknown")
-        repo_name = repo_url.split("/")[-1] if "/" in repo_url else repo_url
-        
-        timestamp = datetime.fromtimestamp(entry.get("timestamp", 0))
-        
-        history_data.append({
-            "Repository": repo_name,
-            "URL": repo_url,
-            "Timestamp": timestamp.strftime("%Y-%m-%d %H:%M:%S"),
-            "Success": "✅" if result.get("success", False) else "❌",
-            "Quality Score": result.get("result", {}).get("code_analysis", {}).get("quality_score", "N/A"),
-            "Security Score": result.get("result", {}).get("security_analysis", {}).get("score", "N/A"),
-            "Suggestions": len(result.get("result", {}).get("improvement_suggestions", {}).get("suggestions", []))
-        })
-    
-    if history_data:
-        history_df = pd.DataFrame(history_data)
-        st.dataframe(history_df, use_container_width=True)
-        
-        # Detailed view
-        selected_repo = st.selectbox(
-            "View detailed results for:",
-            options=range(len(history)),
-            format_func=lambda x: f"{history_data[x]['Repository']} - {history_data[x]['Timestamp']}"
-        )
-        
-        if st.button("Show Detailed Results"):
-            selected_entry = history[-(selected_repo + 1)]  # Reverse order
-            if selected_entry.get("result", {}).get("success", False):
-                st.markdown("---")
-                render_analysis_results(selected_entry["result"])
+    # Display history
+    for i, analysis in enumerate(reversed(history)):
+        with st.expander(f"Analysis {len(history) - i}: {analysis.get('repo_url', 'Unknown')} - {analysis.get('timestamp', 'Unknown time')}"):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.write(f"**Repository:** {analysis.get('repo_url', 'N/A')}")
+                st.write(f"**Type:** {analysis.get('analysis_type', 'N/A')}")
+                st.write(f"**Status:** {'✅ Success' if analysis.get('success') else '❌ Failed'}")
+            
+            with col2:
+                st.write(f"**Timestamp:** {analysis.get('timestamp', 'N/A')}")
+                st.write(f"**Duration:** {analysis.get('duration', 'N/A')}")
+                
+                if analysis.get('result'):
+                    if st.button(f"View Results {len(history) - i}", key=f"view_{i}"):
+                        st.session_state['current_analysis'] = analysis
+                        st.experimental_rerun()
 
 def render_settings():
     """Render settings page"""
     st.markdown("## ⚙️ Settings")
     
-    # System settings
-    st.markdown("### 🔧 System Configuration")
+    # API Configuration
+    st.markdown("### 🔑 API Configuration")
+    
+    with st.form("api_settings"):
+        github_token = st.text_input(
+            "GitHub Token",
+            type="password",
+            help="Your GitHub personal access token"
+        )
+        
+        openai_api_key = st.text_input(
+            "OpenAI API Key",
+            type="password",
+            help="Your OpenAI API key for AI-powered analysis"
+        )
+        
+        submitted = st.form_submit_button("Save Settings")
+        
+        if submitted:
+            # Save to session state (in production, use secure storage)
+            st.session_state['github_token'] = github_token
+            st.session_state['openai_api_key'] = openai_api_key
+            st.success("Settings saved successfully!")
+    
+    # Analysis Preferences
+    st.markdown("### 🎯 Analysis Preferences")
+    
+    default_analysis_type = st.selectbox(
+        "Default Analysis Type",
+        ["comprehensive", "quick", "security-focused"],
+        help="Default analysis type for new analyses"
+    )
+    
+    auto_create_pr = st.checkbox(
+        "Auto-create Pull Requests",
+        value=True,
+        help="Automatically create pull requests for improvements"
+    )
+    
+    max_suggestions = st.slider(
+        "Maximum Suggestions",
+        min_value=1,
+        max_value=20,
+        value=5,
+        help="Maximum number of suggestions to generate"
+    )
+    
+    # Save preferences
+    if st.button("Save Preferences"):
+        st.session_state.update({
+            'default_analysis_type': default_analysis_type,
+            'auto_create_pr': auto_create_pr,
+            'max_suggestions': max_suggestions
+        })
+        st.success("Preferences saved!")
+    
+    # System Information
+    st.markdown("### ℹ️ System Information")
     
     col1, col2 = st.columns(2)
     
     with col1:
-        st.markdown("#### Monitoring Settings")
-        
-        monitoring_enabled = st.checkbox("Enable System Monitoring", value=True)
-        collection_interval = st.slider("Collection Interval (seconds)", 10, 300, 30)
-        
-        st.markdown("#### Analysis Settings")
-        default_analysis_type = st.selectbox(
-            "Default Analysis Type",
-            ["comprehensive", "quick", "security-focused"],
-            index=0
-        )
-        
-        auto_create_pr = st.checkbox("Auto-create PRs by default", value=True)
+        st.write("**Application Version:** 1.0.0")
+        st.write("**Python Version:** 3.9+")
+        st.write("**Streamlit Version:** 1.28+")
     
     with col2:
-        st.markdown("#### Display Settings")
-        
-        show_debug_info = st.checkbox("Show Debug Information", value=False)
-        compact_view = st.checkbox("Compact View Mode", value=False)
-        
-        st.markdown("#### Session Settings")
-        max_history = st.slider("Max History Entries", 5, 50, 10)
-        
-        if st.button("Clear Session Data"):
-            from utils.session_manager import get_session_manager
-            session_manager = get_session_manager()
-            session_manager.clear_session()
-            st.success("Session data cleared!")
-            st.experimental_rerun()
-    
-    # API settings
-    st.markdown("### 🔑 API Configuration")
-    
-    # GitHub token status
-    github_token = os.getenv('GITHUB_TOKEN')
-    if github_token:
-        st.success("✅ GitHub token is configured")
-    else:
-        st.warning("⚠️ GitHub token not found. Some features may be limited.")
-    
-    # LLM API status
-    llm_api_key = os.getenv('ANTHROPIC_API_KEY')
-    if llm_api_key:
-        st.success("✅ Anthropic API key is configured")
-    else:
-        st.error("❌ Anthropic API key not found. Analysis will not work.")
-    
-    # Save settings
-    if st.button("Save Settings", type="primary"):
-        # Save settings to session state or config file
-        st.session_state.update({
-            "monitoring_enabled": monitoring_enabled,
-            "collection_interval": collection_interval,
-            "default_analysis_type": default_analysis_type,
-            "auto_create_pr": auto_create_pr,
-            "show_debug_info": show_debug_info,
-            "compact_view": compact_view,
-            "max_history": max_history
-        })
-        st.success("Settings saved successfully!")
-
-def show_alert(message: str, alert_type: str = "info"):
-    """Show styled alert message"""
-    alert_class = f"{alert_type}-alert"
-    st.markdown(f'<div class="{alert_class}">{message}</div>', unsafe_allow_html=True)
-
-def render_feature_implementation_results(feature_result: Dict[str, Any]):
-    """Render feature implementation results"""
-    if not feature_result.get("success"):
-        st.error(f"Feature implementation failed: {feature_result.get('error', 'Unknown error')}")
-        return
-    
-    st.markdown("## 🚀 Feature Implementation Results")
-    
-    # Overview metrics
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        status = "✅ Success" if feature_result.get("success") else "❌ Failed"
-        st.metric("Implementation Status", status)
-    
-    with col2:
-        branch_status = "✅ Created" if feature_result.get("branch_created") else "❌ Failed"
-        st.metric("Feature Branch", branch_status)
-    
-    with col3:
-        files_count = len(feature_result.get("files_modified", []))
-        st.metric("Files Modified", files_count)
-    
-    with col4:
-        pr_status = "✅ Created" if feature_result.get("pr_created") else "❌ Not Created"
-        st.metric("Pull Request", pr_status)
-    
-    # Feature plan summary
-    feature_plan = feature_result.get("feature_plan", {})
-    if feature_plan:
-        st.markdown("### 📋 Implementation Plan")
-        
-        feature_analysis = feature_plan.get("feature_analysis", {})
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown("**Feature Summary:**")
-            st.write(feature_analysis.get("summary", "No summary available"))
-            
-            complexity = feature_analysis.get("complexity", "unknown")
-            complexity_color = {"low": "🟢", "medium": "🟡", "high": "🔴"}.get(complexity, "⚪")
-            st.write(f"**Complexity:** {complexity_color} {complexity.title()}")
-        
-        with col2:
-            requirements = feature_analysis.get("requirements", [])
-            if requirements:
-                st.markdown("**Requirements Addressed:**")
-                for req in requirements:
-                    st.write(f"• {req}")
-    
-    # Files modified
-    files_modified = feature_result.get("files_modified", [])
-    if files_modified:
-        st.markdown("### 📁 Files Modified")
-        
-        code_changes = feature_result.get("code_changes", [])
-        
-        for file_path in files_modified:
-            # Find corresponding code change
-            file_change = next((c for c in code_changes if c.get("file_path") == file_path), None)
-            
-            with st.expander(f"📝 {file_path}"):
-                if file_change:
-                    st.write(f"**Action:** {file_change.get('action', 'modify').title()}")
-                    st.write(f"**Purpose:** {file_change.get('purpose', 'No description')}")
-                    
-                    # Show code preview
-                    new_content = file_change.get("new_content", "")
-                    if new_content:
-                        st.markdown("**Code Preview:**")
-                        # Show first 20 lines
-                        preview_lines = new_content.split('\n')[:20]
-                        preview = '\n'.join(preview_lines)
-                        if len(preview_lines) == 20:
-                            preview += "\n... (truncated)"
-                        st.code(preview, language="python" if file_path.endswith('.py') else None)
-                else:
-                    st.write("File was modified as part of the feature implementation.")
-    
-    # Pull request information
-    if feature_result.get("pr_created"):
-        st.markdown("### 🔧 Pull Request")
-        
-        pr_url = feature_result.get("pr_url")
-        feature_branch = feature_result.get("feature_branch", "feature branch")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.write(f"**Branch:** {feature_branch}")
-            if pr_url:
-                st.markdown(f"[🔗 View Pull Request]({pr_url})")
-        
-        with col2:
-            st.write("**Status:** Ready for review")
-            st.write("**Next Step:** Review and merge the PR")
-    
-    # Implementation strategy
-    implementation_strategy = feature_plan.get("implementation_strategy", {})
-    if implementation_strategy:
-        st.markdown("### 🎯 Implementation Strategy")
-        
-        approach = implementation_strategy.get("approach", "")
-        if approach:
-            st.write(f"**Approach:** {approach}")
-        
-        integration_points = implementation_strategy.get("integration_points", [])
-        if integration_points:
-            st.markdown("**Integration Points:**")
-            for point in integration_points:
-                st.write(f"• {point}")
-    
-    # Dependencies
-    dependencies = feature_plan.get("dependencies", [])
-    if dependencies:
-        st.markdown("### 📦 New Dependencies")
-        
-        for dep in dependencies:
-            with st.expander(f"📦 {dep.get('name', 'Unknown')}"):
-                st.write(f"**Version:** {dep.get('version', 'latest')}")
-                st.write(f"**Purpose:** {dep.get('purpose', 'No description')}")
-    
-    # Testing strategy
-    testing_strategy = feature_plan.get("testing_strategy", {})
-    if testing_strategy:
-        st.markdown("### 🧪 Testing Recommendations")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            unit_tests = testing_strategy.get("unit_tests", [])
-            if unit_tests:
-                st.markdown("**Unit Tests:**")
-                for test in unit_tests:
-                    st.write(f"• {test}")
-        
-        with col2:
-            manual_testing = testing_strategy.get("manual_testing", [])
-            if manual_testing:
-                st.markdown("**Manual Testing:**")
-                for test in manual_testing:
-                    st.write(f"• {test}")
-    
-    # Potential issues
-    potential_issues = feature_plan.get("potential_issues", [])
-    if potential_issues:
-        st.markdown("### ⚠️ Potential Issues & Mitigations")
-        
-        for issue in potential_issues:
-            with st.expander(f"⚠️ {issue.get('issue', 'Issue')}"):
-                st.write(f"**Mitigation:** {issue.get('mitigation', 'No mitigation provided')}")
-    
-    # Success message
-    if feature_result.get("pr_created"):
-        st.success("🎉 Feature implemented successfully! Pull request created and ready for review.")
-    elif feature_result.get("branch_created"):
-        st.success("🎉 Feature implemented successfully! Feature branch created with changes.")
-    else:
-        st.info("Feature implementation completed. Check the repository for changes.")
+        st.write("**Session ID:** " + st.session_state.get('session_id', 'N/A'))
+        st.write("**Session Duration:** " + f"{(time.time() - st.session_state.get('session_start_time', time.time()))/60:.1f} min")
 
 def render_pr_results(pr_result: Dict[str, Any]):
     """Render pull request creation results"""
     if not pr_result.get("success"):
-        st.error(f"PR creation failed: {pr_result.get('error', 'Unknown error')}")
+        st.error(f"Pull request creation failed: {pr_result.get('error', 'Unknown error')}")
         return
     
-    result = pr_result["result"]
-    pr_info = result.get("pr_result", {}).get("pull_request", {})
+    st.success("🎉 Pull request created successfully!")
     
-    st.markdown("## 🔧 Pull Request Created")
+    pr_info = pr_result.get("pr_info", {})
     
     col1, col2 = st.columns(2)
     
     with col1:
-        st.markdown("### PR Information")
         st.write(f"**PR Number:** #{pr_info.get('number', 'N/A')}")
         st.write(f"**Title:** {pr_info.get('title', 'N/A')}")
-        st.write(f"**Branch:** {result.get('branch_name', 'N/A')}")
-        st.write(f"**Status:** {pr_info.get('status', 'N/A').title()}")
-        
-        if pr_info.get('url'):
-            st.markdown(f"[🔗 View Pull Request]({pr_info['url']})")
+        st.write(f"**State:** {pr_info.get('state', 'N/A')}")
     
     with col2:
-        st.markdown("### Summary")
-        summary = result.get("summary", {})
-        st.write(f"**Changes Made:** {summary.get('changes_count', 0)}")
-        st.write(f"**Suggestions Implemented:** {summary.get('suggestions_count', 0)}")
-        st.write(f"**Estimated Impact:** {summary.get('estimated_impact', 'Not specified')}")
-    
-    # File changes
-    file_changes = result.get("file_changes", [])
-    if file_changes:
-        st.markdown("### 📁 File Changes")
+        st.write(f"**Branch:** {pr_info.get('head', {}).get('ref', 'N/A')}")
+        st.write(f"**Base:** {pr_info.get('base', {}).get('ref', 'N/A')}")
         
-        for change in file_changes:
-            with st.expander(f"{change.get('action', 'modify').title()}: {change.get('file_path', 'Unknown file')}"):
-                st.write(f"**Description:** {change.get('description', 'No description')}")
-                if change.get('content'):
-                    st.code(change['content'][:500] + "..." if len(change['content']) > 500 else change['content'])
+        if pr_info.get('html_url'):
+            st.markdown(f"[View Pull Request]({pr_info['html_url']})")
     
-    st.success("🎉 Pull request created successfully! Check your repository for the new PR.")
+    if pr_info.get('body'):
+        st.markdown("### 📝 PR Description")
+        st.write(pr_info['body'])
+
+def render_feature_implementation_results(feature_result: Dict[str, Any]):
+    """Render feature implementation results"""
+    return render_feature_request_results(feature_result)

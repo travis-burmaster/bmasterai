@@ -38,7 +38,7 @@ def initialize_application():
         
         # Configure logging
         logger = configure_logging(
-            log_level=LogLevel(logging_config.level),
+            log_level=LogLevel.from_string(logging_config.level),
             enable_console=logging_config.enable_console,
             enable_file=logging_config.enable_file,
             enable_json=logging_config.enable_json,
@@ -51,15 +51,15 @@ def initialize_application():
         monitor.start_monitoring(monitoring_config.collection_interval)
         
         # Log application start
-        logger.log_event(
-            agent_id="streamlit_app",
-            event_type="agent_start",
-            message="MCP GitHub Analyzer application started",
-            metadata={
-                "version": "1.0.0",
-                "environment": os.getenv("ENVIRONMENT", "development")
-            }
-        )
+        # logger.log_event(
+        #     agent_id="streamlit_app",
+        #     event_type="agent_start",
+        #     message="MCP GitHub Analyzer application started",
+        #     metadata={
+        #         "version": "1.0.0",
+        #         "environment": os.getenv("ENVIRONMENT", "development")
+        #     }
+        # )
         
         return logger, monitor, config_manager
         

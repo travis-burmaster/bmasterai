@@ -105,7 +105,7 @@ The MCP GitHub Analyzer is an intelligent application designed to analyze GitHub
 
 2. **Navigate to Application Directory**
    ```bash
-   cd app
+  ls
    ```
 
 3. **Install Dependencies**
@@ -616,7 +616,6 @@ tests/
 
 #### Local Development
 ```bash
-cd app
 streamlit run app.py
 ```
 

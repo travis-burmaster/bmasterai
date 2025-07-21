@@ -9,14 +9,7 @@ from typing import Dict, Any, List, Optional
 import time
 
 def render_header():
-    """Render application header"""
-    st.set_page_config(
-        page_title="MCP GitHub Analyzer",
-        page_icon="🤖",
-        layout="wide",
-        initial_sidebar_state="expanded"
-    )
-    
+
     # Custom CSS for better styling
     st.markdown("""
     <style>

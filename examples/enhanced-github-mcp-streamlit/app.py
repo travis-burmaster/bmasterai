@@ -228,9 +228,9 @@ def run_analysis(config: Dict[str, Any], logger) -> Optional[Dict[str, Any]]:
     except Exception as e:
         logger.log_event(
             agent_id="streamlit_app",
-            event_type="task_error",
+            event_type=EventType.TASK_ERROR,
             message=f"Analysis execution failed: {str(e)}",
-            level="ERROR",
+            level=LogLevel.ERROR,
             metadata={"repo_url": config.get("repo_url"), "error": str(e)}
         )
         
@@ -298,9 +298,9 @@ def run_feature_request(config: Dict[str, Any], logger) -> Optional[Dict[str, An
     except Exception as e:
         logger.log_event(
             agent_id="streamlit_app",
-            event_type="task_error",
+            event_type=EventType.TASK_ERROR,
             message=f"Feature request execution failed: {str(e)}",
-            level="ERROR",
+            level=LogLevel.ERROR,
             metadata={"repo_url": config.get("repo_url"), "error": str(e)}
         )
         
@@ -543,7 +543,7 @@ def run_app():
                 agent_id="streamlit_app",
                 event_type="task_error",
                 message=f"Application error: {str(e)}",
-                level="ERROR",
+                level=LogLevel.ERROR,
                 metadata={"error": str(e)}
             )
         except:

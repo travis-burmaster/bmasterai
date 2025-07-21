@@ -6,7 +6,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 import uuid
 
-from utils.bmasterai_logging import get_logger
+from utils.bmasterai_logging import get_logger, LogLevel
 from agents.github_analyzer import GitHubAnalyzerAgent
 from agents.feature_agent import FeatureAgent
 from agents.pr_creator import PRCreatorAgent
@@ -88,7 +88,7 @@ class WorkflowCoordinator:
                 agent_id="workflow_coordinator",
                 event_type="workflow_error",
                 message=f"Workflow {workflow_id} failed: {str(e)}",
-                level="ERROR",
+                level=LogLevel.ERROR,
                 metadata={"error": str(e), "workflow_id": workflow_id}
             )
             
@@ -189,7 +189,7 @@ class WorkflowCoordinator:
                 agent_id="workflow_coordinator",
                 event_type="feature_request_error",
                 message=f"Feature request workflow {workflow_id} failed: {str(e)}",
-                level="ERROR",
+                level=LogLevel.ERROR,
                 metadata={"error": str(e), "workflow_id": workflow_id}
             )
             

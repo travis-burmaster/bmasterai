@@ -17,6 +17,14 @@ class LogLevel(Enum):
     WARNING = "WARNING"
     ERROR = "ERROR"
     CRITICAL = "CRITICAL"
+    
+    @classmethod
+    def from_string(cls, level_str: str):
+        """Create LogLevel from string, with fallback to INFO"""
+        try:
+            return getattr(cls, level_str.upper())
+        except AttributeError:
+            return cls.INFO
 
 class EventType(Enum):
     """Event types for structured logging"""

@@ -41,7 +41,7 @@ The enhanced version now includes a powerful **Feature Addition Mode** alongside
 1. **Clone the repository:**
    ```bash
    git clone <repository-url>
-   cd enhanced-github-mcp-streamlit
+   cd examples/enhanced-github-mcp-streamlit
    ```
 
 2. **Install dependencies:**

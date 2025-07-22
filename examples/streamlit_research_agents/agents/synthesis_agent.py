@@ -1,3 +1,4 @@
+
 import asyncio
 import json
 import logging
@@ -6,8 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 import re
 
-from bmasterai.agents.base_agent import BaseAgent
-from bmasterai.tools.llm_tool import LLMTool
+from utils.gemini_base import BaseAgent, GeminiClient, AgentError
 
 
 @dataclass
@@ -39,7 +39,13 @@ class SynthesisAgent(BaseAgent):
     def __init__(self, name: str = "SynthesisAgent", **kwargs):
         super().__init__(name=name, **kwargs)
         self.logger = logging.getLogger(__name__)
-        self.llm_tool = LLMTool()
+        
+        # Initialize Gemini client
+        try:
+            self.gemini_client = GeminiClient()
+        except Exception as e:
+            self.logger.error(f"Failed to initialize Gemini client: {e}")
+            raise AgentError(f"Gemini client initialization failed: {e}")
         
         # Analysis configuration
         self.min_confidence_threshold = 0.6
@@ -123,6 +129,59 @@ class SynthesisAgent(BaseAgent):
             """
         }
     
+    async def process(self, input_data: str, **kwargs) -> str:
+        """
+        Process method for BaseAgent compatibility.
+        
+        Args:
+            input_data: Research data to synthesize (JSON string or plain text)
+            **kwargs: Additional parameters including topic
+            
+        Returns:
+            JSON string containing synthesis results
+        """
+        try:
+            # Parse input data
+            if isinstance(input_data, str):
+                try:
+                    research_data = json.loads(input_data)
+                    if isinstance(research_data, list):
+                        research_list = research_data
+                    else:
+                        research_list = [research_data]
+                except json.JSONDecodeError:
+                    # Treat as plain text
+                    research_list = [{'content': input_data}]
+            else:
+                research_list = [input_data] if not isinstance(input_data, list) else input_data
+            
+            # Get topic from kwargs or try to infer
+            topic = kwargs.get('topic', 'Research Analysis')
+            focus_areas = kwargs.get('focus_areas', None)
+            
+            # Perform synthesis
+            result = await self.synthesize_research(research_list, topic, focus_areas)
+            
+            # Convert result to dictionary for JSON serialization
+            result_dict = {
+                'key_insights': result.key_insights,
+                'patterns': result.patterns,
+                'themes': result.themes,
+                'summary': result.summary,
+                'confidence_score': result.confidence_score,
+                'sources_analyzed': result.sources_analyzed,
+                'analysis_timestamp': result.analysis_timestamp.isoformat(),
+                'recommendations': result.recommendations,
+                'gaps_identified': result.gaps_identified
+            }
+            
+            return json.dumps(result_dict, indent=2)
+            
+        except Exception as e:
+            error_msg = f"Error in synthesis process: {str(e)}"
+            self.logger.error(error_msg)
+            return json.dumps({"error": error_msg})
+    
     async def synthesize_research(
         self, 
         research_data: List[Dict[str, Any]], 
@@ -142,6 +201,7 @@ class SynthesisAgent(BaseAgent):
         """
         try:
             self.logger.info(f"Starting synthesis for topic: {topic}")
+            self.update_status("processing", f"Analyzing research data for: {topic}")
             
             # Validate input data
             if not research_data:
@@ -187,12 +247,15 @@ class SynthesisAgent(BaseAgent):
                 gaps_identified=gaps
             )
             
+            self.update_status("completed", f"Synthesis completed with confidence: {confidence_score:.2f}")
             self.logger.info(f"Synthesis completed with confidence: {confidence_score:.2f}")
             return result
             
         except Exception as e:
-            self.logger.error(f"Error during synthesis: {str(e)}")
-            raise
+            error_msg = f"Error during synthesis: {str(e)}"
+            self.logger.error(error_msg)
+            self.update_status("error", error_msg)
+            raise AgentError(error_msg)
     
     def _format_research_data(self, research_data: List[Dict[str, Any]]) -> str:
         """Format research data for LLM processing"""
@@ -231,15 +294,15 @@ class SynthesisAgent(BaseAgent):
             if focus_areas:
                 prompt += f"\n\nFocus particularly on these areas: {', '.join(focus_areas)}"
             
-            response = await self.llm_tool.generate_response(prompt)
+            response = await self.gemini_client.generate_structured_response(prompt, "json")
             
-            # Parse JSON response
-            try:
-                parsed_response = json.loads(response)
-                insights = parsed_response.get('insights', [])
-            except json.JSONDecodeError:
-                # Fallback: extract insights from text response
-                insights = self._extract_insights_from_text(response)
+            # Extract insights from response
+            if 'insights' in response:
+                insights = response['insights']
+            elif 'content' in response:
+                insights = self._extract_insights_from_text(response['content'])
+            else:
+                insights = []
             
             # Limit number of insights
             return insights[:self.max_insights_per_analysis]
@@ -255,16 +318,14 @@ class SynthesisAgent(BaseAgent):
                 research_data=research_data
             )
             
-            response = await self.llm_tool.generate_response(prompt)
+            response = await self.gemini_client.generate_structured_response(prompt, "json")
             
-            # Parse JSON response
-            try:
-                parsed_response = json.loads(response)
-                patterns = parsed_response.get('patterns', [])
-                themes = parsed_response.get('themes', [])
-            except json.JSONDecodeError:
-                # Fallback: extract from text
-                patterns, themes = self._extract_patterns_from_text(response)
+            # Extract patterns and themes
+            patterns = response.get('patterns', [])
+            themes = response.get('themes', [])
+            
+            if not patterns and not themes and 'content' in response:
+                patterns, themes = self._extract_patterns_from_text(response['content'])
             
             return patterns, themes
             
@@ -288,7 +349,7 @@ class SynthesisAgent(BaseAgent):
                 patterns="\n".join(f"- {pattern}" for pattern in patterns)
             )
             
-            summary = await self.llm_tool.generate_response(prompt)
+            summary = await self.gemini_client.generate_response(prompt)
             return summary.strip()
             
         except Exception as e:
@@ -303,15 +364,15 @@ class SynthesisAgent(BaseAgent):
                 topic=topic
             )
             
-            response = await self.llm_tool.generate_response(prompt)
+            response = await self.gemini_client.generate_structured_response(prompt, "json")
             
-            # Parse JSON response
-            try:
-                parsed_response = json.loads(response)
-                gaps = parsed_response.get('gaps', [])
-            except json.JSONDecodeError:
-                # Fallback: extract from text
-                gaps = self._extract_gaps_from_text(response)
+            # Extract gaps
+            if 'gaps' in response:
+                gaps = response['gaps']
+            elif 'content' in response:
+                gaps = self._extract_gaps_from_text(response['content'])
+            else:
+                gaps = []
             
             return gaps
             
@@ -344,13 +405,14 @@ class SynthesisAgent(BaseAgent):
             Format as a JSON object with a 'recommendations' array.
             """
             
-            response = await self.llm_tool.generate_response(prompt)
+            response = await self.gemini_client.generate_structured_response(prompt, "json")
             
-            try:
-                parsed_response = json.loads(response)
-                recommendations = parsed_response.get('recommendations', [])
-            except json.JSONDecodeError:
-                recommendations = self._extract_recommendations_from_text(response)
+            if 'recommendations' in response:
+                recommendations = response['recommendations']
+            elif 'content' in response:
+                recommendations = self._extract_recommendations_from_text(response['content'])
+            else:
+                recommendations = []
             
             return recommendations
             

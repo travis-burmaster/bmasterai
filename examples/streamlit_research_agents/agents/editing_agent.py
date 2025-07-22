@@ -1,12 +1,11 @@
+
 import asyncio
 import re
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 import logging
 
-from bmasterai.agents.base_agent import BaseAgent
-from bmasterai.tools.text_processing import TextProcessor
-from bmasterai.utils.exceptions import AgentError
+from utils.gemini_base import BaseAgent, TextProcessor, AgentError
 
 logger = logging.getLogger(__name__)
 
@@ -18,13 +17,14 @@ class EditingAgent(BaseAgent):
     including grammar correction, style consistency, formatting, and structure optimization.
     """
     
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: Dict[str, Any] = None):
         """
         Initialize the editing agent.
         
         Args:
             config: Configuration dictionary containing editing preferences and settings
         """
+        config = config or {}
         super().__init__(
             name="EditingAgent",
             description="Refines and formats research reports with professional editing standards",
@@ -54,6 +54,40 @@ class EditingAgent(BaseAgent):
             'optimize_paragraph_length': True,
             'ensure_consistent_formatting': True
         }
+    
+    async def process(self, input_data: str, **kwargs) -> str:
+        """
+        Process method for BaseAgent compatibility.
+        
+        Args:
+            input_data: Synthesized content to edit (JSON string or plain text)
+            **kwargs: Additional parameters
+            
+        Returns:
+            Edited and formatted content
+        """
+        try:
+            # Parse input data
+            if isinstance(input_data, str):
+                try:
+                    import json
+                    synthesized_content = json.loads(input_data)
+                except json.JSONDecodeError:
+                    # Treat as plain text
+                    synthesized_content = {'content': input_data}
+            else:
+                synthesized_content = input_data
+            
+            # Process the content
+            result = await self.process_content(synthesized_content)
+            
+            # Return the formatted report
+            return result.get('report', '')
+            
+        except Exception as e:
+            error_msg = f"Error in editing process: {str(e)}"
+            self.logger.error(error_msg)
+            raise AgentError(error_msg)
     
     async def process_content(self, synthesized_content: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -525,59 +559,3 @@ class EditingAgent(BaseAgent):
             'style_guide_used': self.style_guide,
             'output_format': self.output_format
         }
-    
-    async def refine_specific_section(self, section_content: str, section_type: str) -> str:
-        """
-        Refine a specific section independently.
-        
-        Args:
-            section_content: Content of the section to refine
-            section_type: Type of section (e.g., 'introduction', 'conclusions')
-            
-        Returns:
-            Refined section content
-        """
-        try:
-            self.update_status("processing", f"Refining {section_type} section")
-            refined_content = await self._refine_section_content(section_content, section_type)
-            return refined_content
-        except Exception as e:
-            logger.error(f"Error refining section {section_type}: {str(e)}")
-            return section_content  # Return original if refinement fails
-    
-    def validate_report_structure(self, sections: Dict[str, str]) -> Dict[str, Any]:
-        """
-        Validate the structure and completeness of the report.
-        
-        Args:
-            sections: Dictionary of report sections
-            
-        Returns:
-            Validation results with recommendations
-        """
-        validation_results = {
-            'is_valid': True,
-            'missing_sections': [],
-            'recommendations': [],
-            'section_lengths': {}
-        }
-        
-        # Check for essential sections
-        essential_sections = ['introduction', 'findings', 'conclusions']
-        for section in essential_sections:
-            if section not in sections or not sections[section].strip():
-                validation_results['missing_sections'].append(section)
-                validation_results['is_valid'] = False
-        
-        # Check section lengths
-        for section_name, content in sections.items():
-            length = len(content.split())
-            validation_results['section_lengths'][section_name] = length
-            
-            if length < 50:  # Very short section
-                validation_results['recommendations'].append(
-                    f"Section '{section_name}' is quite short ({length} words). Consider expanding."
-                )
-            elif length > self.max_section_length:  # Very long section
-                validation_results['recommendations'].append(
-                    f"Section '{section_name}'

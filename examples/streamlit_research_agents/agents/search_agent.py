@@ -1,4 +1,4 @@
-```python
+
 import asyncio
 import logging
 from typing import Dict, List, Optional, Any
@@ -6,8 +6,8 @@ from dataclasses import dataclass
 from datetime import datetime
 import json
 
-from ..utils.perplexity_client import PerplexityClient
-from bmasterai.agents.base_agent import BaseAgent
+from utils.perplexity_client import PerplexityClient
+from utils.gemini_base import BaseAgent
 
 
 @dataclass
@@ -95,14 +95,40 @@ class SearchAgent(BaseAgent):
                 self.logger.error("Failed to connect to Perplexity API")
                 return False
                 
-            self.status = "ready"
+            self.update_status("idle", "Ready for search operations")
             self.logger.info(f"{self.name} initialized successfully")
             return True
             
         except Exception as e:
             self.logger.error(f"Failed to initialize {self.name}: {str(e)}")
-            self.status = "error"
+            self.update_status("error", f"Initialization failed: {str(e)}")
             return False
+    
+    async def process(self, input_data: str, **kwargs) -> str:
+        """
+        Process method for BaseAgent compatibility.
+        
+        Args:
+            input_data: Search query or research topic
+            **kwargs: Additional search parameters
+            
+        Returns:
+            JSON string containing search results
+        """
+        try:
+            # Determine if this is a single search or research topic
+            if kwargs.get('research_mode', False):
+                depth = kwargs.get('depth', 'medium')
+                results = await self.research_topic(input_data, depth)
+            else:
+                result = await self.search(input_data, **kwargs)
+                results = [result.to_dict()] if result else []
+            
+            return json.dumps(results, indent=2)
+            
+        except Exception as e:
+            self.logger.error(f"Error in search process: {str(e)}")
+            return json.dumps({"error": str(e)})
     
     async def search(self, query: str, **kwargs) -> Optional[SearchResult]:
         """
@@ -400,4 +426,3 @@ class SearchAgent(BaseAgent):
             
         except Exception as e:
             self.logger.error(f"Cleanup error: {str(e)}")
-```

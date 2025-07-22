@@ -1,4 +1,4 @@
-```python
+
 import asyncio
 import logging
 from typing import Dict, List, Optional, Any, Callable
@@ -6,8 +6,7 @@ from datetime import datetime
 from enum import Enum
 import json
 
-from bmasterai.agents.base_agent import BaseAgent
-from bmasterai.tools.base_tool import BaseTool
+from utils.gemini_base import BaseAgent, BaseTool
 
 
 class WorkflowStage(Enum):
@@ -232,7 +231,11 @@ class ResearchCoordinator(BaseAgent):
         """
         
         try:
-            search_results = await search_agent.process(search_prompt)
+            search_results = await search_agent.process(
+                search_prompt, 
+                research_mode=True,
+                depth=task.requirements.get('depth', 'medium')
+            )
             task.add_agent_output('information_gathering', search_results)
             
             progress = sum(self.stage_weights[s] for s in [WorkflowStage.INITIALIZATION, WorkflowStage.SEARCH_PLANNING, WorkflowStage.INFORMATION_GATHERING])
@@ -408,4 +411,3 @@ class ResearchCoordinator(BaseAgent):
         requirements = kwargs.get('requirements', {})
         task_id = await self.start_research_task(input_data, requirements)
         return f"Started research task: {task_id}"
-```

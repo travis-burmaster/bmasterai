@@ -1,50 +1,77 @@
+
 # Multi-Agent Research System
 
-A Streamlit application demonstrating collaborative AI agents for complex research tasks using the Perplexity API and BMasterAI framework.
-
-## Overview
-
-This example showcases a multi-agent system where specialized AI agents work together to conduct comprehensive research on any given topic. The system consists of four main agents:
-
-- **Research Coordinator**: Orchestrates the entire research workflow
-- **Search Agent**: Gathers information using the Perplexity API
-- **Synthesis Agent**: Analyzes and synthesizes collected data
-- **Editing Agent**: Refines and formats the final research output
+A sophisticated Streamlit application that demonstrates collaborative AI agents working together to conduct comprehensive research tasks. This system uses Google Gemini API for advanced language processing and Perplexity API for information gathering.
 
 ## Features
 
-- **Real-time Progress Tracking**: Monitor each agent's status and progress
-- **Interactive Streamlit Interface**: User-friendly web interface for configuration and monitoring
-- **Multiple Output Formats**: Generate reports in Markdown, HTML, and PDF formats
-- **Configurable Research Parameters**: Customize search depth, focus areas, and output preferences
-- **Error Handling and Recovery**: Robust error handling with automatic retry mechanisms
-- **Rate Limiting**: Built-in rate limiting for API calls to ensure compliance
+- **Multi-Agent Collaboration**: Four specialized agents work together:
+  - **Research Coordinator**: Orchestrates the workflow and manages agent coordination
+  - **Search Agent**: Handles information gathering using Perplexity API
+  - **Synthesis Agent**: Analyzes and synthesizes research findings using Google Gemini
+  - **Editing Agent**: Refines and formats the final research report
+
+- **Real-time Progress Tracking**: Live updates on agent status and workflow progress
+- **Configurable Research Parameters**: Adjustable depth, source limits, and output formats
+- **Multiple Output Formats**: Support for Markdown, HTML, and PDF reports
+- **Robust Error Handling**: Comprehensive error management with retry logic
+- **Asynchronous Processing**: Non-blocking UI with background task execution
+
+## Architecture
+
+The system follows a structured 5-stage workflow:
+
+1. **Planning**: Research Coordinator breaks down the topic and creates task plans
+2. **Information Gathering**: Search Agent performs comprehensive searches using Perplexity API
+3. **Analysis & Synthesis**: Synthesis Agent identifies patterns and insights using Google Gemini
+4. **Content Editing**: Editing Agent refines content for clarity and professional presentation
+5. **Quality Review**: Final validation and deliverable preparation
 
 ## Prerequisites
 
-- Python 3.8+
-- Streamlit
-- BMasterAI framework
+- Python 3.8 or higher
+- Google API key for Gemini API
 - Perplexity API key
 - Required Python packages (see requirements.txt)
 
 ## Installation
 
-1. Clone the repository and navigate to the example directory:
+1. Clone the repository:
 ```bash
-cd examples/streamlit_research_agents
+git clone <repository-url>
+cd streamlit_research_agents
 ```
 
-2. Install required dependencies:
+2. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
 3. Set up environment variables:
 ```bash
+export GOOGLE_API_KEY="your_google_gemini_api_key_here"
 export PERPLEXITY_API_KEY="your_perplexity_api_key_here"
-export BMASTERAI_API_KEY="your_bmasterai_api_key_here"
 ```
+
+Alternatively, create a `.env` file in the project root:
+```
+GOOGLE_API_KEY=your_google_gemini_api_key_here
+PERPLEXITY_API_KEY=your_perplexity_api_key_here
+```
+
+## Getting API Keys
+
+### Google Gemini API Key
+1. Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. Sign in with your Google account
+3. Create a new API key
+4. Copy the key and set it as `GOOGLE_API_KEY`
+
+### Perplexity API Key
+1. Visit [Perplexity API](https://www.perplexity.ai/settings/api)
+2. Sign up or log in to your account
+3. Generate an API key
+4. Copy the key and set it as `PERPLEXITY_API_KEY`
 
 ## Usage
 
@@ -53,169 +80,137 @@ export BMASTERAI_API_KEY="your_bmasterai_api_key_here"
 streamlit run app.py
 ```
 
-2. Open your browser and navigate to the displayed URL (typically http://localhost:8501)
+2. Open your browser and navigate to `http://localhost:8501`
 
-3. Configure your research parameters in the sidebar:
-   - Enter your research topic
-   - Set search depth and focus areas
-   - Choose output format preferences
-   - Configure agent behavior settings
+3. Configure your API keys in the sidebar
 
-4. Click "Start Research" to begin the multi-agent research process
+4. Enter your research topic and configure parameters:
+   - **Research Topic**: Describe what you want to research
+   - **Research Depth**: Choose from Basic, Intermediate, or Comprehensive
+   - **Maximum Sources**: Set the limit for information sources
+   - **Output Format**: Select Markdown, HTML, or PDF
 
-5. Monitor progress in real-time as agents collaborate to complete the research
+5. Click "🚀 Start Research" to begin the multi-agent research process
 
-6. Download or view the generated research report once complete
+6. Monitor progress in real-time as agents collaborate
 
-## Configuration Options
+7. Review the final research report with insights, analysis, and recommendations
 
-### Research Parameters
-- **Topic**: The main subject for research
-- **Search Depth**: Number of search iterations (1-10)
-- **Focus Areas**: Specific aspects to emphasize
-- **Time Range**: Limit search to specific time periods
-- **Source Types**: Academic, news, general web, etc.
+## Configuration
 
-### Agent Settings
-- **Coordinator Timeout**: Maximum time for overall coordination
-- **Search Iterations**: Number of search rounds per query
-- **Synthesis Depth**: Level of analysis detail
-- **Editing Strictness**: Quality control level for final output
+The system can be configured through `config/agent_config.yaml`:
 
-### Output Options
-- **Format**: Markdown, HTML, PDF
-- **Length**: Brief, standard, comprehensive
-- **Include Sources**: Citation preferences
-- **Template**: Report structure template
+- **Agent Settings**: Customize agent behavior and prompts
+- **API Configuration**: Set rate limits, timeouts, and model parameters
+- **Workflow Stages**: Modify the research workflow
+- **Quality Standards**: Define minimum requirements for research quality
+- **Output Templates**: Customize report formats and sections
 
-## Architecture
-
-### Agent Hierarchy
-```
-Research Coordinator (BMasterAI)
-├── Search Agent (Perplexity API)
-├── Synthesis Agent (Analysis & Insights)
-└── Editing Agent (Formatting & Quality)
-```
-
-### Workflow Stages
-1. **Initialization**: Coordinator sets up research parameters
-2. **Information Gathering**: Search agent queries Perplexity API
-3. **Data Processing**: Synthesis agent analyzes collected information
-4. **Content Refinement**: Editing agent polishes the final output
-5. **Report Generation**: System produces formatted research report
-
-## API Integration
-
-### Perplexity API
-- Used for web search and information retrieval
-- Handles real-time data access
-- Provides source attribution and citations
-- Rate limited to comply with API terms
-
-### BMasterAI Framework
-- Base agent architecture for coordination
-- Inter-agent communication protocols
-- Task scheduling and progress tracking
-- Error handling and recovery mechanisms
-
-## File Structure
+## Project Structure
 
 ```
 streamlit_research_agents/
-├── app.py                          # Main Streamlit application
-├── agents/
-│   ├── __init__.py
-│   ├── research_coordinator.py     # Main coordination agent
-│   ├── search_agent.py            # Perplexity API search agent
-│   ├── synthesis_agent.py         # Data analysis agent
-│   └── editing_agent.py           # Content refinement agent
-├── utils/
-│   ├── __init__.py
-│   ├── perplexity_client.py       # Perplexity API client
-│   └── report_generator.py        # Report formatting utilities
-├── templates/
-│   ├── research_report.md         # Markdown template
-│   ├── research_report.html       # HTML template
-│   └── styles.css                 # CSS styling
-├── requirements.txt               # Python dependencies
-└── README.md                     # This file
+├── README.md                    # This file
+├── app.py                      # Main Streamlit application
+├── requirements.txt            # Python dependencies
+├── agents/                     # Agent implementations
+│   ├── editing_agent.py       # Content editing and formatting
+│   ├── research_coordinator.py # Workflow orchestration
+│   ├── search_agent.py        # Information gathering
+│   └── synthesis_agent.py     # Analysis and synthesis
+├── config/
+│   └── agent_config.yaml      # Agent configuration and settings
+└── utils/
+    ├── gemini_base.py         # Google Gemini API integration
+    ├── perplexity_client.py   # Perplexity API wrapper
+    └── report_generator.py    # Report generation utilities
 ```
 
-## Error Handling
+## Key Components
 
-The system includes comprehensive error handling:
+### BaseAgent Class
+Custom base class that provides:
+- Status management and progress tracking
+- Asynchronous processing capabilities
+- Error handling and logging
+- Callback system for real-time updates
 
-- **API Rate Limiting**: Automatic backoff and retry mechanisms
-- **Network Failures**: Graceful degradation with cached results
-- **Agent Failures**: Coordinator can reassign tasks or continue with partial results
-- **Invalid Inputs**: Input validation with helpful error messages
-- **Resource Limits**: Memory and time limit monitoring
+### GeminiClient
+Google Gemini API wrapper that handles:
+- Authentication and configuration
+- Structured response generation
+- Error handling and retries
+- Safety settings and content filtering
 
-## Customization
+### Multi-Agent Workflow
+Coordinated workflow where:
+- Each agent has specialized responsibilities
+- Agents communicate through structured data exchange
+- Progress is tracked and reported in real-time
+- Errors are handled gracefully with fallback options
 
-### Adding New Agents
-1. Create a new agent class inheriting from BMasterAI base
-2. Implement required methods: `initialize()`, `process()`, `finalize()`
-3. Register the agent with the coordinator
-4. Update the UI to display the new agent's status
+## Migration from BMasterAI
 
-### Custom Output Formats
-1. Create new templates in the `templates/` directory
-2. Implement format-specific generation in `report_generator.py`
-3. Add format option to the Streamlit interface
+This system has been migrated from BMasterAI framework to Google Gemini API:
 
-### API Extensions
-1. Extend `perplexity_client.py` for additional API endpoints
-2. Implement new search strategies in `search_agent.py`
-3. Add configuration options for new features
+### Changes Made:
+- **API Integration**: Replaced BMasterAI API calls with Google Gemini API
+- **Base Classes**: Implemented custom BaseAgent, GeminiClient, and TextProcessor
+- **Environment Variables**: Changed from `BMASTERAI_API_KEY` to `GOOGLE_API_KEY`
+- **Dependencies**: Updated requirements.txt to use google-generativeai
+- **Agent Logic**: Adapted all agents to work with Gemini's response format
+- **Configuration**: Updated agent_config.yaml for Gemini API settings
+
+### Preserved Functionality:
+- All original features and capabilities maintained
+- Same user interface and experience
+- Identical workflow stages and coordination
+- Compatible output formats and quality standards
 
 ## Troubleshooting
 
-### Common Issues
+### Common Issues:
 
-**API Key Errors**
-- Ensure environment variables are set correctly
-- Verify API keys are valid and have sufficient quota
+1. **API Key Errors**:
+   - Ensure your Google API key is valid and has Gemini API access enabled
+   - Check that environment variables are set correctly
+   - Verify API quotas and rate limits
 
-**Rate Limiting**
-- Reduce search depth or increase delays between requests
-- Monitor API usage in the Streamlit interface
+2. **Import Errors**:
+   - Make sure all dependencies are installed: `pip install -r requirements.txt`
+   - Check Python version compatibility (3.8+)
 
-**Memory Issues**
-- Limit the scope of research topics
-- Reduce the number of concurrent search queries
+3. **Performance Issues**:
+   - Reduce the number of maximum sources for faster processing
+   - Choose "Basic" research depth for quicker results
+   - Check your internet connection for API calls
 
-**Slow Performance**
-- Check network connectivity
-- Reduce synthesis depth for faster processing
+4. **Memory Issues**:
+   - Clear results regularly using the "🗑️ Clear Results" button
+   - Restart the application if memory usage becomes high
 
-### Debug Mode
-Enable debug mode by setting the environment variable:
-```bash
-export DEBUG_MODE=true
-```
+### Getting Help:
 
-This will provide detailed logging and intermediate results for troubleshooting.
+- Check the application logs for detailed error messages
+- Review the agent status indicators for workflow issues
+- Ensure all API keys have sufficient quotas
+- Verify network connectivity for API calls
 
 ## Contributing
 
 1. Fork the repository
 2. Create a feature branch
-3. Implement your changes with appropriate tests
-4. Submit a pull request with detailed description
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
 
 ## License
 
-This example is provided under the same license as the BMasterAI framework.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-## Support
+## Acknowledgments
 
-For issues specific to this example:
-- Check the troubleshooting section above
-- Review the BMasterAI documentation
-- Submit issues to the project repository
-
-For Perplexity API support:
-- Consult the Perplexity API documentation
-- Contact Perplexity support for API-specific issues
+- Google Gemini API for advanced language processing
+- Perplexity API for comprehensive information gathering
+- Streamlit for the interactive web interface
+- The open-source community for various supporting libraries

@@ -1,4 +1,3 @@
-```python
 import os
 import time
 import asyncio
@@ -412,4 +411,3 @@ async def quick_search(
     """
     async with PerplexityClient(api_key=api_key, default_model=model) as client:
         return await client.search(query)
-```

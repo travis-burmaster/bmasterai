@@ -761,7 +761,4 @@ Continue to the next lesson to explore advanced MCP integration patterns and bui
 ---
 
 **Need Help?**
-- 📧 Email: support@bmasterai.com
-- 💬 Discord: [BMasterAI Community](https://discord.gg/bmasterai)
-- 📖 Documentation: [docs.bmasterai.com](https://docs.bmasterai.com)
-- 🐛 Issues: [GitHub Issues](https://github.com/your-org/enhanced-github-mcp-streamlit/issues)
+- 📧 Email: travis@burmaster.com

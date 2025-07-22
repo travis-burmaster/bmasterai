@@ -8,6 +8,15 @@ from typing import Dict, Any, Optional
 from dataclasses import dataclass
 import json
 
+# Try to import python-dotenv, but don't fail if it's not available
+try:
+    from dotenv import load_dotenv
+    DOTENV_AVAILABLE = True
+except ImportError:
+    DOTENV_AVAILABLE = False
+    def load_dotenv():
+        pass
+
 @dataclass
 class LoggingConfig:
     level: str = "INFO"
@@ -46,6 +55,20 @@ class AnthropicConfig:
     api_key: Optional[str] = None
 
 @dataclass
+class OpenAIConfig:
+    enabled: bool = True
+    timeout_seconds: int = 30
+    max_tokens: int = 4096
+    api_key: Optional[str] = None
+
+@dataclass
+class ModelConfig:
+    default_model: str = "claude-3-5-sonnet-20241022"
+    feature_agent_model: str = "claude-3-5-sonnet-20241022"
+    github_analyzer_model: str = "gpt-4o-mini"
+    pr_creator_model: str = "gpt-4o-mini"
+
+@dataclass
 class AgentConfig:
     default_timeout: int = 300
     max_retries: int = 3
@@ -72,8 +95,8 @@ class ConfigManager:
         
         # Load environment variables
         if not self._env_loaded:
-            from dotenv import load_dotenv
-            load_dotenv()
+            if DOTENV_AVAILABLE:
+                load_dotenv()
             self._env_loaded = True
         
         # Override with environment variables
@@ -87,6 +110,13 @@ class ConfigManager:
             'MCP_SERVER_PORT': ['integrations', 'mcp', 'server_port'],
             'LOG_LEVEL': ['logging', 'level'],
             'ANTHROPIC_API_KEY': ['integrations', 'anthropic', 'api_key'],
+            'OPENAI_API_KEY': ['integrations', 'openai', 'api_key'],
+            'DEFAULT_LLM_MODEL': ['models', 'default_model'],
+            'FEATURE_AGENT_MODEL': ['models', 'feature_agent_model'],
+            'GITHUB_ANALYZER_MODEL': ['models', 'github_analyzer_model'],
+            'PR_CREATOR_MODEL': ['models', 'pr_creator_model'],
+            'ENABLE_MONITORING': ['monitoring', 'enable_system_metrics'],
+            'MONITORING_INTERVAL': ['monitoring', 'collection_interval'],
         }
         
         for env_var, config_path in env_mappings.items():
@@ -136,6 +166,26 @@ class ConfigManager:
         anthropic_config = self._config.get('integrations', {}).get('anthropic', {})
         anthropic_config['api_key'] = os.getenv('ANTHROPIC_API_KEY')
         return AnthropicConfig(**anthropic_config)
+    
+    def get_openai_config(self) -> OpenAIConfig:
+        """Get OpenAI configuration"""
+        openai_config = self._config.get('integrations', {}).get('openai', {})
+        openai_config['api_key'] = os.getenv('OPENAI_API_KEY')
+        return OpenAIConfig(**openai_config)
+    
+    def get_model_config(self) -> ModelConfig:
+        """Get model configuration"""
+        model_config = self._config.get('models', {})
+        # Override with environment variables if they exist
+        if os.getenv('DEFAULT_LLM_MODEL'):
+            model_config['default_model'] = os.getenv('DEFAULT_LLM_MODEL')
+        if os.getenv('FEATURE_AGENT_MODEL'):
+            model_config['feature_agent_model'] = os.getenv('FEATURE_AGENT_MODEL')
+        if os.getenv('GITHUB_ANALYZER_MODEL'):
+            model_config['github_analyzer_model'] = os.getenv('GITHUB_ANALYZER_MODEL')
+        if os.getenv('PR_CREATOR_MODEL'):
+            model_config['pr_creator_model'] = os.getenv('PR_CREATOR_MODEL')
+        return ModelConfig(**model_config)
     
     def get_agent_config(self) -> AgentConfig:
         """Get agent configuration"""

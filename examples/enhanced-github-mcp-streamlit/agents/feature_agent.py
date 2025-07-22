@@ -8,6 +8,7 @@ from utils.bmasterai_logging import get_logger, EventType, LogLevel
 from utils.bmasterai_monitoring import get_monitor
 from utils.llm_client import get_llm_client
 from integrations.github_client import GitHubClient
+from config import get_config_manager
 import re
 import os
 import json
@@ -22,6 +23,11 @@ class FeatureAgent:
         self.monitor = get_monitor()
         self.llm_client = get_llm_client()
         self.github_client = GitHubClient()
+        
+        # Get model configuration
+        self.config_manager = get_config_manager()
+        self.model_config = self.config_manager.get_model_config()
+        self.model = self.model_config.feature_agent_model
         
         # Log agent initialization
         self.logger.log_agent_start(
@@ -459,7 +465,7 @@ Respond in JSON format with the following structure:
         try:
             # Call the LLM and get structured response directly
             plan = await self.llm_client.call_llm_structured(
-                model="claude-3-5-sonnet-20241022",
+                model=self.model,
                 prompt=prompt,
                 max_tokens=4000
             )
@@ -586,7 +592,7 @@ Return only the complete file content, no explanations or markdown formatting.
         
         try:
             response_data = await self.llm_client.call_llm(
-                model="claude-3-5-sonnet-20241022",
+                model=self.model,
                 prompt=prompt,
                 max_tokens=6000,
                 temperature=0.2

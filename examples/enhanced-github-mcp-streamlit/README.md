@@ -2,6 +2,33 @@
 
 An advanced multi-agent system for GitHub repository analysis and automated feature implementation, powered by BMasterAI.
 
+## ⚡ Quick Start
+
+1. **Clone and setup:**
+   ```bash
+   git clone <repository-url>
+   cd examples/enhanced-github-mcp-streamlit
+   pip install -r requirements.txt
+   ```
+
+2. **Configure environment:**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your API keys
+   ```
+
+3. **Required API Keys:**
+   - Get your [OpenAI API key](https://platform.openai.com/api-keys)
+   - Get your [Anthropic API key](https://console.anthropic.com/)
+   - Create a [GitHub Personal Access Token](https://github.com/settings/tokens)
+
+4. **Run:**
+   ```bash
+   streamlit run app.py
+   ```
+
+> **⚠️ Important**: Never commit your `.env` file! It contains sensitive API keys.
+
 ## 🚀 New Features
 
 ### Feature Addition Mode
@@ -51,22 +78,117 @@ The enhanced version now includes a powerful **Feature Addition Mode** alongside
 
 3. **Set up environment variables:**
    ```bash
-   export GITHUB_TOKEN="your_github_token"
-   export ANTHROPIC_API_KEY="your_anthropic_key"  # or OPENAI_API_KEY
+   # Copy the example environment file
+   cp .env.example .env
+   
+   # Edit .env with your actual API keys and configuration
+   nano .env  # or use your preferred editor
    ```
 
-4. **Run the application:**
+4. **Configure your .env file:**
+   Open `.env` and replace the placeholder values with your actual API keys and settings.
+
+5. **Run the application:**
    ```bash
    streamlit run app.py
    ```
 
 ## 🔧 Configuration
 
-### Environment Variables
+### Environment Variables Setup
+
+The application uses a `.env` file for configuration. This approach provides better security and flexibility compared to hardcoded values or command-line exports.
+
+#### Required Setup Steps:
+
+1. **Copy the example file:**
+   ```bash
+   cp .env.example .env
+   ```
+
+2. **Edit the .env file with your actual values:**
+   ```bash
+   # API Keys (Required)
+   OPENAI_API_KEY=your_actual_openai_api_key_here
+   ANTHROPIC_API_KEY=your_actual_anthropic_api_key_here
+   GITHUB_TOKEN=your_actual_github_token_here
+   ```
+
+#### Complete Environment Variables Reference:
+
+##### API Keys (Required)
+- `OPENAI_API_KEY`: OpenAI API key for GPT models
+- `ANTHROPIC_API_KEY`: Anthropic API key for Claude models  
 - `GITHUB_TOKEN`: GitHub personal access token with repo permissions
-- `ANTHROPIC_API_KEY`: Anthropic API key for Claude models
-- `OPENAI_API_KEY`: OpenAI API key (alternative to Anthropic)
-- `ENVIRONMENT`: Application environment (development/production)
+
+##### Model Configuration
+- `DEFAULT_LLM_MODEL`: Default model for general use (default: `claude-3-5-sonnet-20241022`)
+- `FALLBACK_LLM_MODEL`: Fallback model if primary fails (default: `gpt-4o-mini`)
+- `FEATURE_AGENT_MODEL`: Model for feature implementation (default: `claude-3-5-sonnet-20241022`)
+- `ANALYZER_MODEL`: Model for repository analysis (default: `gpt-4o-mini`)
+- `PR_CREATOR_MODEL`: Model for PR generation (default: `gpt-4o-mini`)
+
+##### Application Settings
+- `APP_NAME`: Application display name (default: `MCP GitHub Analyzer`)
+- `DEBUG`: Enable debug mode (default: `false`)
+- `LOG_LEVEL`: Logging level - DEBUG, INFO, WARNING, ERROR (default: `INFO`)
+
+##### GitHub Configuration
+- `GITHUB_RATE_LIMIT`: API rate limit per hour (default: `5000`)
+- `GITHUB_TIMEOUT`: Request timeout in seconds (default: `30`)
+
+##### MCP Configuration
+- `MCP_ENABLED`: Enable MCP integration (default: `true`)
+- `MCP_TIMEOUT`: MCP request timeout (default: `30`)
+
+##### Monitoring Configuration
+- `MONITORING_ENABLED`: Enable system monitoring (default: `true`)
+- `MONITORING_INTERVAL`: Monitoring collection interval in seconds (default: `30`)
+
+##### Logging Configuration
+- `LOG_TO_FILE`: Enable file logging (default: `true`)
+- `LOG_TO_CONSOLE`: Enable console logging (default: `true`)
+- `LOG_JSON_FORMAT`: Use JSON log format (default: `true`)
+- `LOG_FILE`: Log file path (default: `logs/mcp_github_analyzer.log`)
+- `JSON_LOG_FILE`: JSON log file path (default: `logs/mcp_github_analyzer.jsonl`)
+
+##### Security Settings
+- `SESSION_SECRET`: Secret key for session management
+- `ENCRYPTION_KEY`: Key for data encryption
+
+#### Example .env File:
+```bash
+# API Keys - Replace with your actual keys
+OPENAI_API_KEY=sk-your-openai-key-here
+ANTHROPIC_API_KEY=sk-ant-your-anthropic-key-here
+GITHUB_TOKEN=ghp_your-github-token-here
+
+# Model Configuration
+DEFAULT_LLM_MODEL=claude-3-5-sonnet-20241022
+FALLBACK_LLM_MODEL=gpt-4o-mini
+FEATURE_AGENT_MODEL=claude-3-5-sonnet-20241022
+ANALYZER_MODEL=gpt-4o-mini
+PR_CREATOR_MODEL=gpt-4o-mini
+
+# Application Settings
+APP_NAME=MCP GitHub Analyzer
+DEBUG=false
+LOG_LEVEL=INFO
+
+# GitHub Configuration
+GITHUB_RATE_LIMIT=5000
+GITHUB_TIMEOUT=30
+```
+
+### Configuration Priority
+
+The application loads configuration in the following order (later sources override earlier ones):
+
+1. **Default values** (hardcoded in the application)
+2. **config.yaml file** (if present)
+3. **Environment variables** (highest priority)
+
+This allows for flexible deployment scenarios where you can use different configuration methods as needed.
 
 ### GitHub Token Permissions
 Your GitHub token needs the following permissions:
@@ -181,17 +303,26 @@ The Feature Agent provides testing strategies including:
 
 ## 🔒 Security Considerations
 
+### Environment Variables Security
+- **Never commit .env files**: The `.env` file contains sensitive API keys and should never be committed to version control
+- **Use .env.example**: Share configuration structure using `.env.example` without actual secrets
+- **Secure storage**: Store API keys securely and rotate them regularly
+- **Access control**: Limit access to the `.env` file on your system
+- **Production deployment**: Use secure environment variable management in production (e.g., Docker secrets, Kubernetes secrets, cloud provider secret managers)
+
 ### Data Privacy
 - No code is stored permanently
 - GitHub tokens are handled securely
 - All API communications are encrypted
 - Session data is managed locally
+- API keys are loaded from environment variables only
 
 ### Access Control
 - Requires valid GitHub token with appropriate permissions
 - Respects repository access controls
 - Operates within GitHub API rate limits
 - Follows GitHub's terms of service
+- Environment-based configuration prevents accidental exposure of credentials
 
 ## 🚨 Limitations and Considerations
 
@@ -241,13 +372,66 @@ The Feature Agent provides testing strategies including:
 - 📝 Pull request creation
 - 📊 BMasterAI monitoring integration
 
+## 🔧 Troubleshooting
+
+### Common Environment Variable Issues
+
+#### "API key not configured" Error
+- **Problem**: Missing or invalid API keys
+- **Solution**: 
+  1. Ensure `.env` file exists in the project root
+  2. Check that API keys are properly set without quotes
+  3. Verify API keys are valid and active
+  4. Restart the application after changing `.env`
+
+#### "Module not found" Errors
+- **Problem**: Missing python-dotenv dependency
+- **Solution**: 
+  ```bash
+  pip install python-dotenv
+  # or
+  pip install -r requirements.txt
+  ```
+
+#### Environment Variables Not Loading
+- **Problem**: `.env` file not in the correct location or format
+- **Solution**:
+  1. Ensure `.env` is in the same directory as `app.py`
+  2. Check file format: `KEY=value` (no spaces around `=`)
+  3. No quotes needed around values unless they contain spaces
+  4. Use `#` for comments
+
+#### Model Configuration Issues
+- **Problem**: Invalid model names or unavailable models
+- **Solution**:
+  1. Check model names in `.env` match available models
+  2. Ensure you have access to the specified models
+  3. Use fallback models if primary models fail
+
+#### GitHub Token Issues
+- **Problem**: GitHub API errors or permission denied
+- **Solution**:
+  1. Verify token has required permissions (repo, workflow)
+  2. Check token hasn't expired
+  3. Ensure token format is correct (starts with `ghp_` for personal tokens)
+
+### Debug Mode
+Enable debug mode for more detailed error information:
+```bash
+# In your .env file
+DEBUG=true
+LOG_LEVEL=DEBUG
+```
+
 ## 📞 Support
 
 For issues, questions, or feature requests:
 1. Check the existing documentation
-2. Review the troubleshooting section
-3. Create an issue in the repository
-4. Provide detailed information about your setup and the problem
+2. Review the troubleshooting section above
+3. Verify your `.env` configuration
+4. Check the application logs in the `logs/` directory
+5. Create an issue in the repository
+6. Provide detailed information about your setup and the problem
 
 ## 📄 License
 

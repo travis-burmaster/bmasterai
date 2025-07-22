@@ -24,6 +24,21 @@ Deploy BMasterAI on Amazon EKS with enterprise features:
 
 ---
 
+## 📚 **NEW: Comprehensive Learning Resources**
+
+🎓 **Learn BMasterAI with hands-on tutorials and real-world examples!**
+
+Our new lessons directory provides step-by-step tutorials covering:
+- **🔧 GitHub MCP Integration** with Streamlit interfaces
+- **📊 Repository Analysis** using AI agents and MCP protocols
+- **🚀 Feature Request Workflows** with automated analysis
+- **🤖 Multi-Agent Orchestration** for complex tasks
+- **📋 PDF Documentation** for offline learning
+
+[**→ Browse All Lessons**](lessons/) | [**→ Start with GitHub MCP Tutorial**](lessons/lesson-01-github-mcp-streamlit/)
+
+---
+
 ## 🚀 Features
 
 ### Core Framework
@@ -434,6 +449,7 @@ bmasterai/
 ├── k8s/             # Kubernetes manifests
 ├── helm/            # Helm chart for deployment
 ├── eks/             # EKS-specific configuration
+├── lessons/         # Comprehensive tutorials and guides
 └── examples/        # Usage examples and templates
 ```
 
@@ -536,6 +552,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ### Version 0.3.0 (Coming Soon)
 - [x] **Kubernetes deployment support** ✅ **COMPLETED**
+- [x] **Comprehensive learning resources** ✅ **COMPLETED**
 - [ ] Web dashboard for monitoring
 - [ ] Advanced multi-agent communication protocols
 - [ ] Plugin system for custom integrations
@@ -591,7 +608,7 @@ helm install bmasterai bmasterai/bmasterai
 
 **Ready to build production-scale AI systems? 🚀**
 
-[**→ Start with Kubernetes**](README-k8s.md) | [**→ Local Development**](#-installation) | [**→ View Examples**](examples/)
+[**→ Start with Kubernetes**](README-k8s.md) | [**→ Learn with Tutorials**](lessons/) | [**→ Local Development**](#-installation) | [**→ View Examples**](examples/)
 
 **Made with ❤️ by the BMasterAI community**
 

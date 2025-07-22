@@ -1,0 +1,244 @@
+# Agent Configuration for Multi-Agent Research System
+
+# Global Settings
+global:
+  max_retries: 3
+  timeout: 30
+  log_level: "INFO"
+  output_format: "markdown"
+
+# API Configuration
+api:
+  perplexity:
+    model: "llama-3.1-sonar-large-128k-online"
+    max_tokens: 4000
+    temperature: 0.1
+    top_p: 0.9
+    rate_limit: 20  # requests per minute
+    timeout: 30
+
+# Agent Definitions
+agents:
+  research_coordinator:
+    name: "Research Coordinator"
+    description: "Orchestrates the research workflow and coordinates between specialized agents"
+    max_concurrent_tasks: 3
+    system_prompt: |
+      You are a Research Coordinator responsible for managing complex research tasks.
+      Your role is to:
+      1. Break down research topics into manageable subtasks
+      2. Coordinate between specialized agents (Search, Synthesis, Editing)
+      3. Monitor progress and ensure quality standards
+      4. Manage workflow dependencies and timing
+      5. Provide status updates and handle error recovery
+      
+      Always maintain a structured approach and clear communication with other agents.
+      Focus on delivering comprehensive, accurate, and well-organized research outputs.
+
+  search_agent:
+    name: "Search Specialist"
+    description: "Gathers information using advanced search capabilities"
+    max_queries_per_task: 10
+    search_depth: "comprehensive"
+    system_prompt: |
+      You are a Search Specialist with expertise in information gathering and research.
+      Your responsibilities include:
+      1. Formulating effective search queries for given topics
+      2. Gathering relevant, credible, and up-to-date information
+      3. Evaluating source quality and reliability
+      4. Organizing search results in a structured format
+      5. Identifying information gaps and suggesting additional searches
+      
+      Always prioritize accuracy, relevance, and source credibility.
+      Provide detailed citations and metadata for all gathered information.
+    
+    search_strategies:
+      - "broad_overview"
+      - "specific_details"
+      - "recent_developments"
+      - "expert_opinions"
+      - "statistical_data"
+    
+    source_preferences:
+      - "academic_papers"
+      - "news_articles"
+      - "government_reports"
+      - "industry_publications"
+      - "expert_interviews"
+
+  synthesis_agent:
+    name: "Synthesis Analyst"
+    description: "Analyzes and synthesizes gathered information into coherent insights"
+    analysis_depth: "deep"
+    pattern_recognition: true
+    system_prompt: |
+      You are a Synthesis Analyst specializing in information analysis and insight generation.
+      Your key functions are:
+      1. Analyzing gathered information for patterns, trends, and relationships
+      2. Identifying key themes, contradictions, and knowledge gaps
+      3. Synthesizing complex information into clear, actionable insights
+      4. Creating structured summaries and executive overviews
+      5. Highlighting critical findings and recommendations
+      
+      Focus on creating value through analysis rather than just summarization.
+      Ensure all insights are well-supported by evidence and clearly attributed.
+    
+    analysis_frameworks:
+      - "thematic_analysis"
+      - "comparative_analysis"
+      - "trend_analysis"
+      - "stakeholder_analysis"
+      - "impact_assessment"
+    
+    output_structures:
+      - "executive_summary"
+      - "key_findings"
+      - "detailed_analysis"
+      - "recommendations"
+      - "supporting_evidence"
+
+  editing_agent:
+    name: "Content Editor"
+    description: "Refines and polishes content for final presentation"
+    quality_standards: "high"
+    style_consistency: true
+    system_prompt: |
+      You are a Content Editor responsible for producing polished, professional research outputs.
+      Your responsibilities include:
+      1. Reviewing content for clarity, coherence, and flow
+      2. Ensuring consistent style, tone, and formatting
+      3. Fact-checking and verifying citations
+      4. Optimizing content structure and organization
+      5. Preparing final reports in multiple formats
+      
+      Maintain high editorial standards while preserving the analytical integrity of the content.
+      Focus on making complex information accessible without losing depth or accuracy.
+    
+    editing_priorities:
+      - "clarity_and_readability"
+      - "logical_structure"
+      - "factual_accuracy"
+      - "citation_formatting"
+      - "professional_presentation"
+    
+    output_formats:
+      - "markdown"
+      - "html"
+      - "pdf"
+      - "docx"
+
+# Workflow Configuration
+workflow:
+  stages:
+    1_planning:
+      name: "Research Planning"
+      agent: "research_coordinator"
+      timeout: 300
+      outputs: ["research_plan", "task_breakdown"]
+    
+    2_information_gathering:
+      name: "Information Gathering"
+      agent: "search_agent"
+      timeout: 1800
+      parallel_execution: true
+      outputs: ["search_results", "source_metadata"]
+    
+    3_analysis_synthesis:
+      name: "Analysis & Synthesis"
+      agent: "synthesis_agent"
+      timeout: 1200
+      depends_on: ["2_information_gathering"]
+      outputs: ["analysis_report", "key_insights"]
+    
+    4_content_editing:
+      name: "Content Editing"
+      agent: "editing_agent"
+      timeout: 900
+      depends_on: ["3_analysis_synthesis"]
+      outputs: ["final_report", "formatted_outputs"]
+    
+    5_quality_review:
+      name: "Quality Review"
+      agent: "research_coordinator"
+      timeout: 600
+      depends_on: ["4_content_editing"]
+      outputs: ["quality_assessment", "final_deliverables"]
+
+# Quality Standards
+quality:
+  minimum_sources: 5
+  citation_required: true
+  fact_check_level: "standard"
+  plagiarism_check: true
+  readability_score: 60  # Flesch Reading Ease minimum
+  
+  validation_criteria:
+    - "source_credibility"
+    - "information_accuracy"
+    - "logical_consistency"
+    - "comprehensive_coverage"
+    - "clear_presentation"
+
+# Output Templates
+templates:
+  research_report:
+    sections:
+      - "executive_summary"
+      - "introduction"
+      - "methodology"
+      - "key_findings"
+      - "detailed_analysis"
+      - "conclusions"
+      - "recommendations"
+      - "references"
+      - "appendices"
+  
+  brief_summary:
+    sections:
+      - "overview"
+      - "key_points"
+      - "implications"
+      - "sources"
+
+# Error Handling
+error_handling:
+  retry_strategies:
+    api_timeout: "exponential_backoff"
+    rate_limit: "wait_and_retry"
+    invalid_response: "alternative_approach"
+  
+  fallback_options:
+    search_failure: "use_cached_results"
+    synthesis_error: "simplified_analysis"
+    formatting_issue: "basic_format"
+  
+  notification_levels:
+    - "critical"
+    - "warning"
+    - "info"
+
+# Performance Monitoring
+monitoring:
+  metrics:
+    - "task_completion_time"
+    - "search_query_success_rate"
+    - "synthesis_quality_score"
+    - "user_satisfaction_rating"
+  
+  thresholds:
+    max_task_duration: 3600  # seconds
+    min_success_rate: 0.85
+    min_quality_score: 0.8
+
+# Security and Privacy
+security:
+  data_retention: 30  # days
+  anonymize_queries: false
+  encrypt_storage: true
+  audit_logging: true
+  
+  sensitive_topics:
+    - "personal_information"
+    - "financial_data"
+    - "medical_records"
+    - "legal_proceedings"

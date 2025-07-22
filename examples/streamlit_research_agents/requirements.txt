@@ -13,3 +13,4 @@ pydantic>=2.0.0
 tenacity>=8.2.0
 google-generativeai>=0.3.0
 google-ai-generativelanguage>=0.4.0
+bmasterai>=0.2.0

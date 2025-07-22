@@ -6,10 +6,11 @@ from datetime import datetime
 import logging
 
 from utils.gemini_base import BaseAgent, TextProcessor, AgentError
+from utils.logging_mixin import LoggingMixin, log_agent_method
 
 logger = logging.getLogger(__name__)
 
-class EditingAgent(BaseAgent):
+class EditingAgent(LoggingMixin, BaseAgent):
     """
     Agent responsible for refining and formatting the final research report.
     
@@ -55,6 +56,7 @@ class EditingAgent(BaseAgent):
             'ensure_consistent_formatting': True
         }
     
+    @log_agent_method("process")
     async def process(self, input_data: str, **kwargs) -> str:
         """
         Process method for BaseAgent compatibility.
@@ -66,7 +68,14 @@ class EditingAgent(BaseAgent):
         Returns:
             Edited and formatted content
         """
+        task_id = self.start_task_logging("Content editing and formatting")
+        
         try:
+            self.log_info("Starting content editing process", {
+                'input_size': len(str(input_data)),
+                'output_format': self.output_format
+            })
+            
             # Parse input data
             if isinstance(input_data, str):
                 try:
@@ -81,10 +90,26 @@ class EditingAgent(BaseAgent):
             # Process the content
             result = await self.process_content(synthesized_content)
             
+            # Log metrics
+            output_report = result.get('report', '')
+            self.log_metric("output_size", len(output_report))
+            self.log_metric("sections_processed", len(result.get('metadata', {}).get('sections', [])))
+            
+            self.complete_task_logging(success=True, result_size=len(output_report))
+            self.log_info("Content editing completed successfully", {
+                'output_size': len(output_report),
+                'word_count': result.get('metadata', {}).get('word_count', 0)
+            })
+            
             # Return the formatted report
-            return result.get('report', '')
+            return output_report
             
         except Exception as e:
+            self.complete_task_logging(success=False)
+            self.log_error(e, {
+                'input_type': type(input_data).__name__,
+                'input_size': len(str(input_data))
+            })
             error_msg = f"Error in editing process: {str(e)}"
             self.logger.error(error_msg)
             raise AgentError(error_msg)

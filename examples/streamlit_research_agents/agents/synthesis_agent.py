@@ -8,6 +8,7 @@ from datetime import datetime
 import re
 
 from utils.gemini_base import BaseAgent, GeminiClient, AgentError
+from utils.logging_mixin import LoggingMixin, log_agent_method
 
 
 @dataclass
@@ -24,7 +25,7 @@ class SynthesisResult:
     gaps_identified: List[str]
 
 
-class SynthesisAgent(BaseAgent):
+class SynthesisAgent(LoggingMixin, BaseAgent):
     """
     Agent responsible for synthesizing and analyzing gathered research information.
     

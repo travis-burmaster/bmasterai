@@ -7,6 +7,7 @@ from enum import Enum
 import json
 
 from utils.gemini_base import BaseAgent, BaseTool
+from utils.logging_mixin import LoggingMixin, log_agent_method
 
 
 class WorkflowStage(Enum):
@@ -61,7 +62,7 @@ class ResearchTask:
         self.stage = WorkflowStage.ERROR
 
 
-class ResearchCoordinator(BaseAgent):
+class ResearchCoordinator(LoggingMixin, BaseAgent):
     """
     Coordinator agent that orchestrates the research workflow.
     Manages specialized agents and coordinates the research process.

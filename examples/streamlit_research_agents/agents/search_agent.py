@@ -8,6 +8,7 @@ import json
 
 from utils.perplexity_client import PerplexityClient
 from utils.gemini_base import BaseAgent
+from utils.logging_mixin import LoggingMixin, log_agent_method
 
 
 @dataclass
@@ -45,7 +46,7 @@ class SearchResult:
         }
 
 
-class SearchAgent(BaseAgent):
+class SearchAgent(LoggingMixin, BaseAgent):
     """
     Specialized agent for information gathering using Perplexity API.
     Handles search queries, processes results, and maintains search history.

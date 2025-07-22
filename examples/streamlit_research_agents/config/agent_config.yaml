@@ -8,6 +8,47 @@ global:
   log_level: "INFO"
   output_format: "markdown"
 
+# BMasterAI Logging Configuration
+logging:
+  bmasterai:
+    enabled: true
+    service_name: "research_agents"
+    environment: "development"
+    log_level: "INFO"
+    structured_logging: true
+    metrics_enabled: true
+    tracing_enabled: true
+    
+  components:
+    agents: "INFO"
+    api_calls: "DEBUG"
+    performance: "INFO"
+    errors: "ERROR"
+    user_interactions: "INFO"
+    
+  monitoring:
+    performance_tracking: true
+    memory_tracking: true
+    cpu_tracking: true
+    api_timing: true
+    agent_performance: true
+    task_completion: true
+    error_rates: true
+    
+  metrics:
+    - "task_completion_time"
+    - "search_query_success_rate"
+    - "synthesis_quality_score"
+    - "user_satisfaction_rating"
+    - "api_response_time"
+    - "agent_memory_usage"
+    - "error_count"
+    
+  fallback:
+    enabled: true
+    log_file: "research_agents.log"
+    console_output: true
+
 # API Configuration
 api:
   perplexity:

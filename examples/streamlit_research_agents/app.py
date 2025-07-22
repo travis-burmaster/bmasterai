@@ -1,4 +1,3 @@
-```python
 import streamlit as st
 import asyncio
 import time
@@ -16,11 +15,15 @@ from agents.editing_agent import EditingAgent
 from utils.perplexity_client import PerplexityClient
 from utils.report_generator import ReportGenerator
 
+# Import BMasterAI logging configuration
+from config.logging_config import initialize_logging, get_logging_config
+
 class StreamlitResearchApp:
     """Main Streamlit application for multi-agent research collaboration."""
     
     def __init__(self):
         self.setup_page_config()
+        self.initialize_logging()
         self.initialize_session_state()
         self.setup_agents()
     
@@ -32,6 +35,29 @@ class StreamlitResearchApp:
             layout="wide",
             initial_sidebar_state="expanded"
         )
+    
+    def initialize_logging(self):
+        """Initialize BMasterAI logging and monitoring."""
+        try:
+            # Initialize BMasterAI logging configuration
+            self.logging_config = initialize_logging()
+            self.app_logger = self.logging_config.get_logger("StreamlitApp")
+            
+            # Log application startup
+            self.app_logger.info("Research Agents application starting up")
+            self.logging_config.log_metric("app_startup", 1.0, {"version": "1.0.0"})
+            
+            # Store in session state for access by other components
+            if 'logging_config' not in st.session_state:
+                st.session_state.logging_config = self.logging_config
+                
+        except Exception as e:
+            print(f"Warning: Failed to initialize BMasterAI logging: {e}")
+            # Fallback to basic logging
+            import logging
+            logging.basicConfig(level=logging.INFO)
+            self.app_logger = logging.getLogger("StreamlitApp")
+            self.logging_config = None
     
     def initialize_session_state(self):
         """Initialize Streamlit session state variables."""

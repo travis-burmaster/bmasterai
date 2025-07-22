@@ -1,0 +1,739 @@
+%PDF-1.4
+1 0 obj
+<<
+/Type /Catalog
+/Pages 2 0 R
+>>
+endobj
+
+2 0 obj
+<<
+/Type /Pages
+/Kids [3 0 R]
+/Count 1
+>>
+endobj
+
+3 0 obj
+<<
+/Type /Page
+/Parent 2 0 R
+/MediaBox [0 0 612 792]
+/Contents 4 0 R
+/Resources <<
+/Font <<
+/F1 5 0 R
+/F2 6 0 R
+/F3 7 0 R
+>>
+>>
+>>
+endobj
+
+4 0 obj
+<<
+/Length 8500
+>>
+stream
+BT
+/F1 24 Tf
+50 750 Td
+(Lesson 01: GitHub MCP Streamlit Integration) Tj
+0 -40 Td
+/F2 16 Tf
+(A Comprehensive Tutorial for BMasterAI Integration) Tj
+
+0 -60 Td
+/F1 18 Tf
+(Table of Contents) Tj
+0 -30 Td
+/F2 12 Tf
+(1. Introduction and Overview) Tj
+0 -20 Td
+(2. Prerequisites and Setup) Tj
+0 -20 Td
+(3. Installation Guide) Tj
+0 -20 Td
+(4. Configuration Steps) Tj
+0 -20 Td
+(5. Basic Usage) Tj
+0 -20 Td
+(6. Repository Analysis) Tj
+0 -20 Td
+(7. Feature Request Workflow) Tj
+0 -20 Td
+(8. Advanced Features) Tj
+0 -20 Td
+(9. Troubleshooting) Tj
+0 -20 Td
+(10. Best Practices) Tj
+
+0 -60 Td
+/F1 16 Tf
+(1. Introduction and Overview) Tj
+0 -25 Td
+/F2 11 Tf
+(This tutorial demonstrates how to integrate GitHub MCP with Streamlit) Tj
+0 -15 Td
+(using BMasterAI for comprehensive repository analysis and feature) Tj
+0 -15 Td
+(request management. The enhanced-github-mcp-streamlit example) Tj
+0 -15 Td
+(provides a powerful foundation for AI-driven development workflows.) Tj
+
+0 -30 Td
+/F1 14 Tf
+(Key Features:) Tj
+0 -20 Td
+/F2 11 Tf
+(• GitHub repository integration via MCP protocol) Tj
+0 -15 Td
+(• Interactive Streamlit web interface) Tj
+0 -15 Td
+(• AI-powered code analysis and suggestions) Tj
+0 -15 Td
+(• Automated feature request generation) Tj
+0 -15 Td
+(• Real-time repository monitoring) Tj
+
+0 -40 Td
+/F1 16 Tf
+(2. Prerequisites and Setup) Tj
+0 -25 Td
+/F1 14 Tf
+(System Requirements:) Tj
+0 -20 Td
+/F2 11 Tf
+(• Node.js 18+ and npm/yarn) Tj
+0 -15 Td
+(• Python 3.8+ with pip) Tj
+0 -15 Td
+(• Git version control) Tj
+0 -15 Td
+(• GitHub account with API access) Tj
+0 -15 Td
+(• BMasterAI account and API key) Tj
+
+0 -30 Td
+/F1 14 Tf
+(Required Knowledge:) Tj
+0 -20 Td
+/F2 11 Tf
+(• Basic JavaScript/TypeScript) Tj
+0 -15 Td
+(• Python fundamentals) Tj
+0 -15 Td
+(• Git workflow understanding) Tj
+0 -15 Td
+(• REST API concepts) Tj
+
+0 -40 Td
+/F1 16 Tf
+(3. Installation Guide) Tj
+0 -25 Td
+/F1 14 Tf
+(Step 1: Clone the Repository) Tj
+0 -20 Td
+/F3 10 Tf
+(git clone https://github.com/bmasterai/enhanced-github-mcp-streamlit.git) Tj
+0 -15 Td
+(cd enhanced-github-mcp-streamlit) Tj
+
+0 -25 Td
+/F1 14 Tf
+(Step 2: Install Node.js Dependencies) Tj
+0 -20 Td
+/F3 10 Tf
+(npm install) Tj
+0 -15 Td
+(# or using yarn) Tj
+0 -15 Td
+(yarn install) Tj
+
+0 -25 Td
+/F1 14 Tf
+(Step 3: Install Python Dependencies) Tj
+0 -20 Td
+/F3 10 Tf
+(pip install -r requirements.txt) Tj
+0 -15 Td
+(# or using virtual environment) Tj
+0 -15 Td
+(python -m venv venv) Tj
+0 -15 Td
+(source venv/bin/activate  # On Windows: venv\\Scripts\\activate) Tj
+0 -15 Td
+(pip install -r requirements.txt) Tj
+
+0 -25 Td
+/F1 14 Tf
+(Step 4: Install Streamlit) Tj
+0 -20 Td
+/F3 10 Tf
+(pip install streamlit streamlit-authenticator) Tj
+
+ET
+endstream
+endobj
+
+5 0 obj
+<<
+/Type /Font
+/Subtype /Type1
+/BaseFont /Helvetica-Bold
+>>
+endobj
+
+6 0 obj
+<<
+/Type /Font
+/Subtype /Type1
+/BaseFont /Helvetica
+>>
+endobj
+
+7 0 obj
+<<
+/Type /Font
+/Subtype /Type1
+/BaseFont /Courier
+>>
+endobj
+
+8 0 obj
+<<
+/Type /Page
+/Parent 2 0 R
+/MediaBox [0 0 612 792]
+/Contents 9 0 R
+/Resources <<
+/Font <<
+/F1 5 0 R
+/F2 6 0 R
+/F3 7 0 R
+>>
+>>
+>>
+endobj
+
+9 0 obj
+<<
+/Length 7800
+>>
+stream
+BT
+50 750 Td
+/F1 16 Tf
+(4. Configuration Steps) Tj
+0 -25 Td
+/F1 14 Tf
+(Step 1: Environment Variables Setup) Tj
+0 -20 Td
+/F2 11 Tf
+(Create a .env file in the project root:) Tj
+0 -20 Td
+/F3 10 Tf
+(# GitHub Configuration) Tj
+0 -15 Td
+(GITHUB_TOKEN=your_github_personal_access_token) Tj
+0 -15 Td
+(GITHUB_OWNER=your_github_username) Tj
+0 -15 Td
+(GITHUB_REPO=your_repository_name) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(# BMasterAI Configuration) Tj
+0 -15 Td
+(BMASTERAI_API_KEY=your_bmasterai_api_key) Tj
+0 -15 Td
+(BMASTERAI_ENDPOINT=https://api.bmasterai.com) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(# MCP Configuration) Tj
+0 -15 Td
+(MCP_SERVER_PORT=3000) Tj
+0 -15 Td
+(MCP_CLIENT_TIMEOUT=30000) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(# Streamlit Configuration) Tj
+0 -15 Td
+(STREAMLIT_PORT=8501) Tj
+0 -15 Td
+(STREAMLIT_HOST=localhost) Tj
+
+0 -30 Td
+/F1 14 Tf
+(Step 2: MCP Server Configuration) Tj
+0 -20 Td
+/F2 11 Tf
+(Configure the MCP server in mcp-config.json:) Tj
+0 -20 Td
+/F3 9 Tf
+({) Tj
+0 -12 Td
+(  "mcpServers": {) Tj
+0 -12 Td
+(    "github": {) Tj
+0 -12 Td
+(      "command": "node",) Tj
+0 -12 Td
+(      "args": ["dist/index.js"],) Tj
+0 -12 Td
+(      "env": {) Tj
+0 -12 Td
+(        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}") Tj
+0 -12 Td
+(      }) Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+(  },) Tj
+0 -12 Td
+(  "tools": {) Tj
+0 -12 Td
+(    "github_search_repositories": {) Tj
+0 -12 Td
+(      "description": "Search GitHub repositories") Tj
+0 -12 Td
+(    },) Tj
+0 -12 Td
+(    "github_create_or_update_file": {) Tj
+0 -12 Td
+(      "description": "Create or update files in repository") Tj
+0 -12 Td
+(    },) Tj
+0 -12 Td
+(    "github_push_files": {) Tj
+0 -12 Td
+(      "description": "Push multiple files to repository") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+(  }) Tj
+0 -12 Td
+(}) Tj
+
+0 -30 Td
+/F1 16 Tf
+(5. Basic Usage) Tj
+0 -25 Td
+/F1 14 Tf
+(Starting the Application) Tj
+0 -20 Td
+/F2 11 Tf
+(1. Start the MCP server:) Tj
+0 -20 Td
+/F3 10 Tf
+(npm run build) Tj
+0 -15 Td
+(npm start) Tj
+
+0 -25 Td
+/F2 11 Tf
+(2. Launch Streamlit interface:) Tj
+0 -20 Td
+/F3 10 Tf
+(streamlit run app.py) Tj
+
+0 -25 Td
+/F2 11 Tf
+(3. Access the web interface at http://localhost:8501) Tj
+
+0 -30 Td
+/F1 14 Tf
+(Interface Overview) Tj
+0 -20 Td
+/F2 11 Tf
+(The Streamlit interface provides several key sections:) Tj
+0 -20 Td
+(• Repository Connection Panel) Tj
+0 -15 Td
+(• Code Analysis Dashboard) Tj
+0 -15 Td
+(• Feature Request Generator) Tj
+0 -15 Td
+(• AI Assistant Chat) Tj
+0 -15 Td
+(• Settings and Configuration) Tj
+
+0 -40 Td
+/F1 16 Tf
+(6. Repository Analysis) Tj
+0 -25 Td
+/F1 14 Tf
+(Connecting to a Repository) Tj
+0 -20 Td
+/F2 11 Tf
+(1. Enter repository URL in the connection panel) Tj
+0 -15 Td
+(2. Authenticate using your GitHub token) Tj
+0 -15 Td
+(3. Select analysis scope \(files, directories, or entire repo\)) Tj
+0 -15 Td
+(4. Click "Start Analysis" to begin) Tj
+
+0 -30 Td
+/F1 14 Tf
+(Analysis Features) Tj
+0 -20 Td
+/F2 11 Tf
+(Code Quality Assessment:) Tj
+0 -15 Td
+(• Syntax and style analysis) Tj
+0 -15 Td
+(• Security vulnerability detection) Tj
+0 -15 Td
+(• Performance optimization suggestions) Tj
+0 -15 Td
+(• Code complexity metrics) Tj
+
+0 -25 Td
+/F2 11 Tf
+(Architecture Analysis:) Tj
+0 -15 Td
+(• Dependency mapping) Tj
+0 -15 Td
+(• Module structure evaluation) Tj
+0 -15 Td
+(• Design pattern identification) Tj
+0 -15 Td
+(• Scalability assessment) Tj
+
+ET
+endstream
+endobj
+
+10 0 obj
+<<
+/Type /Page
+/Parent 2 0 R
+/MediaBox [0 0 612 792]
+/Contents 11 0 R
+/Resources <<
+/Font <<
+/F1 5 0 R
+/F2 6 0 R
+/F3 7 0 R
+>>
+>>
+>>
+endobj
+
+11 0 obj
+<<
+/Length 7200
+>>
+stream
+BT
+50 750 Td
+/F1 16 Tf
+(7. Feature Request Workflow) Tj
+0 -25 Td
+/F1 14 Tf
+(Creating Feature Requests) Tj
+0 -20 Td
+/F2 11 Tf
+(The AI-powered feature request system helps identify and) Tj
+0 -15 Td
+(document potential improvements:) Tj
+
+0 -25 Td
+/F1 12 Tf
+(Step 1: Analysis-Based Suggestions) Tj
+0 -20 Td
+/F2 11 Tf
+(• Review AI-generated improvement suggestions) Tj
+0 -15 Td
+(• Prioritize features based on impact analysis) Tj
+0 -15 Td
+(• Select features for detailed specification) Tj
+
+0 -25 Td
+/F1 12 Tf
+(Step 2: Feature Specification) Tj
+0 -20 Td
+/F2 11 Tf
+(• Define feature requirements and acceptance criteria) Tj
+0 -15 Td
+(• Generate technical implementation plan) Tj
+0 -15 Td
+(• Estimate development effort and timeline) Tj
+
+0 -25 Td
+/F1 12 Tf
+(Step 3: Implementation Planning) Tj
+0 -20 Td
+/F2 11 Tf
+(• Create detailed task breakdown) Tj
+0 -15 Td
+(• Identify dependencies and prerequisites) Tj
+0 -15 Td
+(• Generate code templates and scaffolding) Tj
+
+0 -40 Td
+/F1 16 Tf
+(8. Advanced Features) Tj
+0 -25 Td
+/F1 14 Tf
+(AI Agent Integration) Tj
+0 -20 Td
+/F2 11 Tf
+(The system supports multiple AI agents for specialized tasks:) Tj
+
+0 -20 Td
+/F1 12 Tf
+(Code Review Agent) Tj
+0 -15 Td
+/F3 9 Tf
+(# Example configuration) Tj
+0 -12 Td
+(agent_config = {) Tj
+0 -12 Td
+(    "name": "code_reviewer",) Tj
+0 -12 Td
+(    "type": "analysis",) Tj
+0 -12 Td
+(    "capabilities": [) Tj
+0 -12 Td
+(        "syntax_analysis",) Tj
+0 -12 Td
+(        "security_scan",) Tj
+0 -12 Td
+(        "performance_review") Tj
+0 -12 Td
+(    ],) Tj
+0 -12 Td
+(    "output_format": "structured_report") Tj
+0 -12 Td
+(}) Tj
+
+0 -25 Td
+/F1 12 Tf
+(Feature Generator Agent) Tj
+0 -15 Td
+/F3 9 Tf
+(feature_agent = {) Tj
+0 -12 Td
+(    "name": "feature_generator",) Tj
+0 -12 Td
+(    "type": "creative",) Tj
+0 -12 Td
+(    "capabilities": [) Tj
+0 -12 Td
+(        "requirement_analysis",) Tj
+0 -12 Td
+(        "feature_ideation",) Tj
+0 -12 Td
+(        "implementation_planning") Tj
+0 -12 Td
+(    ],) Tj
+0 -12 Td
+(    "integration": "github_issues") Tj
+0 -12 Td
+(}) Tj
+
+0 -30 Td
+/F1 14 Tf
+(Custom Workflows) Tj
+0 -20 Td
+/F2 11 Tf
+(Create custom analysis workflows using the workflow builder:) Tj
+
+0 -20 Td
+/F3 9 Tf
+(workflow = {) Tj
+0 -12 Td
+(    "name": "comprehensive_analysis",) Tj
+0 -12 Td
+(    "steps": [) Tj
+0 -12 Td
+(        {) Tj
+0 -12 Td
+(            "action": "repository_scan",) Tj
+0 -12 Td
+(            "params": {"depth": "full"}) Tj
+0 -12 Td
+(        },) Tj
+0 -12 Td
+(        {) Tj
+0 -12 Td
+(            "action": "code_analysis",) Tj
+0 -12 Td
+(            "params": {"include_tests": true}) Tj
+0 -12 Td
+(        },) Tj
+0 -12 Td
+(        {) Tj
+0 -12 Td
+(            "action": "generate_report",) Tj
+0 -12 Td
+(            "params": {"format": "markdown"}) Tj
+0 -12 Td
+(        }) Tj
+0 -12 Td
+(    ]) Tj
+0 -12 Td
+(}) Tj
+
+0 -40 Td
+/F1 16 Tf
+(9. Troubleshooting) Tj
+0 -25 Td
+/F1 14 Tf
+(Common Issues and Solutions) Tj
+
+0 -20 Td
+/F1 12 Tf
+(Connection Issues) Tj
+0 -15 Td
+/F2 11 Tf
+(Problem: Cannot connect to GitHub repository) Tj
+0 -12 Td
+(Solution: Verify GitHub token permissions and repository access) Tj
+
+0 -20 Td
+/F1 12 Tf
+(MCP Server Errors) Tj
+0 -15 Td
+/F2 11 Tf
+(Problem: MCP server fails to start) Tj
+0 -12 Td
+(Solution: Check Node.js version and rebuild the project) Tj
+
+0 -20 Td
+/F1 12 Tf
+(API Rate Limits) Tj
+0 -15 Td
+/F2 11 Tf
+(Problem: GitHub API rate limit exceeded) Tj
+0 -12 Td
+(Solution: Implement request throttling and use authenticated requests) Tj
+
+0 -30 Td
+/F1 14 Tf
+(Debug Mode) Tj
+0 -20 Td
+/F2 11 Tf
+(Enable debug logging for detailed troubleshooting:) Tj
+0 -15 Td
+/F3 10 Tf
+(export DEBUG=mcp:*,github:*,streamlit:*) Tj
+0 -12 Td
+(streamlit run app.py --logger.level=debug) Tj
+
+ET
+endstream
+endobj
+
+12 0 obj
+<<
+/Type /Page
+/Parent 2 0 R
+/MediaBox [0 0 612 792]
+/Contents 13 0 R
+/Resources <<
+/Font <<
+/F1 5 0 R
+/F2 6 0 R
+/F3 7 0 R
+>>
+>>
+>>
+endobj
+
+13 0 obj
+<<
+/Length 6500
+>>
+stream
+BT
+50 750 Td
+/F1 16 Tf
+(10. Best Practices) Tj
+
+0 -25 Td
+/F1 14 Tf
+(Security Considerations) Tj
+0 -20 Td
+/F2 11 Tf
+(• Store API keys and tokens in environment variables) Tj
+0 -15 Td
+(• Use minimal required permissions for GitHub tokens) Tj
+0 -15 Td
+(• Implement rate limiting for API requests) Tj
+0 -15 Td
+(• Validate all user inputs and repository data) Tj
+0 -15 Td
+(• Enable HTTPS for production deployments) Tj
+
+0 -30 Td
+/F1 14 Tf
+(Performance Optimization) Tj
+0 -20 Td
+/F2 11 Tf
+(• Cache analysis results to avoid redundant processing) Tj
+0 -15 Td
+(• Implement pagination for large repositories) Tj
+0 -15 Td
+(• Use background tasks for time-intensive operations) Tj
+0 -15 Td
+(• Optimize database queries and indexing) Tj
+0 -15 Td
+(• Monitor memory usage during large file analysis) Tj
+
+0 -30 Td
+/F1 14 Tf
+(Code Organization) Tj
+0 -20 Td
+/F2 11 Tf
+(• Separate concerns between MCP server and Streamlit app) Tj
+0 -15 Td
+(• Use modular architecture for different analysis types) Tj
+0 -15 Td
+(• Implement proper error handling and logging) Tj
+0 -15 Td
+(• Follow consistent naming conventions) Tj
+0 -15 Td
+(• Document all public APIs and functions) Tj
+
+0 -30 Td
+/F1 14 Tf
+(Testing Strategy) Tj
+0 -20 Td
+/F2 11 Tf
+(• Unit tests for core analysis functions) Tj
+0 -15 Td
+(• Integration tests for MCP server communication) Tj
+0 -15 Td
+(• End-to-end tests for complete workflows) Tj
+0 -15 Td
+(• Mock external API calls in test environment) Tj
+0 -15 Td
+(• Performance tests for large repository handling) Tj
+
+0 -40 Td
+/F1 16 Tf
+(Example Implementation) Tj
+0 -25 Td
+/F1 14 Tf
+(Complete Workflow Example) Tj
+0 -20 Td
+/F2 11 Tf
+(Here's a complete example of analyzing a repository and) Tj
+0 -15 Td
+(generating feature requests:) Tj
+
+0 -25 Td
+/F3 9 Tf
+(import streamlit as st) Tj
+0 -12 Td
+(from github_mcp_client import GitHubMCPClient) Tj
+0 -12 Td
+(from bmasterai import BMasterAI) Tj
+0 -12 Td
+() Tj
+0

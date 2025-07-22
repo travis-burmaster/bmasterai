@@ -415,7 +415,9 @@ Please create a detailed implementation plan that includes:
 6. **Testing Strategy**: How this feature should be tested
 7. **Potential Issues**: Any challenges or edge cases to consider
 
-Respond in JSON format with the following structure:
+IMPORTANT: Respond with ONLY a valid JSON object. Do not include any explanatory text before or after the JSON. The response must start with {{ and end with }}.
+
+Use this exact JSON structure:
 {{
     "feature_analysis": {{
         "summary": "Brief summary of the feature request",
@@ -463,22 +465,62 @@ Respond in JSON format with the following structure:
 }}
 """
         try:
-            # Call the LLM and get structured response directly
-            plan = await self.llm_client.call_llm_structured(
-                model=self.model,
-                prompt=prompt,
-                max_tokens=4000
-            )
+            # Try to get structured response with retry logic
+            max_retries = 2
+            plan = None
             
-            # The call_llm_structured method already returns a parsed dict
-            # No need to convert to JSON string and parse again
+            for attempt in range(max_retries + 1):
+                try:
+                    # Call the LLM and get structured response directly
+                    plan = await self.llm_client.call_llm_structured(
+                        model=self.model,
+                        prompt=prompt,
+                        max_tokens=4000
+                    )
+                    
+                    # If we got a valid response without parsing errors, break
+                    if isinstance(plan, dict) and "Failed to parse JSON" not in str(plan.get("error", "")):
+                        break
+                        
+                except Exception as e:
+                    if attempt == max_retries:
+                        raise e
+                    
+                    self.logger.log_event(
+                        agent_id=self.agent_id,
+                        event_type=EventType.TASK_ERROR,
+                        message=f"LLM call attempt {attempt + 1} failed: {str(e)}, retrying...",
+                        level=LogLevel.WARNING
+                    )
+                    
+                    # Wait a bit before retrying
+                    await asyncio.sleep(1)
+            
+            if plan is None:
+                raise ValueError("Failed to get valid response after all retries")
             
             # Validate that we got a proper dict response
             if not isinstance(plan, dict):
                 raise ValueError(f"Expected dict response, got {type(plan)}")
             
-            if "error" in plan:
+            # Check if LLM returned a parsing error
+            if "error" in plan and "Failed to parse JSON" in str(plan.get("error", "")):
+                # Try to generate a fallback plan using a simpler approach
+                self.logger.log_event(
+                    agent_id=self.agent_id,
+                    event_type=EventType.TASK_ERROR,
+                    message="JSON parsing failed, attempting fallback plan generation",
+                    level=LogLevel.WARNING
+                )
+                
+                # Generate a simple fallback plan
+                plan = self._generate_fallback_plan(feature_prompt, repo_structure, repo_info)
+            
+            elif "error" in plan:
                 raise ValueError(f"LLM returned error: {plan['error']}")
+            
+            # Validate required fields and provide defaults if missing
+            plan = self._validate_and_fix_plan(plan, feature_prompt)
             
             self.logger.log_event(
                 agent_id=self.agent_id,
@@ -501,6 +543,91 @@ Respond in JSON format with the following structure:
                 level=LogLevel.ERROR
             )
             raise
+    
+    def _generate_fallback_plan(self, feature_prompt: str, repo_structure: Dict[str, Any], repo_info: Dict[str, str]) -> Dict[str, Any]:
+        """Generate a simple fallback plan when JSON parsing fails"""
+        return {
+            "feature_analysis": {
+                "summary": f"Implementation of: {feature_prompt[:100]}...",
+                "requirements": ["Implement requested feature", "Maintain code quality", "Add appropriate tests"],
+                "complexity": "medium"
+            },
+            "implementation_strategy": {
+                "approach": "Analyze existing codebase and implement feature following established patterns",
+                "architecture_changes": "Minimal changes to existing architecture",
+                "integration_points": ["Main application logic", "User interface", "Data layer"]
+            },
+            "files_to_modify": [
+                {
+                    "path": "main.py",
+                    "action": "modify",
+                    "purpose": "Add feature implementation",
+                    "priority": "high"
+                }
+            ],
+            "code_changes": [
+                {
+                    "file": "main.py",
+                    "description": "Add feature implementation code",
+                    "change_type": "add_function"
+                }
+            ],
+            "dependencies": [],
+            "testing_strategy": {
+                "unit_tests": ["Test main functionality"],
+                "integration_tests": ["Test feature integration"],
+                "manual_testing": ["Verify feature works as expected"]
+            },
+            "potential_issues": [
+                {
+                    "issue": "Feature complexity may require additional refinement",
+                    "mitigation": "Break down into smaller, manageable tasks"
+                }
+            ]
+        }
+    
+    def _validate_and_fix_plan(self, plan: Dict[str, Any], feature_prompt: str) -> Dict[str, Any]:
+        """Validate and fix the plan structure, providing defaults for missing fields"""
+        # Ensure all required top-level keys exist
+        required_keys = [
+            "feature_analysis", "implementation_strategy", "files_to_modify",
+            "code_changes", "dependencies", "testing_strategy", "potential_issues"
+        ]
+        
+        for key in required_keys:
+            if key not in plan:
+                if key == "feature_analysis":
+                    plan[key] = {
+                        "summary": f"Implementation of: {feature_prompt[:100]}",
+                        "requirements": ["Implement requested feature"],
+                        "complexity": "medium"
+                    }
+                elif key == "implementation_strategy":
+                    plan[key] = {
+                        "approach": "Standard implementation approach",
+                        "architecture_changes": "Minimal changes",
+                        "integration_points": ["Main application"]
+                    }
+                elif key in ["files_to_modify", "code_changes", "dependencies", "potential_issues"]:
+                    plan[key] = []
+                elif key == "testing_strategy":
+                    plan[key] = {
+                        "unit_tests": ["Test main functionality"],
+                        "integration_tests": ["Test integration"],
+                        "manual_testing": ["Manual verification"]
+                    }
+        
+        # Validate nested structures
+        if not isinstance(plan.get("feature_analysis"), dict):
+            plan["feature_analysis"] = {"summary": feature_prompt, "requirements": [], "complexity": "medium"}
+        
+        if not isinstance(plan.get("files_to_modify"), list):
+            plan["files_to_modify"] = []
+        
+        if not isinstance(plan.get("code_changes"), list):
+            plan["code_changes"] = []
+        
+        return plan
     
     async def _generate_code_changes(self, feature_plan: Dict[str, Any], repo_structure: Dict[str, Any], repo_info: Dict[str, str]) -> List[Dict[str, Any]]:
         """Generate actual code changes based on the feature plan"""

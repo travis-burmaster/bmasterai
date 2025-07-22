@@ -1,4 +1,5 @@
 
+# Core dependencies
 streamlit>=1.28.0
 requests>=2.31.0
 python-dotenv>=1.0.0
@@ -14,3 +15,9 @@ tenacity>=8.2.0
 google-generativeai>=0.3.0
 google-ai-generativelanguage>=0.4.0
 bmasterai>=0.2.0
+
+# PDF generation dependencies (optional)
+# Note: pdfkit requires wkhtmltopdf to be installed separately
+# Note: weasyprint requires system dependencies on macOS (brew install cairo pango gdk-pixbuf libffi)
+pdfkit>=1.0.0
+# weasyprint>=60.0  # Commented out due to macOS system dependency issues

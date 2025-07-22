@@ -5,9 +5,38 @@ from typing import Dict, List, Any, Optional
 from pathlib import Path
 import markdown
 from jinja2 import Template, Environment, FileSystemLoader
-import pdfkit
-from weasyprint import HTML, CSS
 import logging
+
+# ReportLab for basic PDF generation fallback
+try:
+    from reportlab.lib.pagesizes import letter, A4
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    REPORTLAB_AVAILABLE = True
+except ImportError:
+    REPORTLAB_AVAILABLE = False
+
+# Optional PDF generation dependencies
+try:
+    import pdfkit
+    PDFKIT_AVAILABLE = True
+except ImportError:
+    PDFKIT_AVAILABLE = False
+    pdfkit = None
+
+try:
+    from weasyprint import HTML, CSS
+    WEASYPRINT_AVAILABLE = True
+except (ImportError, OSError) as e:
+    # WeasyPrint can fail with OSError on macOS due to missing system dependencies
+    WEASYPRINT_AVAILABLE = False
+    HTML = CSS = None
+    if isinstance(e, OSError):
+        logging.getLogger(__name__).warning(
+            "WeasyPrint unavailable due to missing system dependencies. "
+            "PDF generation will use pdfkit if available."
+        )
 
 logger = logging.getLogger(__name__)
 
@@ -145,24 +174,27 @@ class ReportGenerator:
         template_name: Optional[str] = None
     ) -> str:
         """Generate a PDF report."""
-        # First generate HTML content
-        html_content = self._generate_html_report(data, template_name=template_name)
-        
         if not output_path:
             output_path = f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
         
-        try:
-            # Use WeasyPrint for better CSS support
-            css_path = os.path.join(self.template_dir, 'pdf_styles.css')
-            css = CSS(filename=css_path) if os.path.exists(css_path) else None
-            
-            HTML(string=html_content).write_pdf(output_path, stylesheets=[css] if css else None)
-            
-        except Exception as e:
-            logger.warning(f"WeasyPrint failed: {e}. Trying pdfkit...")
-            
+        # Try WeasyPrint first (better CSS support)
+        if WEASYPRINT_AVAILABLE:
             try:
-                # Fallback to pdfkit
+                html_content = self._generate_html_report(data, template_name=template_name)
+                css_path = os.path.join(self.template_dir, 'pdf_styles.css')
+                css = CSS(filename=css_path) if os.path.exists(css_path) else None
+                
+                HTML(string=html_content).write_pdf(output_path, stylesheets=[css] if css else None)
+                logger.info(f"PDF generated successfully using WeasyPrint: {output_path}")
+                return output_path
+                
+            except Exception as e:
+                logger.warning(f"WeasyPrint failed: {e}")
+        
+        # Fallback to pdfkit
+        if PDFKIT_AVAILABLE:
+            try:
+                html_content = self._generate_html_report(data, template_name=template_name)
                 options = {
                     'page-size': 'A4',
                     'margin-top': '0.75in',
@@ -170,14 +202,117 @@ class ReportGenerator:
                     'margin-bottom': '0.75in',
                     'margin-left': '0.75in',
                     'encoding': "UTF-8",
-                    'no-outline': None
+                    'no-outline': None,
+                    'enable-local-file-access': None
                 }
                 pdfkit.from_string(html_content, output_path, options=options)
+                logger.info(f"PDF generated successfully using pdfkit: {output_path}")
+                return output_path
                 
-            except Exception as e2:
-                logger.error(f"Both PDF generation methods failed: {e2}")
-                raise
+            except Exception as e:
+                logger.warning(f"pdfkit failed: {e}")
         
+        # Final fallback to ReportLab (basic PDF generation)
+        if REPORTLAB_AVAILABLE:
+            try:
+                return self._generate_pdf_with_reportlab(data, output_path)
+            except Exception as e:
+                logger.error(f"ReportLab fallback failed: {e}")
+        
+        # If all methods fail, generate HTML instead and inform user
+        logger.warning("All PDF generation methods failed. Generating HTML report instead.")
+        html_output_path = output_path.replace('.pdf', '.html')
+        html_content = self._generate_html_report(data, output_path=html_output_path, template_name=template_name)
+        
+        raise RuntimeError(
+            f"PDF generation failed. HTML report saved to: {html_output_path}. "
+            "To enable PDF generation, install system dependencies for weasyprint or wkhtmltopdf for pdfkit."
+        )
+    
+    def _generate_pdf_with_reportlab(self, data: Dict[str, Any], output_path: str) -> str:
+        """Generate a basic PDF using ReportLab as fallback."""
+        doc = SimpleDocTemplate(output_path, pagesize=A4)
+        styles = getSampleStyleSheet()
+        story = []
+        
+        # Title
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=18,
+            spaceAfter=30,
+        )
+        story.append(Paragraph(data.get('title', 'Research Report'), title_style))
+        
+        # Subtitle
+        if data.get('subtitle'):
+            story.append(Paragraph(data['subtitle'], styles['Heading2']))
+            story.append(Spacer(1, 12))
+        
+        # Metadata
+        story.append(Paragraph(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal']))
+        if data.get('processing_time'):
+            story.append(Paragraph(f"Processing Time: {data['processing_time']}", styles['Normal']))
+        story.append(Spacer(1, 20))
+        
+        # Executive Summary
+        if data.get('executive_summary'):
+            story.append(Paragraph("Executive Summary", styles['Heading2']))
+            story.append(Paragraph(data['executive_summary'], styles['Normal']))
+            story.append(Spacer(1, 12))
+        
+        # Research Question
+        if data.get('research_question'):
+            story.append(Paragraph("Research Question", styles['Heading2']))
+            story.append(Paragraph(data['research_question'], styles['Normal']))
+            story.append(Spacer(1, 12))
+        
+        # Methodology
+        if data.get('methodology'):
+            story.append(Paragraph("Methodology", styles['Heading2']))
+            story.append(Paragraph(data['methodology'], styles['Normal']))
+            story.append(Spacer(1, 12))
+        
+        # Findings
+        findings = data.get('findings', [])
+        if findings:
+            story.append(Paragraph("Key Findings", styles['Heading2']))
+            for i, finding in enumerate(findings, 1):
+                if isinstance(finding, dict):
+                    title = finding.get('title', f'Finding {i}')
+                    content = finding.get('content', '')
+                else:
+                    title = f'Finding {i}'
+                    content = str(finding)
+                
+                story.append(Paragraph(title, styles['Heading3']))
+                story.append(Paragraph(content, styles['Normal']))
+                story.append(Spacer(1, 8))
+        
+        # Conclusions
+        if data.get('conclusions'):
+            story.append(Paragraph("Conclusions", styles['Heading2']))
+            story.append(Paragraph(data['conclusions'], styles['Normal']))
+            story.append(Spacer(1, 12))
+        
+        # Recommendations
+        recommendations = data.get('recommendations', [])
+        if recommendations:
+            story.append(Paragraph("Recommendations", styles['Heading2']))
+            for rec in recommendations:
+                story.append(Paragraph(f"• {rec}", styles['Normal']))
+            story.append(Spacer(1, 12))
+        
+        # Sources
+        sources = data.get('sources', [])
+        if sources:
+            story.append(Paragraph("Sources", styles['Heading2']))
+            for source in sources:
+                story.append(Paragraph(f"• {source}", styles['Normal']))
+        
+        # Build PDF
+        doc.build(story)
+        logger.info(f"PDF generated successfully using ReportLab: {output_path}")
         return output_path
     
     def _prepare_template_data(self, data: Dict[str, Any]) -> Dict[str, Any]:

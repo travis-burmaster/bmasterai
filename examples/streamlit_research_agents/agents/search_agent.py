@@ -53,6 +53,7 @@ class SearchAgent(LoggingMixin, BaseAgent):
     """
     
     def __init__(self, 
+                 perplexity_client=None,
                  name: str = "SearchAgent",
                  perplexity_api_key: str = None,
                  max_concurrent_searches: int = 3,
@@ -62,14 +63,18 @@ class SearchAgent(LoggingMixin, BaseAgent):
         Initialize the SearchAgent
         
         Args:
+            perplexity_client: Pre-initialized PerplexityClient (preferred)
             name: Agent name
-            perplexity_api_key: API key for Perplexity
+            perplexity_api_key: API key for Perplexity (alternative to perplexity_client)
             max_concurrent_searches: Maximum concurrent search requests
             search_timeout: Timeout for search requests in seconds
         """
         super().__init__(name=name, **kwargs)
         
-        self.perplexity_client = PerplexityClient(api_key=perplexity_api_key)
+        if perplexity_client:
+            self.perplexity_client = perplexity_client
+        else:
+            self.perplexity_client = PerplexityClient(api_key=perplexity_api_key)
         self.max_concurrent_searches = max_concurrent_searches
         self.search_timeout = search_timeout
         

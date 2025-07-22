@@ -71,8 +71,22 @@ class ResearchCoordinator(LoggingMixin, BaseAgent):
     def __init__(self, 
                  name: str = "ResearchCoordinator",
                  description: str = "Coordinates multi-agent research workflow",
+                 search_agent: BaseAgent = None,
+                 synthesis_agent: BaseAgent = None,
+                 editing_agent: BaseAgent = None,
                  **kwargs):
-        super().__init__(name=name, description=description, **kwargs)
+        # Extract agent parameters before calling super()
+        agent_params = {
+            'search_agent': search_agent,
+            'synthesis_agent': synthesis_agent,
+            'editing_agent': editing_agent
+        }
+        
+        # Remove agent parameters from kwargs to avoid passing them to BaseAgent
+        filtered_kwargs = {k: v for k, v in kwargs.items() 
+                          if k not in ['search_agent', 'synthesis_agent', 'editing_agent']}
+        
+        super().__init__(name=name, description=description, **filtered_kwargs)
         
         self.logger = logging.getLogger(__name__)
         self.active_tasks: Dict[str, ResearchTask] = {}
@@ -89,6 +103,14 @@ class ResearchCoordinator(LoggingMixin, BaseAgent):
             WorkflowStage.EDITING: 0.10,
             WorkflowStage.FINALIZATION: 0.05
         }
+        
+        # Register agents that were passed in during initialization
+        if agent_params['search_agent']:
+            self.register_agent('search', agent_params['search_agent'])
+        if agent_params['synthesis_agent']:
+            self.register_agent('synthesis', agent_params['synthesis_agent'])
+        if agent_params['editing_agent']:
+            self.register_agent('editing', agent_params['editing_agent'])
     
     def register_agent(self, agent_type: str, agent: BaseAgent):
         """Register a specialized agent with the coordinator"""
@@ -103,7 +125,8 @@ class ResearchCoordinator(LoggingMixin, BaseAgent):
         """Notify all registered callbacks about progress updates"""
         for callback in self.progress_callbacks:
             try:
-                callback(task_id, stage.value, progress, message)
+                # Call with the signature expected by the app: (agent, stage, message)
+                callback("ResearchCoordinator", stage.value, message)
             except Exception as e:
                 self.logger.error(f"Error in progress callback: {e}")
     
@@ -403,6 +426,61 @@ class ResearchCoordinator(LoggingMixin, BaseAgent):
             self.logger.info(f"Cleaned up old task {task_id}")
         
         return len(tasks_to_remove)
+    
+    async def conduct_research(self, research_params: Dict[str, Any], progress_callback: Callable = None) -> Dict[str, Any]:
+        """
+        Conduct research based on parameters - main interface for the Streamlit app
+        
+        Args:
+            research_params: Dictionary containing research parameters including 'query'
+            progress_callback: Optional callback function for progress updates
+            
+        Returns:
+            Dictionary containing research results
+        """
+        query = research_params.get('query', '')
+        self.logger.info(f"Received research_params: {research_params}")
+        self.logger.info(f"Extracted query: '{query}'")
+        
+        if not query or not query.strip():
+            raise ValueError(f"Research query is required. Received: '{query}' from params: {research_params}")
+        
+        # Add progress callback if provided
+        if progress_callback:
+            self.add_progress_callback(progress_callback)
+        
+        # Extract requirements from research_params
+        requirements = {
+            'depth': research_params.get('depth', 'medium'),
+            'output_format': research_params.get('output_format', 'comprehensive'),
+            'focus_areas': research_params.get('focus_areas', []),
+            'sources': research_params.get('sources', [])
+        }
+        
+        # Start research task
+        task_id = await self.start_research_task(query, requirements)
+        
+        # Wait for completion and return results
+        max_wait_time = 300  # 5 minutes max
+        wait_interval = 1    # Check every second
+        elapsed_time = 0
+        
+        while elapsed_time < max_wait_time:
+            task_status = self.get_task_status(task_id)
+            if not task_status:
+                break
+                
+            if task_status['stage'] == 'completed':
+                results = self.get_task_results(task_id)
+                return results or {'error': 'No results available'}
+            elif task_status['stage'] == 'error':
+                return {'error': f"Research failed: {task_status.get('errors', [])}"}
+            
+            await asyncio.sleep(wait_interval)
+            elapsed_time += wait_interval
+        
+        # Timeout case
+        return {'error': 'Research timed out'}
     
     async def process(self, input_data: str, **kwargs) -> str:
         """

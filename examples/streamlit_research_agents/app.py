@@ -85,29 +85,56 @@ class StreamlitResearchApp:
         """Initialize AI agents if API key is available."""
         perplexity_api_key = st.session_state.get('perplexity_api_key', '')
         
-        if perplexity_api_key:
+        if perplexity_api_key and perplexity_api_key.strip():
             try:
                 # Initialize Perplexity client
+                st.info("Initializing Perplexity client...")
                 perplexity_client = PerplexityClient(api_key=perplexity_api_key)
                 
-                # Initialize agents
+                # Initialize agents step by step with progress feedback
+                st.info("Initializing Search Agent...")
                 self.search_agent = SearchAgent(perplexity_client)
+                
+                st.info("Initializing Synthesis Agent...")
                 self.synthesis_agent = SynthesisAgent()
+                
+                st.info("Initializing Editing Agent...")
                 self.editing_agent = EditingAgent()
+                
+                st.info("Initializing Research Coordinator...")
                 self.coordinator = ResearchCoordinator(
                     search_agent=self.search_agent,
                     synthesis_agent=self.synthesis_agent,
                     editing_agent=self.editing_agent
                 )
                 
-                # Initialize report generator
+                st.info("Initializing Report Generator...")
                 self.report_generator = ReportGenerator()
                 
+                st.success("All agents initialized successfully!")
+                
+            except ImportError as e:
+                st.error(f"Import error - missing dependency: {str(e)}")
+                st.info("Please ensure all required packages are installed: pip install -r requirements.txt")
+                self.coordinator = None
+            except ValueError as e:
+                if "API key" in str(e):
+                    st.error("⚠️ API Key Required")
+                    st.info("Please enter your Perplexity API key in the sidebar to enable research functionality.")
+                else:
+                    st.error(f"Configuration error: {str(e)}")
+                self.coordinator = None
             except Exception as e:
                 st.error(f"Error initializing agents: {str(e)}")
+                st.exception(e)  # Show full traceback for debugging
                 self.coordinator = None
         else:
             self.coordinator = None
+            if not perplexity_api_key:
+                st.info("💡 Enter your Perplexity API key in the sidebar to enable research functionality.")
+            if st.session_state.get('show_api_key_warning', True):
+                st.warning("Please enter your Perplexity API key in the sidebar to enable research functionality.")
+                st.session_state.show_api_key_warning = False
     
     def render_sidebar(self):
         """Render the sidebar with configuration options."""
@@ -121,6 +148,9 @@ class StreamlitResearchApp:
             value=st.session_state.get('perplexity_api_key', ''),
             help="Enter your Perplexity API key to enable research functionality"
         )
+        
+        if not api_key:
+            st.sidebar.info("💡 **Get your API key:**\n\n1. Visit [perplexity.ai](https://perplexity.ai)\n2. Sign up/Login\n3. Go to Settings → API\n4. Generate a new API key")
         
         if api_key != st.session_state.get('perplexity_api_key', ''):
             st.session_state.perplexity_api_key = api_key
@@ -361,11 +391,15 @@ class StreamlitResearchApp:
         try:
             # Prepare research parameters
             research_params = {
-                'topic': st.session_state.research_topic,
+                'query': st.session_state.research_topic,  # Changed from 'topic' to 'query'
                 'depth': st.session_state.research_depth,
                 'max_sources': st.session_state.max_sources,
                 'output_format': st.session_state.output_format
             }
+            
+            # Debug logging
+            self.add_log_entry('System', f"Starting research with topic: '{st.session_state.research_topic}'")
+            self.add_log_entry('System', f"Research params: {research_params}")
             
             # Update status
             self.update_agent_status('coordinator', 'working')
@@ -458,4 +492,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-```

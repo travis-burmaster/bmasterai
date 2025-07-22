@@ -9,6 +9,7 @@ from utils.bmasterai_monitoring import get_monitor
 from integrations.github_client import get_github_client
 from integrations.mcp_client import get_mcp_client
 from utils.llm_client import get_llm_client
+from config import get_config_manager
 
 class GitHubAnalyzerAgent:
     """Agent for analyzing GitHub repositories with comprehensive monitoring"""
@@ -20,6 +21,11 @@ class GitHubAnalyzerAgent:
         self.monitor = get_monitor()
         self.github_client = get_github_client()
         self.llm_client = get_llm_client()
+        
+        # Get model configuration
+        self.config_manager = get_config_manager()
+        self.model_config = self.config_manager.get_model_config()
+        self.model = self.model_config.github_analyzer_model
         
         # Log agent initialization
         self.logger.log_agent_start(
@@ -481,7 +487,7 @@ class GitHubAnalyzerAgent:
             
             # Call LLM with structured response
             suggestions_response = await self.llm_client.call_llm_structured(
-                model="gpt-4.1-mini",
+                model=self.model,
                 prompt=prompt,
                 max_tokens=2000
             )

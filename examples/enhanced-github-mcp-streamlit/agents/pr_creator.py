@@ -19,6 +19,12 @@ class PRCreatorAgent:
         self.monitor = get_monitor()
         self.llm_client = get_llm_client()
         
+        # Get model configuration
+        from config import get_config_manager
+        self.config_manager = get_config_manager()
+        self.model_config = self.config_manager.get_model_config()
+        self.model = self.model_config.pr_creator_model
+        
         # Log agent initialization
         self.logger.log_agent_start(
             agent_id=self.agent_id,
@@ -262,7 +268,7 @@ class PRCreatorAgent:
             """
             
             response = await self.llm_client.call_llm(
-                model="gpt-4.1-mini",
+                model=self.model,
                 prompt=prompt,
                 max_tokens=1500
             )
@@ -503,7 +509,7 @@ By contributing, you agree that your contributions will be licensed under the sa
             """
             
             response = await self.llm_client.call_llm(
-                model="gpt-4.1-mini",
+                model=self.model,
                 prompt=prompt,
                 max_tokens=1000
             )
@@ -733,7 +739,7 @@ This PR implements several automated improvements to enhance the repository's qu
             """
             
             response = await self.llm_client.call_llm(
-                model="gpt-4.1-mini",
+                model=self.model,
                 prompt=prompt,
                 max_tokens=1000
             )

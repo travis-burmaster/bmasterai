@@ -13,9 +13,15 @@ async def handle_streaming_analysis(request_data: Dict[str, Any]):
         
         llm_client = get_llm_client()
         
+        # Get default model from configuration
+        from config import get_config_manager
+        config_manager = get_config_manager()
+        model_config = config_manager.get_model_config()
+        default_model = os.getenv('API_ANALYZE_MODEL', model_config.default_model)
+        
         # Extract request parameters
         prompt = request_data.get("prompt", "")
-        model = request_data.get("model", "gpt-4.1-mini")
+        model = request_data.get("model", default_model)
         max_tokens = request_data.get("max_tokens", 1500)
         
         # Stream the response

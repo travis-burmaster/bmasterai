@@ -96,8 +96,18 @@ class LLMClient:
         """Make an LLM call expecting structured JSON response"""
         start_time = time.time()
         
-        # Enhance prompt to request JSON format
-        json_prompt = f"{prompt}\n\nPlease respond with a valid JSON object only. Do not include any other text or formatting."
+        # Enhance prompt to request JSON format with explicit instructions
+        json_prompt = f"""{prompt}
+
+CRITICAL: Your response must be ONLY a valid JSON object. Follow these rules:
+1. Start your response with {{ and end with }}
+2. Do not include any text before or after the JSON
+3. Do not use markdown code blocks or formatting
+4. Ensure all strings are properly quoted
+5. Use double quotes for all keys and string values
+6. Do not include trailing commas
+
+Respond with the JSON object now:"""
         
         # Log LLM call start
         self.logger.log_llm_call(
@@ -125,19 +135,72 @@ class LLMClient:
             content = response.content[0].text if response.content else "{}"
             tokens_used = response.usage.input_tokens + response.usage.output_tokens
             
-            # Parse JSON response
+            # Parse JSON response with improved error handling
             try:
-                structured_response = json.loads(content)
+                # Try to extract JSON from the response if it's wrapped in other text
+                content_cleaned = content.strip()
+                
+                # Look for JSON block markers
+                if "```json" in content_cleaned:
+                    # Extract JSON from code block
+                    start = content_cleaned.find("```json") + 7
+                    end = content_cleaned.find("```", start)
+                    if end != -1:
+                        content_cleaned = content_cleaned[start:end].strip()
+                elif "```" in content_cleaned:
+                    # Extract from generic code block
+                    start = content_cleaned.find("```") + 3
+                    end = content_cleaned.find("```", start)
+                    if end != -1:
+                        content_cleaned = content_cleaned[start:end].strip()
+                
+                # Try to find JSON object boundaries
+                if not content_cleaned.startswith('{'):
+                    # Look for the first { and last }
+                    start_idx = content_cleaned.find('{')
+                    end_idx = content_cleaned.rfind('}')
+                    if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                        content_cleaned = content_cleaned[start_idx:end_idx + 1]
+                
+                structured_response = json.loads(content_cleaned)
+                
             except json.JSONDecodeError as e:
                 self.logger.log_event(
                     agent_id="llm_client",
                     event_type=EventType.TASK_ERROR,
                     message=f"Failed to parse JSON response: {str(e)}",
                     level=LogLevel.WARNING,
-                    metadata={"raw_response": content[:500]}
+                    metadata={"raw_response": content[:500], "cleaned_content": content_cleaned[:500]}
                 )
-                # Return a fallback structure
-                structured_response = {"error": "Failed to parse JSON", "raw_response": content}
+                
+                # Try one more time with a more aggressive approach
+                try:
+                    # Remove common prefixes/suffixes that might interfere
+                    lines = content.split('\n')
+                    json_lines = []
+                    in_json = False
+                    
+                    for line in lines:
+                        if '{' in line and not in_json:
+                            in_json = True
+                        if in_json:
+                            json_lines.append(line)
+                        if '}' in line and in_json:
+                            break
+                    
+                    if json_lines:
+                        json_content = '\n'.join(json_lines)
+                        structured_response = json.loads(json_content)
+                    else:
+                        raise json.JSONDecodeError("No JSON found", content, 0)
+                        
+                except json.JSONDecodeError:
+                    # Final fallback - return error structure
+                    structured_response = {
+                        "error": f"Failed to parse JSON: {str(e)}",
+                        "raw_response": content,
+                        "parsing_attempted": True
+                    }
             
             duration_ms = (time.time() - start_time) * 1000
             

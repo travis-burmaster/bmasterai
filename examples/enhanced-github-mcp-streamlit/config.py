@@ -63,8 +63,8 @@ class OpenAIConfig:
 
 @dataclass
 class ModelConfig:
-    default_model: str = "claude-3-5-sonnet-20241022"
-    feature_agent_model: str = "claude-3-5-sonnet-20241022"
+    default_model: str = "claude-4-sonnet"
+    feature_agent_model: str = "claude-4-sonnet"
     github_analyzer_model: str = "gpt-4o-mini"
     pr_creator_model: str = "gpt-4o-mini"
 

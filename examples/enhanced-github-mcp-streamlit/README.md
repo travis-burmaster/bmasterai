@@ -122,9 +122,9 @@ The application uses a `.env` file for configuration. This approach provides bet
 - `GITHUB_TOKEN`: GitHub personal access token with repo permissions
 
 ##### Model Configuration
-- `DEFAULT_LLM_MODEL`: Default model for general use (default: `claude-3-5-sonnet-20241022`)
+- `DEFAULT_LLM_MODEL`: Default model for general use (default: `claude-4-sonnet`)
 - `FALLBACK_LLM_MODEL`: Fallback model if primary fails (default: `gpt-4o-mini`)
-- `FEATURE_AGENT_MODEL`: Model for feature implementation (default: `claude-3-5-sonnet-20241022`)
+- `FEATURE_AGENT_MODEL`: Model for feature implementation (default: `claude-4-sonnet`)
 - `ANALYZER_MODEL`: Model for repository analysis (default: `gpt-4o-mini`)
 - `PR_CREATOR_MODEL`: Model for PR generation (default: `gpt-4o-mini`)
 
@@ -164,9 +164,9 @@ ANTHROPIC_API_KEY=sk-ant-your-anthropic-key-here
 GITHUB_TOKEN=ghp_your-github-token-here
 
 # Model Configuration
-DEFAULT_LLM_MODEL=claude-3-5-sonnet-20241022
+DEFAULT_LLM_MODEL=claude-4-sonnet
 FALLBACK_LLM_MODEL=gpt-4o-mini
-FEATURE_AGENT_MODEL=claude-3-5-sonnet-20241022
+FEATURE_AGENT_MODEL=claude-4-sonnet
 ANALYZER_MODEL=gpt-4o-mini
 PR_CREATOR_MODEL=gpt-4o-mini
 
@@ -355,6 +355,11 @@ The Feature Agent provides testing strategies including:
 
 ## 📝 Changelog
 
+### Version 2.1.0 (Latest)
+- 🆕 **Updated to Claude 4 Sonnet**: Default model upgraded from Claude 3.5 Sonnet to Claude 4 Sonnet for improved performance and capabilities
+- ⚡ **Enhanced AI Performance**: Better code generation and analysis with the latest Claude model
+- 🔧 **Updated Configuration**: All model references updated to use Claude 4 Sonnet by default
+
 ### Version 2.0.0 (Enhanced)
 - ✨ Added Feature Addition Mode
 - 🤖 New Feature Agent with intelligent code generation
@@ -405,7 +410,7 @@ The Feature Agent provides testing strategies including:
 - **Problem**: Invalid model names or unavailable models
 - **Solution**:
   1. Check model names in `.env` match available models
-  2. Ensure you have access to the specified models
+  2. Ensure you have access to the specified models (Claude 4 Sonnet requires appropriate API access)
   3. Use fallback models if primary models fail
 
 #### GitHub Token Issues

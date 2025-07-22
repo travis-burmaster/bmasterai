@@ -52,7 +52,6 @@ Before starting the lessons, ensure you have:
 
 ### Required Accounts
 - **GitHub Account** with repository access
-- **BMasterAI Account** (sign up at [bmasterai.com](https://bmasterai.com))
 - **OpenAI API Key** (for AI-powered features)
 
 ### Technical Knowledge
@@ -143,12 +142,6 @@ We welcome contributions to improve these lessons! Please:
 - Test all code examples before submitting
 - Update this README if adding new lessons
 
-## 📞 Support and Community
-
-- **Documentation:** [docs.bmasterai.com](https://docs.bmasterai.com)
-- **Community Forum:** [community.bmasterai.com](https://community.bmasterai.com)
-- **Discord:** [Join our Discord server](https://discord.gg/bmasterai)
-- **Email Support:** support@bmasterai.com
 
 ## 📄 License
 

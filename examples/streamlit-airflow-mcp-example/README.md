@@ -34,7 +34,7 @@ Follow their instructions to get the MCP server and a local Airflow instance run
 ### 2. Clone this Repository
 
 ```bash
-git clone https://https://github.com/travis-burmaster/bmasterai
+git clone https://github.com/travis-burmaster/bmasterai
 cd examples/streamlit_airflow_mcp_example
 ```
 

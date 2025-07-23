@@ -35,7 +35,7 @@ Follow their instructions to get the MCP server and a local Airflow instance run
 
 ```bash
 git clone https://https://github.com/travis-burmaster/bmasterai
-cd streamlit_airflow_mcp_example
+cd examples/streamlit_airflow_mcp_example
 ```
 
 ### 3. Configure Environment Variables

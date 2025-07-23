@@ -20,7 +20,7 @@ Before running this application, ensure you have the following:
 
 ## Setup and Installation
 
-### 1. Clone the BMasterAI Repository (if not already done)
+### 1. Clone the MCP Repository (if not already done)
 
 If you haven't already, clone the `airflow-mcp` repository:
 
@@ -34,8 +34,8 @@ Follow their instructions to get the MCP server and a local Airflow instance run
 ### 2. Clone this Repository
 
 ```bash
-git clone <this_repository_url> # Replace with the actual URL if this project is hosted
-cd streamlit_airflow_mcp
+git clone https://https://github.com/travis-burmaster/bmasterai
+cd streamlit_airflow_mcp_example
 ```
 
 ### 3. Configure Environment Variables

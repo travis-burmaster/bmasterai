@@ -20,7 +20,7 @@ Before running this application, ensure you have the following:
 
 ## Setup and Installation
 
-### 1. Clone the `airflow-mcp` Repository (if not already done)
+### 1. Clone the BMasterAI Repository (if not already done)
 
 If you haven't already, clone the `airflow-mcp` repository:
 

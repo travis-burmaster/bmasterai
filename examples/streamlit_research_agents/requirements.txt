@@ -1,23 +1,32 @@
-
-# Core dependencies
 streamlit>=1.28.0
-requests>=2.31.0
+bmasterai>=0.1.0
 python-dotenv>=1.0.0
-asyncio>=3.4.3
-aiohttp>=3.8.0
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
 pandas>=2.0.0
-plotly>=5.15.0
-markdown>=3.4.0
-reportlab>=4.0.0
-jinja2>=3.1.0
-pydantic>=2.0.0
-tenacity>=8.2.0
+numpy>=1.24.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
+plotly>=5.17.0
+scikit-learn>=1.3.0
+nltk>=3.8.0
+spacy>=3.6.0
+transformers>=4.30.0
+torch>=2.0.0
+langchain>=0.0.200
+openai>=1.0.0
+anthropic>=0.3.0
 google-generativeai>=0.3.0
-google-ai-generativelanguage>=0.4.0
-bmasterai>=0.2.0
-
-# PDF generation dependencies (optional)
-# Note: pdfkit requires wkhtmltopdf to be installed separately
-# Note: weasyprint requires system dependencies on macOS (brew install cairo pango gdk-pixbuf libffi)
-pdfkit>=1.0.0
-# weasyprint>=60.0  # Commented out due to macOS system dependency issues
+tiktoken>=0.5.0
+faiss-cpu>=1.7.4
+chromadb>=0.4.0
+pypdf>=3.15.0
+docx2txt>=0.8
+markdown>=3.4.0
+pyyaml>=6.0
+aiohttp>=3.8.0
+asyncio>=3.4.3
+tenacity>=8.2.0
+pydantic>=2.0.0
+typing-extensions>=4.7.0

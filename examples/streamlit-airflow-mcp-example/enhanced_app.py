@@ -3,6 +3,10 @@ import os
 import json
 from anthropic import Anthropic
 from mcp_client import MCPClient
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Configuration
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")

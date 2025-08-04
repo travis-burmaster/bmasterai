@@ -6,16 +6,18 @@ services:
     ports:
       - "8501:8501"
     environment:
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
       - AIRFLOW_API_URL=${AIRFLOW_API_URL:-http://host.docker.internal:8088/api/v1}
       - AIRFLOW_USERNAME=${AIRFLOW_USERNAME:-airflow}
       - AIRFLOW_PASSWORD=${AIRFLOW_PASSWORD:-airflow}
+      - MCP_SERVER_URL=http://airflow-mcp:3000
     volumes:
       - .:/app
     working_dir: /app
     command: streamlit run enhanced_app.py --server.address 0.0.0.0
     depends_on:
       - airflow-webserver
+      - airflow-mcp
     networks:
       - airflow-network
 
@@ -54,6 +56,19 @@ services:
       - POSTGRES_DB=airflow
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - airflow-network
+
+  airflow-mcp:
+    image: hipposysai/airflow-mcp:latest
+    environment:
+      - airflow_api_url=${AIRFLOW_API_URL:-http://airflow-webserver:8080/api/v1}
+      - airflow_username=${AIRFLOW_USERNAME:-airflow}
+      - airflow_password=${AIRFLOW_PASSWORD:-airflow}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - airflow-webserver
     networks:
       - airflow-network
 

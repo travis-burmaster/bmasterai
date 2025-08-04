@@ -1,4 +1,4 @@
 streamlit
-anthropic
+openai
 requests
 python-dotenv

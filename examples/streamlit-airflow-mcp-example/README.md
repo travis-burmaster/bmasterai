@@ -1,11 +1,11 @@
 # Streamlit Airflow MCP Chatbot
 
-This project provides a Streamlit-based chatbot that integrates with the Anthropic API and an Airflow Model Context Protocol (MCP) server. It allows users to interact with their Apache Airflow instance using natural language queries, which are then processed by Anthropic and translated into commands for the MCP server.
+This project provides a Streamlit-based chatbot that integrates with the OpenAI API and an Airflow Model Context Protocol (MCP) server. It allows users to interact with their Apache Airflow instance using natural language queries, which are then processed by OpenAI and translated into commands for the MCP server.
 
 ## Features
 
 *   **Natural Language Interaction:** Ask questions about your Airflow DAGs in plain English.
-*   **Anthropic Integration:** Leverages Anthropic's Claude models to interpret user queries and format MCP responses.
+*   **OpenAI Integration:** Leverages OpenAI's GPT models to interpret user queries and format MCP responses.
 *   **Airflow MCP Server Integration:** Communicates with the `airflow-mcp` server to retrieve and act on Airflow data.
 *   **User-Friendly Interface:** A simple and intuitive Streamlit interface for easy interaction.
 
@@ -13,44 +13,32 @@ This project provides a Streamlit-based chatbot that integrates with the Anthrop
 
 Before running this application, ensure you have the following:
 
-*   **Docker:** Required for running the `airflow-mcp` server and optionally for running this Streamlit application.
-*   **Anthropic API Key:** You will need an API key from Anthropic to use their Claude models.
-*   **Apache Airflow Instance:** A running Apache Airflow instance that the `airflow-mcp` server can connect to. This can be a local instance or a remote one.
-*   **`airflow-mcp` Server:** The MCP server for Airflow needs to be running and accessible. Follow the instructions in the [hipposys-ltd/airflow-mcp](https://github.com/hipposys-ltd/airflow-mcp) repository to set it up.
+* **Docker:** Used to run the Streamlit app, Airflow services and the [hipposys-ltd/airflow-mcp](https://github.com/hipposys-ltd/airflow-mcp) server.
+* **OpenAI API Key:** You will need an API key from OpenAI to use their GPT models.
+* **Apache Airflow Instance:** A running Apache Airflow instance that the `airflow-mcp` server can connect to. The provided `docker-compose.yml` spins up a local instance automatically.
 
 ## Setup and Installation
 
-### 1. Clone the MCP Repository (if not already done)
-
-If you haven't already, clone the `airflow-mcp` repository:
-
-```bash
-git clone https://github.com/hipposys-ltd/airflow-mcp
-cd airflow-mcp
-```
-
-Follow their instructions to get the MCP server and a local Airflow instance running. The `docker-compose.airflow.yml` and `docker-compose.mcp.yml` files in their repository are good starting points.
-
-### 2. Clone this Repository
+### 1. Clone this Repository
 
 ```bash
 git clone https://github.com/travis-burmaster/bmasterai
-cd examples/streamlit_airflow_mcp_example
+cd examples/streamlit-airflow-mcp-example
 ```
 
-### 3. Configure Environment Variables
+### 2. Configure Environment Variables
 
-Create a `.env` file in the `streamlit_airflow_mcp` directory. You can use the provided `.env.example` as a template:
+Create a `.env` file in the `streamlit-airflow-mcp-example` directory. You can use the provided `.env.example` as a template:
 
 ```bash
 cp .env.example .env
 ```
 
-Edit the `.env` file and replace `your_anthropic_api_key_here` with your actual Anthropic API key. Adjust `AIRFLOW_API_URL`, `AIRFLOW_USERNAME`, `AIRFLOW_PASSWORD`, and `MCP_SERVER_URL` if your setup differs from the defaults.
+Edit the `.env` file and replace `your_openai_api_key_here` with your actual OpenAI API key. Adjust `AIRFLOW_API_URL`, `AIRFLOW_USERNAME`, `AIRFLOW_PASSWORD`, and `MCP_SERVER_URL` if your setup differs from the defaults.
 
 ```ini
 # .env
-ANTHROPIC_API_KEY=sk-ant-your-actual-anthropic-api-key
+OPENAI_API_KEY=sk-your-openai-api-key
 
 # Airflow Configuration
 AIRFLOW_API_URL=http://localhost:8088/api/v1
@@ -58,10 +46,10 @@ AIRFLOW_USERNAME=airflow
 AIRFLOW_PASSWORD=airflow
 
 # Optional: MCP Server URL (if running separately)
-MCP_SERVER_URL=http://localhost:8000
+MCP_SERVER_URL=http://localhost:3000
 ```
 
-### 4. Install Python Dependencies
+### 3. Install Python Dependencies
 
 ```bash
 pip install -r requirements.txt
@@ -73,7 +61,18 @@ You have two main options to run the Streamlit application:
 
 ### Option 1: Run Directly with Streamlit
 
-Ensure your `airflow-mcp` server and Airflow instance are running, then navigate to the `streamlit_airflow_mcp` directory and run:
+Ensure your `airflow-mcp` server and Airflow instance are running. You can start the server with:
+
+```bash
+docker run -i --rm \
+  -p 3000:3000 \
+  -e airflow_api_url="http://localhost:8088/api/v1" \
+  -e airflow_username="airflow" \
+  -e airflow_password="airflow" \
+  hipposysai/airflow-mcp:latest
+```
+
+Then navigate to the `streamlit-airflow-mcp-example` directory and run:
 
 ```bash
 streamlit run enhanced_app.py
@@ -83,9 +82,9 @@ This will open the Streamlit application in your web browser, usually at `http:/
 
 ### Option 2: Run with Docker Compose (Recommended for full setup)
 
-This option will bring up the Streamlit application, a PostgreSQL database, and an Apache Airflow instance, all pre-configured to work together. It also assumes you have the `airflow-mcp` server running separately or integrate it into this `docker-compose.yml`.
+This option brings up the Streamlit application, the `airflow-mcp` server, a PostgreSQL database and an Apache Airflow instance, all pre-configured to work together.
 
-From the `streamlit_airflow_mcp` directory, run:
+From the `streamlit-airflow-mcp-example` directory, run:
 
 ```bash
 docker-compose build
@@ -103,12 +102,12 @@ Once the Streamlit application is running, you can type natural language queries
 *   "Trigger the `example_dag`."
 *   "What is the status of `my_data_pipeline` DAG?"
 
-The application will use Anthropic to interpret your query, send a corresponding command to the MCP server, and then interpret the MCP server's response back to you in a user-friendly format.
+The application will use OpenAI to interpret your query, send a corresponding command to the MCP server, and then interpret the MCP server's response back to you in a user-friendly format.
 
 ## Project Structure
 
 ```
-streamlit_airflow_mcp/
+streamlit-airflow-mcp-example/
 ├── .env.example             # Example environment variables
 ├── app.py                   # Original Streamlit application (can be ignored)
 ├── enhanced_app.py          # Main Streamlit application with improved logic

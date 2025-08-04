@@ -1,7 +1,7 @@
 import streamlit as st
 import os
 import json
-from anthropic import Anthropic
+from openai import OpenAI
 from mcp_client import MCPClient
 from dotenv import load_dotenv
 
@@ -9,49 +9,44 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Configuration
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 AIRFLOW_API_URL = os.getenv("AIRFLOW_API_URL", "http://localhost:8088/api/v1")
 AIRFLOW_USERNAME = os.getenv("AIRFLOW_USERNAME", "airflow")
 AIRFLOW_PASSWORD = os.getenv("AIRFLOW_PASSWORD", "airflow")
+MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:3000")
 
 st.set_page_config(page_title="Airflow MCP Assistant", layout="wide")
-st.title("🚀 Airflow MCP Assistant with Anthropic Claude")
+st.title("🚀 Airflow MCP Assistant with OpenAI")
 
 # Initialize clients
-if ANTHROPIC_API_KEY:
-    anthropic_client = Anthropic(api_key=ANTHROPIC_API_KEY)
+if OPENAI_API_KEY:
+    openai_client = OpenAI(api_key=OPENAI_API_KEY)
 else:
-    st.error("❌ ANTHROPIC_API_KEY environment variable not set.")
+    st.error("❌ OPENAI_API_KEY environment variable not set.")
     st.stop()
 
-mcp_client = MCPClient(
-    airflow_api_url=AIRFLOW_API_URL,
-    airflow_username=AIRFLOW_USERNAME,
-    airflow_password=AIRFLOW_PASSWORD
-)
+mcp_client = MCPClient(server_url=MCP_SERVER_URL)
 
-def get_anthropic_response(prompt: str, system_prompt: str = None) -> str:
-    """Get a response from the Anthropic API."""
+def get_openai_response(prompt: str, system_prompt: str = None) -> str:
+    """Get a response from the OpenAI API."""
     try:
-        messages = [{"role": "user", "content": prompt}]
-        
-        kwargs = {
-            "model": "claude-3-sonnet-20240229",
-            "max_tokens": 2048,
-            "messages": messages
-        }
-        
+        messages = []
         if system_prompt:
-            kwargs["system"] = system_prompt
-            
-        message = anthropic_client.messages.create(**kwargs)
-        return message.content[0].text
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+
+        response = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+            max_tokens=2048,
+        )
+        return response.choices[0].message.content
     except Exception as e:
-        st.error(f"Error communicating with Anthropic API: {e}")
+        st.error(f"Error communicating with OpenAI API: {e}")
         return None
 
 def interpret_user_query(user_query: str) -> dict:
-    """Use Anthropic to interpret user query and determine the appropriate MCP action."""
+    """Use OpenAI to interpret user query and determine the appropriate MCP action."""
     system_prompt = """You are an AI assistant that helps interpret user queries about Apache Airflow and determines the appropriate action to take with an MCP server.
 
 Available MCP actions:
@@ -74,7 +69,7 @@ Response: {"action": "get_dag_runs", "parameters": {"dag_id": "data_pipeline"}, 
 
     prompt = f"User query: {user_query}\n\nJSON response:"
     
-    response = get_anthropic_response(prompt, system_prompt)
+    response = get_openai_response(prompt, system_prompt)
     
     try:
         return json.loads(response)
@@ -109,9 +104,9 @@ def execute_mcp_action(action_data: dict) -> dict:
     else:
         return {"error": f"Unknown action: {action}"}
 
-def format_response_with_anthropic(user_query: str, mcp_response: dict, action_explanation: str) -> str:
-    """Use Anthropic to format the MCP response in a user-friendly way."""
-    system_prompt = """You are an AI assistant that helps explain Apache Airflow data to users in a clear, friendly way. 
+def format_response_with_openai(user_query: str, mcp_response: dict, action_explanation: str) -> str:
+    """Use OpenAI to format the MCP response in a user-friendly way."""
+    system_prompt = """You are an AI assistant that helps explain Apache Airflow data to users in a clear, friendly way.
 Take the raw MCP server response and format it into a helpful, easy-to-understand explanation that directly answers the user's question.
 
 Focus on:
@@ -126,12 +121,13 @@ MCP server response: {json.dumps(mcp_response, indent=2)}
 
 Please provide a clear, helpful explanation of this data:"""
 
-    return get_anthropic_response(prompt, system_prompt)
+    return get_openai_response(prompt, system_prompt)
 
 # Sidebar configuration
 st.sidebar.header("⚙️ Configuration")
 st.sidebar.write(f"**Airflow URL:** {AIRFLOW_API_URL}")
 st.sidebar.write(f"**Username:** {AIRFLOW_USERNAME}")
+st.sidebar.write(f"**MCP Server:** {MCP_SERVER_URL}")
 
 # Test connection button
 if st.sidebar.button("🔍 Test MCP Connection"):
@@ -182,12 +178,12 @@ if st.button("🚀 Send Query", type="primary"):
         with st.expander("🔍 Raw MCP Response", expanded=False):
             st.json(mcp_response)
         
-        # Step 4: Format response with Anthropic
+        # Step 4: Format response with OpenAI
         if mcp_response and not mcp_response.get("error"):
             with st.spinner("✨ Formatting response..."):
-                formatted_response = format_response_with_anthropic(
-                    user_query, 
-                    mcp_response, 
+                formatted_response = format_response_with_openai(
+                    user_query,
+                    mcp_response,
                     action_data['explanation']
                 )
             
@@ -203,11 +199,11 @@ st.sidebar.header("📖 Setup Instructions")
 st.sidebar.markdown("""
 **Prerequisites:**
 1. Docker installed and running
-2. Anthropic API key
+2. OpenAI API key
 3. Local Airflow instance (optional)
 
 **Environment Variables:**
-- `ANTHROPIC_API_KEY`: Your Anthropic API key
+- `OPENAI_API_KEY`: Your OpenAI API key
 - `AIRFLOW_API_URL`: Airflow API URL (default: http://localhost:8088/api/v1)
 - `AIRFLOW_USERNAME`: Airflow username (default: airflow)
 - `AIRFLOW_PASSWORD`: Airflow password (default: airflow)

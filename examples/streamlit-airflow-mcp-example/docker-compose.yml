@@ -7,7 +7,7 @@ services:
       - "8501:8501"
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - AIRFLOW_API_URL=${AIRFLOW_API_URL:-http://host.docker.internal:8088/api/v1}
+      - AIRFLOW_API_URL=${AIRFLOW_API_URL:-http://airflow-webserver:8080/api/v1}
       - AIRFLOW_USERNAME=${AIRFLOW_USERNAME:-airflow}
       - AIRFLOW_PASSWORD=${AIRFLOW_PASSWORD:-airflow}
       - MCP_SERVER_URL=http://airflow-mcp:3000

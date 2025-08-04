@@ -41,7 +41,8 @@ Edit the `.env` file and replace `your_openai_api_key_here` with your actual Ope
 OPENAI_API_KEY=sk-your-openai-api-key
 
 # Airflow Configuration
-AIRFLOW_API_URL=http://localhost:8088/api/v1
+# Set to http://localhost:8088/api/v1 if Airflow runs on the host.
+AIRFLOW_API_URL=http://airflow-webserver:8080/api/v1
 AIRFLOW_USERNAME=airflow
 AIRFLOW_PASSWORD=airflow
 
@@ -65,6 +66,7 @@ Ensure your `airflow-mcp` server and Airflow instance are running. You can start
 
 ```bash
 docker run -i --rm \
+  --network host \
   -p 3000:3000 \
   -e airflow_api_url="http://localhost:8088/api/v1" \
   -e airflow_username="airflow" \

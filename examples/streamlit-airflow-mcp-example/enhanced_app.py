@@ -1,9 +1,12 @@
-import streamlit as st
 import os
 import json
+
+import streamlit as st
 from openai import OpenAI
-from mcp_client import MCPClient
 from dotenv import load_dotenv
+
+from bmasterai.logging import configure_logging, get_logger, LogLevel
+from fastmcp import MCPClient
 
 # Load environment variables from .env file
 load_dotenv()
@@ -14,6 +17,10 @@ AIRFLOW_API_URL = os.getenv("AIRFLOW_API_URL", "http://localhost:8088/api/v1")
 AIRFLOW_USERNAME = os.getenv("AIRFLOW_USERNAME", "airflow")
 AIRFLOW_PASSWORD = os.getenv("AIRFLOW_PASSWORD", "airflow")
 MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:3000")
+
+# Set up logging
+configure_logging(log_level=LogLevel.INFO)
+logger = get_logger().logger
 
 st.set_page_config(page_title="Airflow MCP Assistant", layout="wide")
 st.title("🚀 Airflow MCP Assistant with OpenAI")
@@ -70,21 +77,25 @@ Response: {"action": "get_dag_runs", "parameters": {"dag_id": "data_pipeline"}, 
     prompt = f"User query: {user_query}\n\nJSON response:"
     
     response = get_openai_response(prompt, system_prompt)
-    
+
     try:
-        return json.loads(response)
+        parsed = json.loads(response)
+        logger.info("Interpreted action: %s", parsed.get("action"))
+        return parsed
     except json.JSONDecodeError:
+        logger.warning("Failed to parse OpenAI response; defaulting to list_dags")
         return {
-            "action": "list_dags", 
-            "parameters": {}, 
-            "explanation": "Could not parse query, defaulting to listing DAGs"
+            "action": "list_dags",
+            "parameters": {},
+            "explanation": "Could not parse query, defaulting to listing DAGs",
         }
 
 def execute_mcp_action(action_data: dict) -> dict:
     """Execute the determined MCP action."""
     action = action_data.get("action")
     parameters = action_data.get("parameters", {})
-    
+
+    logger.info("Executing MCP action: %s", action)
     if action == "list_dags":
         return mcp_client.get_dags()
     elif action == "get_dag_runs":
@@ -102,6 +113,7 @@ def execute_mcp_action(action_data: dict) -> dict:
     elif action == "get_failed_dags":
         return mcp_client.get_failed_dags()
     else:
+        logger.error("Unknown MCP action: %s", action)
         return {"error": f"Unknown action: {action}"}
 
 def format_response_with_openai(user_query: str, mcp_response: dict, action_explanation: str) -> str:

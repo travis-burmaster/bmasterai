@@ -1,13 +1,23 @@
 
-import streamlit as st
-import requests
 import os
+
+import streamlit as st
 from openai import OpenAI
+
+from bmasterai.logging import configure_logging, get_logger, LogLevel
+from fastmcp import MCPClient
 
 # Configuration
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 # Replace with your MCP server URL if running externally
 MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:3000")
+
+# Set up logging
+configure_logging(log_level=LogLevel.INFO)
+logger = get_logger().logger
+
+# Initialize MCP client
+mcp_client = MCPClient(server_url=MCP_SERVER_URL)
 
 st.set_page_config(page_title="Airflow MCP Chatbot", layout="wide")
 st.title("Airflow MCP Chatbot with OpenAI")
@@ -22,13 +32,10 @@ else:
 def send_to_mcp(query):
     """Sends a query to the MCP server and returns the response."""
     try:
-        response = requests.post(f"{MCP_SERVER_URL}/query", json={"query": query})
-        response.raise_for_status()  # Raise an exception for HTTP errors
-        return response.json()
-    except requests.exceptions.ConnectionError:
-        st.error(f"Could not connect to MCP server at {MCP_SERVER_URL}. Make sure it's running.")
-        return None
-    except requests.exceptions.RequestException as e:
+        logger.info("Sending query to MCP: %s", query)
+        return mcp_client.query(query)
+    except Exception as e:  # pragma: no cover - network errors
+        logger.error("Error communicating with MCP server: %s", e)
         st.error(f"Error communicating with MCP server: {e}")
         return None
 
@@ -46,7 +53,9 @@ def get_openai_response(prompt):
         return None
 
 # Streamlit UI
-user_query = st.text_input("Ask a question about your Airflow DAGs:", "What DAGs do we have?")
+user_query = st.text_input(
+    "Ask a question about your Airflow DAGs:", "What DAGs do we have?"
+)
 
 if st.button("Send Query"):
     if user_query:

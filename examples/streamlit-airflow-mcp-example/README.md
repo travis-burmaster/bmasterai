@@ -6,7 +6,8 @@ This project provides a Streamlit-based chatbot that integrates with the OpenAI 
 
 *   **Natural Language Interaction:** Ask questions about your Airflow DAGs in plain English.
 *   **OpenAI Integration:** Leverages OpenAI's GPT models to interpret user queries and format MCP responses.
-*   **Airflow MCP Server Integration:** Communicates with the `airflow-mcp` server to retrieve and act on Airflow data.
+*   **Airflow MCP Server Integration:** Communicates with the `airflow-mcp` server to retrieve and act on Airflow data using the lightweight `fastmcp` client shipped with this repository.
+*   **Built-in Logging:** Uses BMasterAI's structured logging utilities for consistent logs.
 *   **User-Friendly Interface:** A simple and intuitive Streamlit interface for easy interaction.
 
 ## Prerequisites
@@ -16,6 +17,7 @@ Before running this application, ensure you have the following:
 * **Docker:** Used to run the Streamlit app, Airflow services and the [hipposys-ltd/airflow-mcp](https://github.com/hipposys-ltd/airflow-mcp) server.
 * **OpenAI API Key:** You will need an API key from OpenAI to use their GPT models.
 * **Apache Airflow Instance:** A running Apache Airflow instance that the `airflow-mcp` server can connect to. The provided `docker-compose.yml` spins up a local instance automatically.
+* **BMasterAI installed** (or `src` on your `PYTHONPATH`) so the bundled `fastmcp` module and logging utilities are available.
 
 ## Setup and Installation
 
@@ -52,8 +54,11 @@ MCP_SERVER_URL=http://localhost:3000
 
 ### 3. Install Python Dependencies
 
+Install the example requirements and ensure the repository itself is available so the bundled `fastmcp` client can be imported:
+
 ```bash
 pip install -r requirements.txt
+pip install -e ../..  # install BMasterAI with built-in fastmcp
 ```
 
 ## Running the Application
@@ -113,7 +118,6 @@ streamlit-airflow-mcp-example/
 ├── .env.example             # Example environment variables
 ├── app.py                   # Original Streamlit application (can be ignored)
 ├── enhanced_app.py          # Main Streamlit application with improved logic
-├── mcp_client.py            # Python client for interacting with the MCP server
 ├── requirements.txt         # Python dependencies
 ├── Dockerfile               # Dockerfile for the Streamlit application
 └── docker-compose.yml       # Docker Compose for full local setup (Streamlit + Airflow + Postgres)

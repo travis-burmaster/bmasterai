@@ -1,12 +1,13 @@
 import os
 import json
+import asyncio
 
 import streamlit as st
 from openai import OpenAI
 from dotenv import load_dotenv
 
 from bmasterai.logging import configure_logging, get_logger, LogLevel
-from fastmcp import MCPClient
+from fastmcp import Client
 
 # Load environment variables from .env file
 load_dotenv()
@@ -32,7 +33,7 @@ else:
     st.error("❌ OPENAI_API_KEY environment variable not set.")
     st.stop()
 
-mcp_client = MCPClient(server_url=MCP_SERVER_URL)
+mcp_client = Client(transport=MCP_SERVER_URL)
 
 def get_openai_response(prompt: str, system_prompt: str = None) -> str:
     """Get a response from the OpenAI API."""
@@ -90,31 +91,42 @@ Response: {"action": "get_dag_runs", "parameters": {"dag_id": "data_pipeline"}, 
             "explanation": "Could not parse query, defaulting to listing DAGs",
         }
 
-def execute_mcp_action(action_data: dict) -> dict:
-    """Execute the determined MCP action."""
+async def execute_mcp_action_async(action_data: dict) -> dict:
+    """Execute the determined MCP action asynchronously."""
     action = action_data.get("action")
     parameters = action_data.get("parameters", {})
 
     logger.info("Executing MCP action: %s", action)
-    if action == "list_dags":
-        return mcp_client.get_dags()
-    elif action == "get_dag_runs":
-        dag_id = parameters.get("dag_id")
-        if dag_id:
-            return mcp_client.get_dag_runs(dag_id)
-        else:
-            return {"error": "No DAG ID provided"}
-    elif action == "trigger_dag":
-        dag_id = parameters.get("dag_id")
-        if dag_id:
-            return mcp_client.trigger_dag(dag_id)
-        else:
-            return {"error": "No DAG ID provided"}
-    elif action == "get_failed_dags":
-        return mcp_client.get_failed_dags()
-    else:
-        logger.error("Unknown MCP action: %s", action)
-        return {"error": f"Unknown action: {action}"}
+    try:
+        async with mcp_client:
+            if action == "list_dags":
+                result = await mcp_client.call_tool("list_dags", {})
+            elif action == "get_dag_runs":
+                dag_id = parameters.get("dag_id")
+                if dag_id:
+                    result = await mcp_client.call_tool("get_dag_runs", {"dag_id": dag_id})
+                else:
+                    return {"error": "No DAG ID provided"}
+            elif action == "trigger_dag":
+                dag_id = parameters.get("dag_id")
+                if dag_id:
+                    result = await mcp_client.call_tool("trigger_dag", {"dag_id": dag_id})
+                else:
+                    return {"error": "No DAG ID provided"}
+            elif action == "get_failed_dags":
+                result = await mcp_client.call_tool("get_failed_dags", {})
+            else:
+                logger.error("Unknown MCP action: %s", action)
+                return {"error": f"Unknown action: {action}"}
+            
+            return result
+    except Exception as e:
+        logger.error("Error executing MCP action %s: %s", action, str(e))
+        return {"error": f"Failed to execute {action}: {str(e)}"}
+
+def execute_mcp_action(action_data: dict) -> dict:
+    """Execute the determined MCP action (sync wrapper)."""
+    return asyncio.run(execute_mcp_action_async(action_data))
 
 def format_response_with_openai(user_query: str, mcp_response: dict, action_explanation: str) -> str:
     """Use OpenAI to format the MCP response in a user-friendly way."""
@@ -145,11 +157,18 @@ st.sidebar.write(f"**MCP Server:** {MCP_SERVER_URL}")
 if st.sidebar.button("🔍 Test MCP Connection"):
     with st.sidebar:
         with st.spinner("Testing connection..."):
-            test_result = mcp_client.get_dags()
-            if test_result and not test_result.get("error"):
-                st.success("✅ MCP connection successful!")
-            else:
-                st.error(f"❌ MCP connection failed: {test_result.get('error', 'Unknown error')}")
+            try:
+                async def test_connection():
+                    async with mcp_client:
+                        return await mcp_client.call_tool("list_dags", {})
+                
+                test_result = asyncio.run(test_connection())
+                if test_result and not test_result.get("error"):
+                    st.success("✅ MCP connection successful!")
+                else:
+                    st.error(f"❌ MCP connection failed: {test_result.get('error', 'Unknown error')}")
+            except Exception as e:
+                st.error(f"❌ MCP connection failed: {str(e)}")
 
 # Main interface
 st.subheader("💬 Ask about your Airflow DAGs")

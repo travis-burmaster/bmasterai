@@ -1,4 +1,6 @@
 streamlit
-anthropic
+openai
+bmasterai
 requests
 python-dotenv
+fastmcp

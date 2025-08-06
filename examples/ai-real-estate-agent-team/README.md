@@ -105,31 +105,7 @@ Follow these steps to set up and run the application:
 
 4. **Run the Streamlit app**:
    ```bash
-   streamlit run real_estate_agent_team.py
-   ```
-
-### **Local Version (Ollama)**
-
-1. **Install Ollama**:
-
-   ```bash
-   #Pull the model: make sure to have a device that has more than 16GB RAM to run this model locally!
-   ollama pull gpt-oss:20b
-   ```
-
-2. **Install the dependencies**:
-
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Set up your API key**:
-
-   - Get a Firecrawl API key from: [Firecrawl website](https://firecrawl.dev)
-
-4. **Run the local Streamlit app**:
-   ```bash
-   streamlit run local_ai_real_estate_agent_team.py
+   streamlit run ai_real_estate_agent_team.py
    ```
 
 ## Usage

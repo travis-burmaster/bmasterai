@@ -15,12 +15,14 @@ A comprehensive AI-powered stock analysis tool that combines real-time market da
 ## Setup
 
 1. **Install Dependencies**:
+
    ```bash
    pip install -r requirements.txt
    ```
 
 2. **Set up Environment Variables**:
    Create a `.env` file with your API keys:
+
    ```env
    GOOGLE_API_KEY=your_gemini_api_key_here
    ALPHA_VANTAGE_API_KEY=your_alpha_vantage_api_key_here
@@ -28,6 +30,7 @@ A comprehensive AI-powered stock analysis tool that combines real-time market da
    ```
 
 3. **Get API Keys**:
+
    - **Google AI (Gemini)**: Get your free API key at [Google AI Studio](https://makersuite.google.com/app/apikey)
    - **Alpha Vantage**: Get your free API key at [Alpha Vantage](https://www.alphavantage.co/support/#api-key)
    - **Firecrawl**: Get your API key at [Firecrawl](https://firecrawl.dev/)
@@ -40,7 +43,7 @@ A comprehensive AI-powered stock analysis tool that combines real-time market da
 ## Usage
 
 1. **Stock Symbol**: Enter a US stock ticker symbol (e.g., AAPL, MSFT, GOOGL, DUK)
-2. **Analysis Options**: 
+2. **Analysis Options**:
    - **Web Research**: Enable to gather recent news, earnings reports, and analyst insights
    - **Time Period**: Select analysis timeframe (1d, 5d, 1mo, 3mo, 6mo, 1y)
 3. **Analyze**: Click "🔍 Analyze Stock" to start comprehensive analysis
@@ -53,6 +56,7 @@ A comprehensive AI-powered stock analysis tool that combines real-time market da
 ## Supported Stock Symbols
 
 The application works with US stock ticker symbols. Examples:
+
 - **AAPL** - Apple Inc.
 - **MSFT** - Microsoft Corporation
 - **GOOGL** - Alphabet Inc.
@@ -62,6 +66,7 @@ The application works with US stock ticker symbols. Examples:
 ## Error Handling
 
 The application includes robust error handling for:
+
 - Invalid or delisted ticker symbols
 - Network connectivity issues
 - Missing or incomplete data
@@ -72,18 +77,21 @@ If a stock symbol cannot be found or has no data available, the application will
 ## Technical Architecture
 
 ### AI Agents
+
 - **AlphaVantageAgent**: Fetches professional-grade daily stock data from Alpha Vantage
 - **FirecrawlAgent**: Performs intelligent web research from financial news sources
 - **CompanyInfoAgent**: Retrieves company names and business descriptions using Gemini AI
 - **RecommendationAgent**: Provides comprehensive BUY/HOLD/SELL analysis combining technical and fundamental factors
 
 ### Data Sources
+
 - **Stock Data**: Alpha Vantage API for accurate daily time series data
 - **Web Research**: MarketWatch, Investing.com, Yahoo Finance via Firecrawl
 - **AI Analysis**: Google Gemini 1.5 Flash for intelligent recommendations
 - **Logging**: BMasterAI framework for comprehensive analysis tracking
 
 ### Key Features
+
 - **Multi-Source Analysis**: Combines price trends with recent news and analyst reports
 - **Intelligent Extraction**: Structured data extraction from financial news sites
 - **Advanced Logging**: Task tracking, performance metrics, and error handling
@@ -91,6 +99,7 @@ If a stock symbol cannot be found or has no data available, the application will
 - **Comprehensive Recommendations**: Technical analysis enhanced with fundamental insights
 
 ### Dependencies
+
 - `streamlit>=1.28.0` - Web application framework
 - `agno>=0.1.0` - AI agent framework
 - `firecrawl-py>=2.16.5` - Web scraping and extraction
@@ -102,6 +111,7 @@ If a stock symbol cannot be found or has no data available, the application will
 ## What's New
 
 ### Recent Updates
+
 - **🔄 Firecrawl Integration**: Upgraded to firecrawl-py 2.16.5 with proper `extract()` API usage
 - **📰 Enhanced Web Research**: Targeted financial news extraction from MarketWatch and Investing.com
 - **🤖 Smarter Recommendations**: AI now considers both technical analysis and recent news/earnings
@@ -114,21 +124,25 @@ If a stock symbol cannot be found or has no data available, the application will
 ### Common Issues
 
 1. **API Key Errors**:
+
    - Ensure all three API keys are set in your `.env` file
    - Verify API keys are valid and have sufficient quota
    - Alpha Vantage free tier allows 25 requests per day
 
 2. **"No data available for symbol"**:
+
    - Verify the ticker symbol is correct (US stocks only)
    - Try a different symbol or check if the company is publicly traded
    - Some stocks may have limited historical data
 
 3. **Web Research Errors**:
+
    - Firecrawl API may have rate limits or temporary issues
    - The application will continue with price analysis if web research fails
    - Check your Firecrawl API key and quota
 
 4. **Pydantic Deprecation Warnings**:
+
    - These are from the firecrawl library and don't affect functionality
    - Will be resolved in future firecrawl updates
 
@@ -136,6 +150,50 @@ If a stock symbol cannot be found or has no data available, the application will
    - If BMasterAI is not available, the app falls back to standard Python logging
    - Install bmasterai package for advanced logging features
 
+## AI Recommendation System
+
+The enhanced recommendation engine combines multiple data sources for comprehensive analysis:
+
+### Technical Analysis
+
+- **Price Trends**: Daily price movements and patterns over selected time period
+- **Volume Analysis**: Trading volume patterns and market interest
+- **Historical Performance**: Price volatility and momentum indicators
+
+### Fundamental Analysis
+
+- **Recent News**: Earnings reports, company announcements, and market developments
+- **Analyst Reports**: Professional analyst upgrades, downgrades, and price targets
+- **Market Sentiment**: Overall market perception and investor sentiment
+
+### Recommendation Logic
+
+- **BUY**: Strong positive technical trends + positive fundamental developments
+- **HOLD**: Mixed signals or stable conditions requiring further observation
+- **SELL**: Negative technical trends + concerning fundamental issues
+
+The AI provides detailed explanations for each recommendation, helping users understand the reasoning behind investment decisions.
+
+## Example Analysis
+
+```
+📊 AAPL Analysis
+🏢 Apple Inc.
+Technology company designing and manufacturing consumer electronics...
+
+💡 Recommendation: BUY
+Explanation: Strong technical momentum over the past month with consistent
+price increases above key moving averages. Recent earnings beat expectations
+with strong iPhone sales and services growth. Analyst upgrades and positive
+guidance support continued upward momentum. Current price levels offer good
+entry point for long-term investors.
+
+🌐 Web Research:
+- Apple Reports Record Q4 Earnings (MarketWatch)
+- Analysts Raise Price Targets Following Strong Results (Investing.com)
+- iPhone 15 Sales Exceed Expectations (Yahoo Finance)
+```
+
 ## License
 
-This project is for educational and research purposes. Please respect the terms of service of data providers (Yahoo Finance, Google AI).
+This project is for educational and research purposes. Please respect the terms of service of data providers (Alpha Vantage, Firecrawl, Google AI).

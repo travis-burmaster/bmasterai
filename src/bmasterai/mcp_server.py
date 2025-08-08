@@ -103,7 +103,7 @@ Available tools:
         except Exception as e:
             return {
                 "error": f"Failed to get system status: {str(e)}",
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(datetime.UTC).isoformat()
             }
 
     @mcp.tool()
@@ -178,7 +178,7 @@ Available tools:
         except Exception as e:
             return [{
                 "error": f"Failed to get alerts: {str(e)}",
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(datetime.UTC).isoformat()
             }]
 
     @mcp.tool()

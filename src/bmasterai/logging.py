@@ -3,7 +3,7 @@ import logging
 import json
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, asdict
 from enum import Enum
@@ -111,7 +111,7 @@ class BMasterLogger:
             metadata = {}
 
         entry = LogEntry(
-            timestamp=datetime.now(datetime.UTC).isoformat(),
+            timestamp=datetime.now(timezone.utc).isoformat(),
             event_id=str(uuid.uuid4()),
             agent_id=agent_id,
             event_type=event_type,

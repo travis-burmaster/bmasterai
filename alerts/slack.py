@@ -1,7 +1,7 @@
 import os, json
 import requests
 from fastapi.responses import JSONResponse
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 ACKED = set()
 MUTED = {}
@@ -38,7 +38,7 @@ def handle_slack_action(payload_json):
         ACKED.add(agent)
         return JSONResponse({"text": f"✅ Acknowledged alerts for {agent}"})
     elif action == 'mute_1h':
-        MUTED[agent] = datetime.utcnow() + timedelta(hours=1)
+        MUTED[agent] = datetime.now(timezone.utc) + timedelta(hours=1)
         return JSONResponse({"text": f"🔇 Muted alerts for {agent} for 1 hour"})
 
     return JSONResponse({"text": "⚠️ Unknown action"})

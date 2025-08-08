@@ -10,6 +10,8 @@ A comprehensive AI-powered stock analysis tool built with Streamlit and Google's
 - **Interactive Charts**: Displays price charts with Plotly
 - **Institutional Holdings**: Shows major shareholders and ownership breakdown
 - **AI-Powered Insights**: Uses Gemini AI for intelligent analysis and recommendations
+- **Stock Ranking**: Compares multiple tickers by recent 30-day return
+- **Recommendation Confidence**: Provides confidence scores with AI recommendations
 
 ## Setup
 
@@ -33,13 +35,14 @@ A comprehensive AI-powered stock analysis tool built with Streamlit and Google's
 
 1. **Enter API Key**: Input your Google AI (Gemini) API key in the sidebar
 2. **Stock Symbol**: Enter a US stock ticker symbol (e.g., AAPL, MSFT, GOOGL)
-3. **Analysis Options**: Choose which analyses to perform:
+3. **Compare Symbols**: Optionally provide additional tickers (comma-separated) to rank by 30-day return
+4. **Analysis Options**: Choose which analyses to perform:
    - Technical Analysis
    - Market Sentiment
    - Institutional Holdings
    - Stock Insights
-4. **Time Period**: Select the time period for analysis (1d to 1y)
-5. **Analyze**: Click the "Analyze Stock" button to start the analysis
+5. **Time Period**: Select the time period for analysis (1d to 1y)
+6. **Analyze**: Click the "Analyze Stock" button to start the analysis
 
 ## Supported Stock Symbols
 

@@ -118,6 +118,21 @@ class AlphaVantageAgent:
             return {"error": error_msg}
 
 
+def rank_stocks(symbols: List[str], alpha_agent: AlphaVantageAgent, window: int = 30) -> List[Dict[str, Any]]:
+    """Rank stocks by percentage return over the given window of days."""
+    rankings: List[Dict[str, Any]] = []
+    for sym in symbols:
+        data = alpha_agent.get_daily_data(sym)
+        if "Time Series (Daily)" not in data:
+            continue
+        df = pd.DataFrame.from_dict(data["Time Series (Daily)"], orient="index").astype(float).sort_index()
+        recent = df.tail(window)
+        if len(recent) >= 2:
+            change = (recent["4. close"].iloc[-1] - recent["4. close"].iloc[0]) / recent["4. close"].iloc[0] * 100
+            rankings.append({"symbol": sym.upper(), "return_pct": round(change, 2)})
+    return sorted(rankings, key=lambda x: x["return_pct"], reverse=True)
+
+
 class CompanyInfoAgent:
     """Agent for fetching company information"""
 
@@ -183,13 +198,14 @@ class RecommendationAgent:
             {data.to_string()}
             {news_context}
 
-            Based on both the technical analysis of the price data AND the recent news/research, should I buy, hold, or sell? 
+            Based on both the technical analysis of the price data AND the recent news/research, should I buy, hold, or sell?
             Consider how recent developments might impact the stock's future performance.
             Provide a comprehensive explanation that incorporates both technical and fundamental factors.
 
             Respond in JSON format:
             {{
                 "recommendation": "BUY/HOLD/SELL",
+                "confidence": "0-100 integer indicating confidence level",
                 "explanation": "Your comprehensive explanation incorporating both technical analysis and recent news/developments."
             }}
             """
@@ -232,6 +248,12 @@ def main():
             value="AAPL",
             help="Enter a US stock ticker symbol (e.g., AAPL, MSFT, GOOGL)"
         ).upper()
+        compare_symbols = st.text_input(
+            "Compare Symbols (comma-separated)",
+            value="",
+            help="Optional additional tickers for ranking by 30-day return",
+        )
+
         
         # Analysis options
         st.subheader("Analysis Options")
@@ -246,6 +268,11 @@ def main():
 
         # Analyze button
         analyze_button = st.button("🔍 Analyze Stock", type="primary")
+
+    compare_list = [s.strip().upper() for s in compare_symbols.split(',') if s.strip()]
+    if compare_list and symbol not in compare_list:
+        compare_list.insert(0, symbol)
+
     
     # Main content area
     if analyze_button and symbol:
@@ -262,6 +289,10 @@ def main():
                 'alpha_vantage_data': alpha_vantage_data,
                 'timestamp': datetime.now()
             }
+            if compare_list:
+                rankings = rank_stocks(compare_list, alpha_vantage_agent)
+                st.session_state.analysis_results['rankings'] = rankings
+
 
             web_research_data = None
             if include_web_research:
@@ -321,6 +352,12 @@ def main():
             
             st.plotly_chart(fig, use_container_width=True)
 
+            if 'rankings' in results:
+                rankings = results['rankings']
+                if rankings:
+                    st.subheader("🏅 Stock Rankings (30-day return %)")
+                    st.table(pd.DataFrame(rankings))
+
             if 'recommendation' in results:
                 st.subheader("💡 Recommendation")
                 recommendation = results['recommendation']
@@ -328,6 +365,8 @@ def main():
                     st.error(f"Could not retrieve recommendation: {recommendation['error']}")
                 else:
                     st.write(f"**Recommendation:** {recommendation['recommendation'].upper()}")
+                    if 'confidence' in recommendation:
+                        st.write(f"**Confidence:** {recommendation['confidence']}%")
                     st.write(f"**Explanation:** {recommendation['explanation']}")
 
             if 'web_research_data' in results:
@@ -346,9 +385,10 @@ def main():
             st.error(f"❌ **Failed to retrieve data for {symbol}**")
             st.warning(f"**Reason:** {av_data['error']}")
         else:
-            st.error(f"❌ **Failed to retrieve data for {symbol}**")
-            st.warning("**Reason:** Unknown error. Please check the symbol and try again.")
-
+                    st.write(f"**Recommendation:** {recommendation['recommendation'].upper()}")
+                    if 'confidence' in recommendation:
+                        st.write(f"**Confidence:** {recommendation['confidence']}%")
+                    st.write(f"**Explanation:** {recommendation['explanation']}")
     # Footer
     st.markdown("---")
     st.markdown("*Powered by BMasterAI Logging Framework, Alpha Vantage, and Firecrawl*")

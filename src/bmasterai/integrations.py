@@ -7,7 +7,7 @@ from email.mime.multipart import MIMEMultipart
 from typing import Dict, Any, List, Optional
 import sqlite3
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 import base64
 from abc import ABC, abstractmethod
 
@@ -234,8 +234,8 @@ class DatabaseConnector(BaseConnector):
                 VALUES (?, ?, ?, ?, ?, ?)
             ''', (
                 agent_id, name, status, 
-                datetime.now(datetime.UTC).isoformat(),
-                datetime.now(datetime.UTC).isoformat(),
+                datetime.now(timezone.utc).isoformat(),
+                datetime.now(timezone.utc).isoformat(),
                 json.dumps(metadata or {})
             ))
 
@@ -256,8 +256,8 @@ class DatabaseConnector(BaseConnector):
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 task_id, agent_id, name, status, duration_ms,
-                datetime.now(datetime.UTC).isoformat(),
-                datetime.now(datetime.UTC).isoformat() if status == 'completed' else None,
+                datetime.now(timezone.utc).isoformat(),
+                datetime.now(timezone.utc).isoformat() if status == 'completed' else None,
                 json.dumps(metadata or {})
             ))
 
@@ -301,7 +301,7 @@ class WebhookConnector(BaseConnector):
 
     def test_connection(self) -> Dict[str, Any]:
         try:
-            test_payload = {'test': True, 'timestamp': datetime.now(datetime.UTC).isoformat()}
+            test_payload = {'test': True, 'timestamp': datetime.now(timezone.utc).isoformat()}
             response = requests.post(self.webhook_url, json=test_payload, headers=self.headers, timeout=10)
             return {'success': response.status_code < 400, 'status_code': response.status_code}
         except Exception as e:
@@ -351,7 +351,7 @@ class DiscordConnector(BaseConnector):
             'title': title,
             'description': description,
             'color': color,
-            'timestamp': datetime.now(datetime.UTC).isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'footer': {'text': 'BMasterAI'}
         }
 
@@ -392,7 +392,7 @@ class TeamsConnector(BaseConnector):
             'summary': title,
             'sections': [{
                 'activityTitle': title,
-                'activitySubtitle': datetime.now(datetime.UTC).strftime('%Y-%m-%d %H:%M:%S UTC'),
+                'activitySubtitle': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC'),
                 'activityImage': 'https://cdn-icons-png.flaticon.com/512/4712/4712027.png',
                 'text': message,
                 'markdown': True

@@ -4,7 +4,7 @@ import json
 import logging
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Dict, Any, Optional
 from pathlib import Path
@@ -103,7 +103,7 @@ class StructuredLogger:
         """Log an event with structured metadata"""
         
         log_entry = {
-            "timestamp": datetime.now(datetime.UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "session_id": self.session_id,
             "agent_id": agent_id,
             "event_type": event_type.value,

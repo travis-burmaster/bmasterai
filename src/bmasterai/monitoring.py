@@ -4,7 +4,7 @@ import psutil
 import threading
 from typing import Dict, Any, List, Optional, Callable
 from dataclasses import dataclass, asdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 from collections import defaultdict, deque
 import statistics
@@ -55,7 +55,7 @@ class MetricsCollector:
                 print(f"Error collecting metrics: {e}")
 
     def _collect_system_metrics(self):
-        timestamp = datetime.now(datetime.UTC)
+        timestamp = datetime.now(timezone.utc)
 
         # CPU metrics
         cpu_percent = psutil.cpu_percent(interval=1)
@@ -83,11 +83,11 @@ class MetricsCollector:
         if labels is None:
             labels = {}
 
-        timestamp = datetime.now(datetime.UTC)
+        timestamp = datetime.now(timezone.utc)
         self.custom_metrics[name].append(MetricPoint(timestamp, value, labels))
 
     def get_metric_stats(self, metric_name: str, duration_minutes: int = 60) -> Dict[str, float]:
-        cutoff_time = datetime.now(datetime.UTC) - timedelta(minutes=duration_minutes)
+        cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=duration_minutes)
 
         # Check both system and custom metrics
         metric_data = None
@@ -161,12 +161,12 @@ class MetricsCollector:
                     'current_value': current_value,
                     'threshold': threshold,
                     'condition': condition,
-                    'timestamp': datetime.now(datetime.UTC).isoformat(),
+                    'timestamp': datetime.now(timezone.utc).isoformat(),
                     'message': f"Alert: {rule['metric_name']} is {current_value} (threshold: {threshold})"
                 }
                 self.alerts.append(alert)
                 rule['triggered'] = True
-                rule['trigger_time'] = datetime.now(datetime.UTC)
+                rule['trigger_time'] = datetime.now(timezone.utc)
 
                 if rule['callback']:
                     try:
@@ -186,7 +186,7 @@ class MetricsCollector:
         data = {
             'system_metrics': {},
             'custom_metrics': {},
-            'export_time': datetime.now(datetime.UTC).isoformat()
+            'export_time': datetime.now(timezone.utc).isoformat()
         }
 
         # Export system metrics
@@ -228,7 +228,7 @@ class AgentMonitor:
         self.metrics_collector.stop_collection()
 
     def track_agent_start(self, agent_id: str):
-        self.agent_metrics[agent_id]['start_time'] = datetime.now(datetime.UTC)
+        self.agent_metrics[agent_id]['start_time'] = datetime.now(timezone.utc)
         self.agent_metrics[agent_id]['status'] = 'running'
         self.metrics_collector.record_custom_metric('agents_active', 1, {'agent_id': agent_id})
 
@@ -236,12 +236,12 @@ class AgentMonitor:
         if agent_id in self.agent_metrics:
             start_time = self.agent_metrics[agent_id].get('start_time')
             if start_time:
-                runtime = (datetime.now(datetime.UTC) - start_time).total_seconds()
+                runtime = (datetime.now(timezone.utc) - start_time).total_seconds()
                 self.agent_metrics[agent_id]['total_runtime'] = runtime
                 self.metrics_collector.record_custom_metric('agent_runtime_seconds', runtime, {'agent_id': agent_id})
 
             self.agent_metrics[agent_id]['status'] = 'stopped'
-            self.agent_metrics[agent_id]['stop_time'] = datetime.now(datetime.UTC)
+            self.agent_metrics[agent_id]['stop_time'] = datetime.now(timezone.utc)
 
     def track_task_duration(self, agent_id: str, task_name: str, duration_ms: float):
         self.task_timings[f"{agent_id}:{task_name}"].append(duration_ms)
@@ -309,7 +309,7 @@ class AgentMonitor:
 
     def get_system_health(self) -> Dict[str, Any]:
         return {
-            'timestamp': datetime.now(datetime.UTC).isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'system_metrics': {
                 'cpu': self.metrics_collector.get_metric_stats('cpu_percent', 30),
                 'memory': self.metrics_collector.get_metric_stats('memory_percent', 30),

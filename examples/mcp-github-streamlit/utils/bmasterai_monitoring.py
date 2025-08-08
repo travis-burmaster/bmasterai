@@ -3,7 +3,7 @@
 import time
 import psutil
 import threading
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List, Optional, Callable
 from dataclasses import dataclass, asdict
 import json
@@ -104,7 +104,7 @@ class MetricsCollector:
             network = psutil.net_io_counters()
             
             metrics = SystemMetrics(
-                timestamp=datetime.now(datetime.UTC).isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
                 cpu_percent=cpu_percent,
                 memory_percent=memory.percent,
                 memory_used_mb=memory.used / (1024 * 1024),
@@ -125,11 +125,11 @@ class MetricsCollector:
     
     def track_agent_start(self, agent_id: str):
         """Track agent start event"""
-        self.agent_metrics[agent_id]["last_activity"] = datetime.now(datetime.UTC).isoformat()
+        self.agent_metrics[agent_id]["last_activity"] = datetime.now(timezone.utc).isoformat()
     
     def track_agent_stop(self, agent_id: str):
         """Track agent stop event"""
-        self.agent_metrics[agent_id]["last_activity"] = datetime.now(datetime.UTC).isoformat()
+        self.agent_metrics[agent_id]["last_activity"] = datetime.now(timezone.utc).isoformat()
     
     def track_task_duration(self, agent_id: str, task_name: str, duration_ms: float):
         """Track task execution duration"""
@@ -137,13 +137,13 @@ class MetricsCollector:
         metrics["tasks_completed"] += 1
         metrics["task_durations"].append(duration_ms)
         metrics["total_execution_time"] += duration_ms
-        metrics["last_activity"] = datetime.now(datetime.UTC).isoformat()
+        metrics["last_activity"] = datetime.now(timezone.utc).isoformat()
     
     def track_error(self, agent_id: str, error_type: str):
         """Track error occurrence"""
         metrics = self.agent_metrics[agent_id]
         metrics["tasks_failed"] += 1
-        metrics["last_activity"] = datetime.now(datetime.UTC).isoformat()
+        metrics["last_activity"] = datetime.now(timezone.utc).isoformat()
         
         # Record error metric
         self.record_custom_metric("agent_errors", 1, {"agent_id": agent_id, "error_type": error_type})
@@ -158,7 +158,7 @@ class MetricsCollector:
     def record_custom_metric(self, metric_name: str, value: float, tags: Dict[str, str]):
         """Record a custom metric"""
         metric_entry = {
-            "timestamp": datetime.now(datetime.UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "value": value,
             "tags": tags
         }
@@ -188,7 +188,7 @@ class MetricsCollector:
         if metric_name not in self.custom_metrics:
             return
         
-        cutoff_time = datetime.now(datetime.UTC) - timedelta(minutes=rule.duration_minutes)
+        cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=rule.duration_minutes)
         recent_values = []
         
         for entry in self.custom_metrics[metric_name]:
@@ -220,7 +220,7 @@ class MetricsCollector:
                 "current_value": avg_value,
                 "condition": rule.condition,
                 "duration_minutes": rule.duration_minutes,
-                "timestamp": datetime.now(datetime.UTC).isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "message": f"{metric_name} {rule.condition} {rule.threshold} for {rule.duration_minutes} minutes"
             }
             
@@ -248,7 +248,7 @@ class MetricsCollector:
             agent_id for agent_id, metrics in self.agent_metrics.items()
             if metrics["last_activity"] and 
             datetime.fromisoformat(metrics["last_activity"]) > 
-            datetime.now(datetime.UTC) - timedelta(minutes=10)
+            datetime.now(timezone.utc) - timedelta(minutes=10)
         ])
         
         # Calculate totals
@@ -303,7 +303,7 @@ class MetricsCollector:
     
     def get_metrics_history(self, metric_name: str, hours: int = 1) -> List[Dict[str, Any]]:
         """Get historical data for a metric"""
-        cutoff_time = datetime.now(datetime.UTC) - timedelta(hours=hours)
+        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
         
         if metric_name == "system":
             return [

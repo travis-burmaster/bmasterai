@@ -103,7 +103,7 @@ class StructuredLogger:
         """Log an event with structured metadata"""
         
         log_entry = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(datetime.UTC).isoformat(),
             "session_id": self.session_id,
             "agent_id": agent_id,
             "event_type": event_type.value,

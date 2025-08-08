@@ -234,8 +234,8 @@ class DatabaseConnector(BaseConnector):
                 VALUES (?, ?, ?, ?, ?, ?)
             ''', (
                 agent_id, name, status, 
-                datetime.utcnow().isoformat(),
-                datetime.utcnow().isoformat(),
+                datetime.now(datetime.UTC).isoformat(),
+                datetime.now(datetime.UTC).isoformat(),
                 json.dumps(metadata or {})
             ))
 
@@ -256,8 +256,8 @@ class DatabaseConnector(BaseConnector):
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 task_id, agent_id, name, status, duration_ms,
-                datetime.utcnow().isoformat(),
-                datetime.utcnow().isoformat() if status == 'completed' else None,
+                datetime.now(datetime.UTC).isoformat(),
+                datetime.now(datetime.UTC).isoformat() if status == 'completed' else None,
                 json.dumps(metadata or {})
             ))
 
@@ -301,7 +301,7 @@ class WebhookConnector(BaseConnector):
 
     def test_connection(self) -> Dict[str, Any]:
         try:
-            test_payload = {'test': True, 'timestamp': datetime.utcnow().isoformat()}
+            test_payload = {'test': True, 'timestamp': datetime.now(datetime.UTC).isoformat()}
             response = requests.post(self.webhook_url, json=test_payload, headers=self.headers, timeout=10)
             return {'success': response.status_code < 400, 'status_code': response.status_code}
         except Exception as e:
@@ -351,7 +351,7 @@ class DiscordConnector(BaseConnector):
             'title': title,
             'description': description,
             'color': color,
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(datetime.UTC).isoformat(),
             'footer': {'text': 'BMasterAI'}
         }
 
@@ -392,7 +392,7 @@ class TeamsConnector(BaseConnector):
             'summary': title,
             'sections': [{
                 'activityTitle': title,
-                'activitySubtitle': datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC'),
+                'activitySubtitle': datetime.now(datetime.UTC).strftime('%Y-%m-%d %H:%M:%S UTC'),
                 'activityImage': 'https://cdn-icons-png.flaticon.com/512/4712/4712027.png',
                 'text': message,
                 'markdown': True

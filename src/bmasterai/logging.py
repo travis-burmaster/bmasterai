@@ -111,7 +111,7 @@ class BMasterLogger:
             metadata = {}
 
         entry = LogEntry(
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=datetime.now(datetime.UTC).isoformat(),
             event_id=str(uuid.uuid4()),
             agent_id=agent_id,
             event_type=event_type,

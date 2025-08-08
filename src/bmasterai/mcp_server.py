@@ -13,7 +13,7 @@ Usage:
 """
 
 from typing import Dict, Any, List
-from datetime import datetime
+from datetime import datetime, timezone
 
 try:
     from fastmcp import FastMCP
@@ -103,7 +103,7 @@ Available tools:
         except Exception as e:
             return {
                 "error": f"Failed to get system status: {str(e)}",
-                "timestamp": datetime.now(datetime.UTC).isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
 
     @mcp.tool()
@@ -178,7 +178,7 @@ Available tools:
         except Exception as e:
             return [{
                 "error": f"Failed to get alerts: {str(e)}",
-                "timestamp": datetime.now(datetime.UTC).isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }]
 
     @mcp.tool()

@@ -18,6 +18,15 @@ COPY . .
 # Create cache and logs directories
 RUN mkdir -p /app/cache /app/logs
 
+# Create a non-root user
+RUN useradd -m -u 1000 nonroot
+
+# Change ownership of the app directory to the nonroot user
+RUN chown -R nonroot:nonroot /app
+
+# Switch to the non-root user
+USER nonroot
+
 # Expose port
 EXPOSE 7860
 

@@ -29,11 +29,15 @@ spec:
       labels:
         app: bmasterai-gradio
     spec:
+      securityContext:
+        runAsNonRoot: true
       containers:
       - name: bmasterai-gradio
         image: bmasterai/gradio-app:latest
         ports:
         - containerPort: 7860
+        securityContext:
+          allowPrivilegeEscalation: false
         env:
         - name: ANTHROPIC_API_KEY
           valueFrom:

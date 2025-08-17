@@ -39,6 +39,22 @@ Our new lessons directory provides step-by-step tutorials covering:
 
 ---
 
+## 📊 **NEW: Kubernetes LLM Cost Analysis Telemetry**
+
+💰 **Monitor and optimize your LLM costs in Kubernetes environments!**
+
+Our comprehensive telemetry system provides real-time insights into LLM usage and costs:
+- **Real-time LLM cost tracking** by model and namespace
+- **Token usage monitoring** (input/output tokens)
+- **Performance metrics and error rates**
+- **Distributed tracing** for LLM workflows
+- **Custom Kubernetes resources** for LLM run tracking
+- **Grafana dashboards** for visualization
+
+[**→ View Telemetry Examples**](examples/kubernetes-telemetry/) | [**→ Learn Telemetry Setup**](examples/kubernetes-telemetry/README.md)
+
+---
+
 ## 🚀 Features
 
 ### Core Framework

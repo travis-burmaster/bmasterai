@@ -14,6 +14,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application files
 COPY . .
 
+# Create a non-root user
+RUN useradd -m -u 1000 nonroot && chown -R nonroot:nonroot /app
+
+# Switch to the non-root user
+USER nonroot
+
 # Expose Streamlit port
 EXPOSE 8501
 

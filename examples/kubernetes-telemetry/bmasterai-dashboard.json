@@ -1,0 +1,273 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(bmasterai_tokens_total[5m])) by (model, namespace)",
+          "legendFormat": "{{model}} - {{namespace}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Tokens per Model/Namespace",
+      "type": "table"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(bmasterai_cost_usd_total[5m])) by (model, namespace)",
+          "legendFormat": "{{model}} - {{namespace}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Cost ($) per Model/Namespace",
+      "type": "table"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 8
+      },
+      "id": 3,
+      "options": {
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(bmasterai_latency_seconds_bucket[5m])) by (le, model, namespace)) * 1000",
+          "legendFormat": "{{model}} - {{namespace}}",
+          "refId": "A"
+        }
+      ],
+      "title": "P95 Latency (ms) per Model/Namespace",
+      "type": "table"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "id": 4,
+      "options": {
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "expr": "sum(bmasterai_cost_usd_total) by (model)",
+          "legendFormat": "{{model}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Total Cost by Model (Cumulative)",
+      "type": "bargauge"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "id": 5,
+      "options": {
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(bmasterai_error_count_total[5m])) by (model, namespace)",
+          "legendFormat": "{{model}} - {{namespace}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Error Rate by Model/Namespace",
+      "type": "table"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 24
+      },
+      "id": 6,
+      "options": {
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(bmasterai_output_tokens_total[5m]) / rate(bmasterai_input_tokens_total[5m])) by (model)",
+          "legendFormat": "{{model}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Token Efficiency (Output/Input Ratio) by Model",
+      "type": "table"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 24
+      },
+      "id": 7,
+      "options": {
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "expr": "avg(bmasterai_processing_time_ms) by (model)",
+          "legendFormat": "{{model}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Average Processing Time by Model",
+      "type": "table"
+    },
+    {
+      "datasource": "Tempo",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 32
+      },
+      "id": 8,
+      "options": {
+        "showHeader": true,
+        "columns": [
+          {
+            "text": "Trace ID",
+            "value": "traceID",
+            "link": {
+              "url": "http://tempo.observability.svc.cluster.local:3100/explore?query={{traceID}}",
+              "title": "View Trace in Tempo"
+            }
+          },
+          {
+            "text": "Run ID",
+            "value": "runID"
+          },
+          {
+            "text": "Model",
+            "value": "model"
+          },
+          {
+            "text": "Namespace",
+            "value": "namespace"
+          },
+          {
+            "text": "Cost ($)",
+            "value": "cost"
+          }
+        ]
+      },
+      "targets": [
+        {
+          "expr": "bmasterai_run_info",
+          "refId": "A"
+        }
+      ],
+      "title": "Recent Runs with Trace Links",
+      "type": "table"
+    }
+  ],
+  "schemaVersion": 36,
+  "style": "dark",
+  "tags": ["bmasterai", "observability", "llm", "cost-analysis"],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "BMasterAI LLM Cost Analysis Dashboard",
+  "version": 1
+}

@@ -8,7 +8,7 @@ pyyaml>=6.0
 psutil>=5.9.0
 
 # Database support
-sqlite3  # Built into Python
+# sqlite3 is built into Python - no need to install
 
 # Optional integrations
 # Uncomment as needed:

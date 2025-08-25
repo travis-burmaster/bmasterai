@@ -260,7 +260,8 @@ class AgentMonitor:
             {'agent_id': agent_id, 'error_type': error_type}
         )
 
-    def track_llm_call(self, agent_id: str, model: str, tokens_used: int, duration_ms: float):
+    def track_llm_call(self, agent_id: str, model: str, tokens_used: int, duration_ms: float,
+                      reasoning_steps: Optional[int] = None, thinking_depth: Optional[int] = None):
         self.metrics_collector.record_custom_metric(
             'llm_tokens_used', 
             tokens_used, 
@@ -271,6 +272,34 @@ class AgentMonitor:
             duration_ms, 
             {'agent_id': agent_id, 'model': model}
         )
+        
+        # Track reasoning-specific metrics
+        if reasoning_steps is not None:
+            self.metrics_collector.record_custom_metric(
+                'llm_reasoning_steps',
+                reasoning_steps,
+                {'agent_id': agent_id, 'model': model}
+            )
+        
+        if thinking_depth is not None:
+            self.metrics_collector.record_custom_metric(
+                'llm_thinking_depth',
+                thinking_depth,
+                {'agent_id': agent_id, 'model': model}
+            )
+    
+    def track_reasoning_session(self, agent_id: str, session_id: str, 
+                              total_steps: int, duration_ms: float,
+                              decision_points: int, final_confidence: Optional[float] = None):
+        """Track metrics for a complete reasoning session"""
+        labels = {'agent_id': agent_id, 'session_id': session_id}
+        
+        self.metrics_collector.record_custom_metric('reasoning_session_steps', total_steps, labels)
+        self.metrics_collector.record_custom_metric('reasoning_session_duration_ms', duration_ms, labels)
+        self.metrics_collector.record_custom_metric('reasoning_decision_points', decision_points, labels)
+        
+        if final_confidence is not None:
+            self.metrics_collector.record_custom_metric('reasoning_confidence_score', final_confidence, labels)
 
     def get_agent_dashboard(self, agent_id: str) -> Dict[str, Any]:
         dashboard = {

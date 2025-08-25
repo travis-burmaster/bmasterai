@@ -1,0 +1,122 @@
+# BMasterAI Reasoning Logging Configuration
+# This file configures how LLM reasoning and thinking processes are logged
+
+logging:
+  # Basic logging settings
+  log_level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  enable_console: true
+  enable_file: true
+  enable_json: true
+  
+  # Reasoning-specific logging
+  enable_reasoning_logs: true
+  reasoning_log_file: "bmasterai_reasoning.jsonl"
+  
+  # Log file locations
+  log_directory: "logs"
+  reasoning_directory: "logs/reasoning"
+  
+  # Log rotation (optional)
+  max_log_size_mb: 100
+  backup_count: 5
+
+reasoning:
+  # What aspects of reasoning to capture
+  capture_thinking_steps: true
+  capture_decision_points: true
+  capture_reasoning_chains: true
+  capture_confidence_scores: true
+  
+  # Thinking step configuration
+  max_step_content_length: 1000  # Truncate long thinking steps
+  include_metadata: true
+  track_step_timing: true
+  
+  # Decision point configuration  
+  max_options_tracked: 10
+  include_rejected_options: true
+  track_decision_confidence: true
+  
+  # Chain of thought settings
+  max_chain_length: 50  # Maximum steps in a reasoning chain
+  auto_summarize_long_chains: true
+  include_intermediate_conclusions: true
+
+monitoring:
+  # Reasoning metrics to track
+  track_session_duration: true
+  track_step_count: true
+  track_decision_frequency: true
+  track_confidence_trends: true
+  
+  # Performance metrics
+  alert_on_slow_reasoning: true
+  max_reasoning_time_seconds: 300
+  alert_on_low_confidence: true
+  min_confidence_threshold: 0.3
+
+export:
+  # Export formats available
+  supported_formats:
+    - "json"
+    - "markdown" 
+    - "html"
+    - "csv"
+  
+  # Default export settings
+  default_format: "markdown"
+  include_timestamps: true
+  include_metadata: true
+  group_by_session: true
+  
+  # Markdown export settings
+  markdown:
+    include_confidence_scores: true
+    show_step_numbers: true
+    highlight_decisions: true
+    add_summary_section: true
+  
+  # JSON export settings  
+  json:
+    pretty_print: true
+    include_raw_metadata: true
+    flatten_nested_objects: false
+
+# Agent-specific reasoning settings
+agents:
+  # Default settings for all agents
+  default:
+    reasoning_depth: "normal"  # minimal, normal, detailed, verbose
+    auto_log_reasoning: true
+    reasoning_session_timeout: 600  # seconds
+    
+  # Agent-specific overrides
+  # Example:
+  # "sentiment-analyzer":
+  #   reasoning_depth: "detailed"
+  #   track_word_analysis: true
+  #   
+  # "math-solver": 
+  #   reasoning_depth: "verbose"
+  #   track_calculation_steps: true
+
+# Integration settings
+integrations:
+  # Slack notifications for reasoning insights
+  slack:
+    enabled: false
+    webhook_url: ""
+    notify_on_complex_reasoning: true
+    complexity_threshold: 10  # steps
+    
+  # Database storage for reasoning logs
+  database:
+    enabled: false
+    connection_string: ""
+    table_prefix: "bmasterai_reasoning_"
+    
+  # File system settings
+  filesystem:
+    auto_archive: true
+    archive_after_days: 30
+    compress_archives: true

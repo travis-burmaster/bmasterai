@@ -55,6 +55,59 @@ Our comprehensive telemetry system provides real-time insights into LLM usage an
 
 ---
 
+## 🧠 **NEW: Advanced LLM Reasoning Logging**
+
+🔍 **Capture and analyze how your AI agents think and make decisions!**
+
+BMasterAI now includes comprehensive LLM reasoning logging that captures:
+- **🤔 Thinking Steps**: Record each step of the reasoning process
+- **⚖️ Decision Points**: Log decision options, choices, and reasoning
+- **🔗 Reasoning Chains**: Track complete thought processes from start to finish
+- **📊 Confidence Scores**: Monitor agent confidence throughout reasoning
+- **📈 Reasoning Metrics**: Analyze reasoning patterns and performance
+- **📝 Export Formats**: JSON, Markdown, HTML, and CSV exports
+
+[**→ View Reasoning Example**](examples/reasoning_logging_example.py) | [**→ Configuration Guide**](config/reasoning_config.yaml)
+
+### Quick Usage
+
+**Context Manager Approach:**
+```python
+from bmasterai import ReasoningSession
+
+with ReasoningSession("agent-001", "Analyze sentiment", "gpt-4") as session:
+    session.think("First, I'll examine the word choice...")
+    session.decide("Classification", ["positive", "negative"], "positive", 
+                  "More positive words detected")
+    session.conclude("Text has positive sentiment")
+```
+
+**Chain of Thought:**
+```python
+from bmasterai import ChainOfThought
+
+cot = ChainOfThought("agent-001", "Solve math problem", "gpt-4")
+result = cot.step("Identify the problem type...") \
+           .step("Apply relevant formula...") \
+           .conclude("The answer is 42")
+```
+
+**Quick Logging:**
+```python
+from bmasterai import log_reasoning
+
+log_reasoning("agent-001", "Analysis task", 
+             ["Step 1: Analyze", "Step 2: Decide"], 
+             "Final conclusion")
+```
+
+### Reasoning Logs Location
+- **Main logs**: `logs/bmasterai.jsonl` 
+- **Reasoning logs**: `logs/reasoning/bmasterai_reasoning.jsonl`
+- **Exported reports**: Various formats available
+
+---
+
 ## 🚀 Features
 
 ### Core Framework
@@ -64,10 +117,12 @@ Our comprehensive telemetry system provides real-time insights into LLM usage an
 - **YAML Configuration**: No-code setup for common workflows
 
 ### Advanced Monitoring & Logging
-- **Comprehensive Logging**: Structured logging with JSON output and multiple levels
-- **Real-time Monitoring**: System metrics, agent performance, and custom metrics
-- **Performance Tracking**: Task duration, LLM usage, and resource consumption
+- **LLM Reasoning Logging**: Capture thinking steps, decision points, and reasoning chains
+- **Comprehensive Logging**: Structured logging with JSON output and multiple levels  
+- **Real-time Monitoring**: System metrics, agent performance, and reasoning metrics
+- **Performance Tracking**: Task duration, LLM usage, reasoning complexity, and resource consumption
 - **Alert System**: Configurable alerts with multiple notification channels
+- **Export & Analysis**: Reasoning logs in multiple formats (JSON, Markdown, HTML, CSV)
 
 ### Enterprise Integrations
 - **Slack Integration**: Real-time notifications and alerts
@@ -125,38 +180,55 @@ pip install -e .[dev]
 
 ## 🏃 Quick Start
 
-### 1. Basic Agent Setup
+### 1. Basic Agent Setup with Reasoning Logging
 
 ```python
-from bmasterai.logging import configure_logging, LogLevel
-from bmasterai.monitoring import get_monitor
-from bmasterai.integrations import get_integration_manager, SlackConnector
+from bmasterai import (
+    configure_logging, get_monitor, get_integration_manager,
+    ReasoningSession, LogLevel
+)
 
-# Configure logging and monitoring
-logger = configure_logging(log_level=LogLevel.INFO)
+# Configure logging with reasoning capture enabled
+logger = configure_logging(
+    log_level=LogLevel.INFO,
+    enable_reasoning_logs=True
+)
 monitor = get_monitor()
 monitor.start_monitoring()
 
-# Setup integrations
-integration_manager = get_integration_manager()
-slack = SlackConnector(webhook_url="YOUR_SLACK_WEBHOOK")
-integration_manager.add_connector("slack", slack)
+# Example: Agent with reasoning logging
+def analyze_sentiment(text):
+    with ReasoningSession("agent-001", "Sentiment Analysis", "gpt-4") as session:
+        # Step 1: Analyze the text
+        session.think(f"Analyzing text: '{text}'. Looking for emotional indicators.")
+        
+        # Step 2: Make decision
+        if "good" in text.lower() or "great" in text.lower():
+            sentiment = "positive"
+            reasoning = "Found positive words like 'good' or 'great'"
+        else:
+            sentiment = "neutral" 
+            reasoning = "No clear positive or negative indicators"
+        
+        session.decide(
+            "Sentiment classification", 
+            ["positive", "negative", "neutral"], 
+            sentiment, 
+            reasoning
+        )
+        
+        # Step 3: Conclude
+        result = f"Text sentiment: {sentiment}"
+        session.conclude(result)
+        return result
 
-# Create and run an agent
-from bmasterai.examples import EnhancedAgent
+# Run analysis with automatic reasoning logging
+result = analyze_sentiment("This product is really good!")
+print(result)
 
-agent = EnhancedAgent("agent-001", "DataProcessor")
-agent.start()
-
-# Execute tasks with full monitoring
-result = agent.execute_task("data_analysis", {"dataset": "sales.csv"})
-print(f"Task result: {result}")
-
-# Get performance dashboard
-dashboard = monitor.get_agent_dashboard("agent-001")
-print(f"Agent performance: {dashboard}")
-
-agent.stop()
+# Export reasoning logs
+reasoning_report = logger.export_reasoning_logs(format="markdown")
+print("Reasoning process captured and logged!")
 ```
 
 ### 2. Kubernetes Deployment
@@ -206,6 +278,85 @@ task_assignments = {
 
 results = orchestrator.coordinate_task("monthly_analysis", task_assignments)
 print(f"Coordination results: {results}")
+```
+
+### 3. Advanced Reasoning Logging Patterns
+
+```python
+from bmasterai import ChainOfThought, with_reasoning_logging, log_reasoning
+
+# Pattern 1: Chain of Thought for complex reasoning
+def solve_math_problem(problem):
+    cot = ChainOfThought("math-agent", f"Solve: {problem}", "gpt-4")
+    
+    return cot.step("Identify the type of mathematical problem") \
+             .step("Break down the problem into smaller parts") \
+             .step("Apply relevant mathematical principles") \
+             .step("Check the solution for accuracy") \
+             .conclude("Final answer with verification")
+
+# Pattern 2: Decorator-based reasoning logging
+@with_reasoning_logging("Process customer query", "claude-3")
+def handle_customer_query(agent_id, query, reasoning_session=None):
+    if reasoning_session:
+        reasoning_session.think("Analyzing customer intent...")
+        reasoning_session.decide("Response type", ["info", "action", "escalate"], 
+                                "info", "Query seeks information")
+        reasoning_session.conclude("Providing informational response")
+    
+    return "Customer query processed"
+
+# Pattern 3: Quick reasoning logging for simple cases  
+def quick_analysis(data):
+    steps = [
+        "Received data for analysis",
+        "Checking data quality and format", 
+        "Applying analysis algorithms",
+        "Validating results"
+    ]
+    
+    conclusion = "Analysis completed successfully"
+    session_id = log_reasoning("analysis-agent", "Data Analysis", 
+                              steps, conclusion, "analysis-model")
+    return f"Analysis done (logged as {session_id})"
+
+# Export and analyze reasoning logs
+logger = get_logger()
+
+# Get logs for specific agent
+agent_reasoning = logger.export_reasoning_logs(
+    agent_id="math-agent", 
+    output_format="markdown"
+)
+
+# Get logs for specific session
+session_details = logger.get_reasoning_session("session_id_here")
+
+# Export all reasoning logs as JSON for analysis
+all_reasoning = logger.export_reasoning_logs(output_format="json")
+```
+
+### 4. Reasoning Log Analysis
+
+```python
+# Analyze reasoning patterns and performance
+monitor = get_monitor()
+
+# Get reasoning metrics
+reasoning_stats = {
+    'avg_steps': monitor.metrics_collector.get_metric_stats('reasoning_session_steps'),
+    'avg_duration': monitor.metrics_collector.get_metric_stats('reasoning_session_duration_ms'),
+    'decision_frequency': monitor.metrics_collector.get_metric_stats('reasoning_decision_points')
+}
+
+print("Reasoning Performance:")
+for metric, stats in reasoning_stats.items():
+    if stats:
+        print(f"  {metric}: avg={stats['avg']:.1f}, max={stats['max']}")
+
+# Export reasoning logs for external analysis tools
+reasoning_data = logger.export_reasoning_logs(output_format="csv")
+# Can be imported into pandas, Excel, or BI tools for deeper analysis
 ```
 
 ## 🖥️ Command Line Interface
@@ -518,6 +669,12 @@ Check out the `examples/` directory for comprehensive examples:
 - **[Multi-Agent System](examples/enhanced_examples.py)**: Coordinated agents working together
 - **[Integration Examples](examples/enhanced_examples.py)**: Using Slack, email, and database integrations
 
+### 🧠 LLM Reasoning Examples
+- **[Reasoning Logging Demo](examples/reasoning_logging_example.py)**: Complete demonstration of LLM reasoning capture
+- **[Chain of Thought](examples/reasoning_logging_example.py#analyze_with_chain_of_thought)**: Step-by-step reasoning patterns
+- **[Decision Logging](examples/reasoning_logging_example.py#log_decision_point)**: Capture decision points and alternatives
+- **[Reasoning Export](examples/reasoning_logging_example.py#export_reasoning_logs)**: Export reasoning logs in multiple formats
+
 ### 🧠 RAG (Retrieval-Augmented Generation) Examples
 - **[Qdrant Cloud RAG](examples/minimal-rag/bmasterai_rag_qdrant_cloud.py)**: Advanced RAG system with Qdrant Cloud vector database
 - **[Interactive RAG UI](examples/minimal-rag/gradio_qdrant_rag.py)**: Gradio web interface for RAG system with chat, document management, and monitoring
@@ -604,6 +761,19 @@ Choose your deployment method:
 ```bash
 pip install bmasterai
 bmasterai init my-project
+
+# Try reasoning logging example
+cd my-project
+python -c "
+from bmasterai import ReasoningSession, configure_logging
+configure_logging(enable_reasoning_logs=True)
+
+with ReasoningSession('demo-agent', 'Hello World', 'demo-model') as session:
+    session.think('This is my first reasoning step!')
+    session.conclude('Reasoning logging is working!')
+
+print('✅ Reasoning logs saved to logs/reasoning/')
+"
 ```
 
 ### Kubernetes Production
@@ -622,9 +792,9 @@ helm install bmasterai bmasterai/bmasterai
 
 ---
 
-**Ready to build production-scale AI systems? 🚀**
+**Ready to build production-scale AI systems with full reasoning visibility? 🚀**
 
-[**→ Start with Kubernetes**](README-k8s.md) | [**→ Learn with Tutorials**](lessons/) | [**→ Local Development**](#-installation) | [**→ View Examples**](examples/)
+[**→ Start with Kubernetes**](README-k8s.md) | [**→ Learn with Tutorials**](lessons/) | [**→ Try Reasoning Logging**](examples/reasoning_logging_example.py) | [**→ Local Development**](#-installation) | [**→ View Examples**](examples/)
 
 **Made with ❤️ by the BMasterAI community**
 

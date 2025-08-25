@@ -146,3 +146,4 @@ node_modules/
 package-lock.json
 examples/gemini-stocks/GEMINI.md
 **/User/settings.json
+CLAUDE.md

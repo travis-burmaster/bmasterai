@@ -5,7 +5,7 @@ A comprehensive Python framework for building multi-agent AI systems
 with advanced logging, monitoring, and integrations.
 """
 
-__version__ = "0.2.0"
+__version__ = "0.2.2"
 __author__ = "Travis Burmaster"
 __email__ = "travis@burmaster.com"
 

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "bmasterai"
-version = "0.2.1"
+version = "0.2.2"
 authors = [{ name = "Travis Burmaster", email = "travis@burmaster.com" }]
 description = "A comprehensive Python framework for building multi-agent AI systems with advanced logging, monitoring, and integrations"
 readme = "README.md"

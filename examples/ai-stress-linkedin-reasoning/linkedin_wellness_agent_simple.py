@@ -54,6 +54,14 @@ class LinkedInWellnessAgent:
                 print(f"Failed to initialize Tavily client: {e}")
         
         # BMasterAI integration
+        if BMASTERAI_AVAILABLE:
+            configure_logging(
+                log_level=LogLevel.INFO,
+                enable_console=True,
+                enable_file=False,
+                enable_reasoning_logs=True,
+                reasoning_log_file="linkedin_wellness_reasoning.jsonl"
+            )
         self.logger = get_logger() if BMASTERAI_AVAILABLE else None
         self.monitor = get_monitor() if BMASTERAI_AVAILABLE else None
         

@@ -1,6 +1,6 @@
 # LinkedIn Chain of Thought Wellness Advisor
 
-A refactored Streamlit application that demonstrates **real-time BMasterAI reasoning transparency** by showing how Gemini AI thinks through LinkedIn profile analysis to provide personalized stress reduction and happiness suggestions using **chain of thought processing**.
+A Streamlit application that demonstrates **real-time BMasterAI reasoning transparency** by showing how Gemini AI thinks through LinkedIn profile analysis to provide personalized stress reduction and happiness suggestions using **chain of thought processing**. This version uses the **Tavily Search API** to find and retrieve public LinkedIn profiles.
 
 ## 🌟 Key Features
 
@@ -17,62 +17,66 @@ A refactored Streamlit application that demonstrates **real-time BMasterAI reaso
 - **Success metrics**: Clear ways to measure progress and outcomes
 
 ### 🔍 **LinkedIn Profile Analysis**
-- **Comprehensive data extraction**: Work experience, education, skills, and career trajectory analysis
-- **Privacy-focused**: Only analyzes publicly available LinkedIn profile information
-- **Demo mode**: Works with example profiles for testing and demonstration
+- **Comprehensive data extraction**: Uses **Tavily Search API** to find public LinkedIn profiles and then scrapes the content.
+- **Privacy-focused**: Only analyzes publicly available LinkedIn profile information.
+- **Dynamic analysis**: Analyzes the content of the retrieved profile.
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 - Python 3.11+
 - Gemini API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
+- Tavily API key from [Tavily](https://tavily.com/)
 - (Optional) BMasterAI library for enhanced reasoning transparency
 
 ### Installation
 
-1. **Clone or download the application files**
-2. **Install dependencies:**
-   ```bash
-   pip install -r requirements_refactored.txt
-   ```
+1.  **Clone or download the application files**
+2.  **Install dependencies:**
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-3. **Set up environment variables:**
-   ```bash
-   cp .env_refactored.example .env
-   # Edit .env and add your Gemini API key
-   ```
+3.  **Set up environment variables:**
+    Create a `.env` file in the project root and add your API keys:
+    ```bash
+    # .env
+    GEMINI_API_KEY="your_gemini_api_key_here"
+    TAVILY_API_KEY="your_tavily_api_key_here"
+    ```
+    You can use the `.env.example` as a template.
 
-4. **Run the application:**
-   ```bash
-   streamlit run linkedin_wellness_streamlit_app.py
-   ```
+4.  **Run the application:**
+    ```bash
+    streamlit run linkedin_wellness_streamlit_app.py
+    ```
 
-5. **Open your browser** to `http://localhost:8501`
+5.  **Open your browser** to `http://localhost:8501`
 
 ## 📋 Application Structure
 
 ### Main Components
 
-1. **`linkedin_wellness_streamlit_app.py`** - Main Streamlit application
-   - Beautiful wellness-themed UI with gradient styling
-   - Four main tabs: Profile Input, Chain of Thought, Wellness Analysis, Reasoning Logs
-   - Real-time chain of thought updates with progress indicators
-   - Comprehensive results display with interactive elements
+1.  **`linkedin_wellness_streamlit_app.py`** - Main Streamlit application
+    - Beautiful wellness-themed UI with gradient styling
+    - Four main tabs: Profile Input, Chain of Thought, Wellness Analysis, Reasoning Logs
+    - Real-time chain of thought updates with progress indicators
+    - Comprehensive results display with interactive elements
 
-2. **`linkedin_wellness_agent.py`** - Core AI agent with BMasterAI integration
-   - LinkedInWellnessAgent class with transparent reasoning
-   - Chain of thought logging for every analysis step
-   - Demo data fallback for testing without real LinkedIn API
-   - Comprehensive wellness analysis pipeline
+2.  **`linkedin_wellness_agent_simple.py`** - Core AI agent with BMasterAI integration
+    - `LinkedInWellnessAgent` class with transparent reasoning
+    - Uses Tavily API to search for LinkedIn profiles.
+    - Scrapes profile data from the public web.
+    - Comprehensive wellness analysis pipeline.
 
-3. **`requirements_refactored.txt`** - Python dependencies
-4. **`.env_refactored.example`** - Environment configuration template
+3.  **`requirements.txt`** - Python dependencies
+4.  **`.env.example`** - Environment configuration template
 
 ### Key Improvements from Original
 
 - **Focused on chain of thought**: Primary emphasis on transparent AI reasoning
 - **Wellness-specific**: Specialized for stress reduction and happiness enhancement
-- **LinkedIn integration**: Designed specifically for LinkedIn profile analysis
+- **LinkedIn integration**: Uses Tavily Search to find and analyze LinkedIn profiles.
 - **BMasterAI transparency**: Full reasoning transparency and logging
 - **Modern UI**: Beautiful, responsive design with wellness theme
 - **Real-time updates**: Live chain of thought display during analysis
@@ -81,11 +85,11 @@ A refactored Streamlit application that demonstrates **real-time BMasterAI reaso
 
 The application follows a structured analysis pipeline:
 
-1. **📊 Profile Analysis** - Extract and analyze LinkedIn profile data
-2. **⚠️ Stress Assessment** - Identify potential stress factors from career patterns
-3. **😊 Happiness Opportunities** - Find areas for enhancement and growth
-4. **💡 Wellness Recommendations** - Generate personalized, actionable suggestions
-5. **✅ Analysis Complete** - Present comprehensive results with metrics
+1.  **📊 Profile Analysis** - Extract and analyze LinkedIn profile data using Tavily and web scraping.
+2.  **⚠️ Stress Assessment** - Identify potential stress factors from career patterns
+3.  **😊 Happiness Opportunities** - Find areas for enhancement and growth
+4.  **💡 Wellness Recommendations** - Generate personalized, actionable suggestions
+5.  **✅ Analysis Complete** - Present comprehensive results with metrics
 
 Each step includes:
 - **Detailed reasoning**: Why the AI made specific decisions
@@ -110,7 +114,8 @@ Each step includes:
 ### Environment Variables
 ```bash
 # Required
-GEMINI_API_KEY=your_actual_gemini_api_key_here
+GEMINI_API_KEY="your_gemini_api_key_here"
+TAVILY_API_KEY="your_tavily_api_key_here"
 
 # Optional BMasterAI settings
 BMASTERAI_LOG_LEVEL=DEBUG
@@ -168,7 +173,7 @@ The application will automatically detect BMasterAI and enable:
 
 ## 🔒 Privacy & Security
 
-- **Public data only**: Analyzes only publicly available LinkedIn information
+- **Public data only**: Analyzes only publicly available LinkedIn information found via web search.
 - **No data storage**: Profile data is not stored or cached
 - **API key security**: Environment variable configuration for sensitive data
 - **Transparent processing**: All analysis steps are visible to users
@@ -178,15 +183,17 @@ The application will automatically detect BMasterAI and enable:
 ### Core Technologies
 - **Streamlit**: Modern web application framework
 - **Google Gemini 2.0 Flash**: Advanced AI reasoning capabilities
+- **Tavily Search API**: For finding public LinkedIn profiles.
 - **BMasterAI**: Reasoning transparency and logging
 - **Python 3.11+**: Modern Python features and performance
 
 ### AI Pipeline
-1. **Profile Data Extraction**: Structured data gathering from LinkedIn
-2. **Contextual Analysis**: Understanding career patterns and professional context
-3. **Stress Factor Identification**: Pattern recognition for potential stressors
-4. **Opportunity Detection**: Finding areas for growth and improvement
-5. **Recommendation Generation**: Creating personalized, actionable suggestions
+1.  **Profile Search**: Use Tavily to find the public LinkedIn profile URL.
+2.  **Data Extraction**: Scrape the content of the profile URL.
+3.  **Contextual Analysis**: Understanding career patterns and professional context
+4.  **Stress Factor Identification**: Pattern recognition for potential stressors
+5.  **Opportunity Detection**: Finding areas for growth and improvement
+6.  **Recommendation Generation**: Creating personalized, actionable suggestions
 
 ## 🚀 Deployment Options
 
@@ -204,7 +211,6 @@ The application is designed to be easily deployable to:
 
 ## 📈 Future Enhancements
 
-- **Real LinkedIn API integration** (currently uses demo data)
 - **Advanced wellness metrics** and tracking
 - **Multi-language support** for global users
 - **Integration with wellness platforms** and tools
@@ -230,10 +236,10 @@ This refactored application builds upon the original BMasterAI example and is in
 - **BMasterAI Documentation**: [BMasterAI Docs](https://bmasterai.com)
 - **Gemini API**: [Google AI Studio](https://makersuite.google.com)
 - **Streamlit Documentation**: [Streamlit Docs](https://docs.streamlit.io)
+- **Tavily API**: [Tavily](https://tavily.com/)
 
 ---
 
-**🧠💚 Powered by Gemini 2.0 Flash + BMasterAI + LinkedIn APIs | Built with Streamlit**
+**🧠💚 Powered by Gemini 2.0 Flash + BMasterAI + Tavily | Built with Streamlit**
 
 *Real-time chain of thought reasoning for personalized wellness recommendations based on LinkedIn profile analysis.*
-

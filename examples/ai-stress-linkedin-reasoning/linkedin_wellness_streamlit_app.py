@@ -220,6 +220,63 @@ def load_css():
         color: #666;
         font-style: italic;
     }
+    
+    /* Visual Reasoning Logs Styling */
+    .reasoning-event {
+        transition: all 0.3s ease;
+        margin: 10px 0;
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 4px solid #4caf50;
+    }
+    
+    .reasoning-event:hover {
+        transform: translateX(5px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
+    .event-llm_reasoning {
+        background: linear-gradient(135deg, #e3f2fd, #f8f9fa);
+        border-left-color: #2196f3;
+    }
+    
+    .event-llm_thinking_step {
+        background: linear-gradient(135deg, #e8f5e8, #f8f9fa);
+        border-left-color: #4caf50;
+    }
+    
+    .event-decision_point {
+        background: linear-gradient(135deg, #fff3e0, #f8f9fa);
+        border-left-color: #ff9800;
+    }
+    
+    .event-reasoning_chain {
+        background: linear-gradient(135deg, #f3e5f5, #f8f9fa);
+        border-left-color: #9c27b0;
+    }
+    
+    .session-header {
+        background: linear-gradient(135deg, #f5f5f5, #e0e0e0);
+        padding: 15px;
+        border-radius: 8px;
+        margin: 10px 0;
+        border-left: 5px solid #666;
+    }
+    
+    .timeline-item {
+        padding: 12px;
+        margin: 8px 0;
+        border-radius: 6px;
+        border-left: 3px solid #666;
+        background: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: all 0.2s ease;
+    }
+    
+    .timeline-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -463,6 +520,174 @@ def display_recommendations(recommendations: List[Dict]):
             
             st.markdown("---")
 
+def display_reasoning_session(session_logs):
+    """Display detailed reasoning session logs"""
+    if not session_logs:
+        return
+    
+    # Sort logs by reasoning step for proper order
+    session_logs.sort(key=lambda x: x.get('reasoning_step', 0) or 0)
+    
+    for log in session_logs:
+        event_type = log.get('event_type', 'unknown')
+        timestamp = log.get('timestamp', '')
+        step_num = log.get('reasoning_step', 0)
+        message = log.get('message', 'No message')
+        metadata = log.get('metadata', {})
+        
+        # Format timestamp
+        try:
+            from datetime import datetime
+            dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+            formatted_time = dt.strftime("%H:%M:%S.%f")[:-3]  # Include milliseconds
+        except:
+            formatted_time = timestamp
+        
+        # Color code by event type
+        color_map = {
+            'llm_reasoning': '#2196f3',      # Blue
+            'llm_thinking_step': '#4caf50',  # Green  
+            'decision_point': '#ff9800',     # Orange
+            'reasoning_chain': '#9c27b0'     # Purple
+        }
+        color = color_map.get(event_type, '#666666')
+        
+        # Icon map
+        icon_map = {
+            'llm_reasoning': '🚀',
+            'llm_thinking_step': '🧠', 
+            'decision_point': '🎯',
+            'reasoning_chain': '🔗'
+        }
+        icon = icon_map.get(event_type, '📝')
+        
+        # Display event
+        with st.container():
+            col1, col2 = st.columns([1, 20])
+            with col1:
+                st.markdown(f"<div style='text-align: center; font-size: 1.5em;'>{icon}</div>", unsafe_allow_html=True)
+            
+            with col2:
+                st.markdown(f"""
+                <div style="border-left: 3px solid {color}; padding-left: 15px; margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                        <strong style="color: {color};">{event_type.replace('_', ' ').title()}</strong>
+                        <small style="color: #666;">Step {step_num} | {formatted_time}</small>
+                    </div>
+                    <div style="margin-bottom: 8px;">
+                        {message}
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                # Show additional details based on event type
+                if event_type == 'decision_point':
+                    options = metadata.get('available_options', [])
+                    chosen = metadata.get('chosen_option', 'Unknown')
+                    reasoning = metadata.get('decision_reasoning', '')
+                    
+                    if options:
+                        st.markdown("**Available Options:** " + ", ".join(options))
+                    st.markdown(f"**Chosen:** {chosen}")
+                    if reasoning:
+                        st.markdown(f"**Reasoning:** {reasoning}")
+                
+                elif event_type == 'reasoning_chain':
+                    thinking_chain = log.get('thinking_chain', [])
+                    if thinking_chain:
+                        with st.expander(f"View Complete Thinking Chain ({len(thinking_chain)} steps)"):
+                            for i, step in enumerate(thinking_chain, 1):
+                                st.markdown(f"**{i}.** {step}")
+                    
+                    final_conclusion = metadata.get('final_conclusion', '')
+                    if final_conclusion:
+                        st.success(f"**Final Conclusion:** {final_conclusion}")
+                
+                elif event_type == 'llm_thinking_step':
+                    thinking_content = metadata.get('thinking_content', '')
+                    confidence = log.get('confidence', 0)
+                    
+                    if thinking_content and thinking_content != message:
+                        st.markdown(f"**Full Content:** {thinking_content}")
+                    
+                    if confidence:
+                        st.progress(confidence, text=f"Confidence: {confidence:.1%}")
+                
+                st.markdown("</div>", unsafe_allow_html=True)
+        
+        st.markdown("---")
+
+def display_reasoning_timeline(reasoning_logs):
+    """Display reasoning timeline visualization"""
+    if not reasoning_logs:
+        return
+    
+    st.markdown("### 📈 Reasoning Timeline")
+    
+    # Group by event type for chart
+    event_counts = {}
+    timestamps = []
+    
+    for log in reasoning_logs:
+        event_type = log.get('event_type', 'unknown')
+        event_counts[event_type] = event_counts.get(event_type, 0) + 1
+        timestamps.append(log.get('timestamp', ''))
+    
+    # Display event type distribution
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("**Event Distribution**")
+        import pandas as pd
+        
+        df = pd.DataFrame(list(event_counts.items()), columns=['Event Type', 'Count'])
+        st.bar_chart(df.set_index('Event Type'))
+    
+    with col2:
+        st.markdown("**Recent Activity**")
+        
+        # Show recent sessions summary
+        sessions = {}
+        for log in reasoning_logs:
+            session_id = log.get('metadata', {}).get('session_id', 'unknown')
+            if session_id not in sessions:
+                sessions[session_id] = {
+                    'events': 0,
+                    'task': log.get('metadata', {}).get('task_description', 'Unknown'),
+                    'last_timestamp': log.get('timestamp', '')
+                }
+            sessions[session_id]['events'] += 1
+        
+        for session_id, info in list(sessions.items())[-5:]:  # Last 5 sessions
+            st.markdown(f"**{info['task'][:50]}...**")
+            st.markdown(f"  Events: {info['events']} | Last: {info['last_timestamp'][:19]}")
+    
+    # Detailed event timeline
+    st.markdown("**Detailed Event Timeline**")
+    
+    for i, log in enumerate(reasoning_logs[-20:], 1):  # Last 20 events
+        event_type = log.get('event_type', 'unknown')
+        message = log.get('message', '')[:100] + '...' if len(log.get('message', '')) > 100 else log.get('message', '')
+        timestamp = log.get('timestamp', '')[:19]
+        
+        # Color code
+        color_map = {
+            'llm_reasoning': '#e3f2fd',
+            'llm_thinking_step': '#e8f5e8',
+            'decision_point': '#fff3e0', 
+            'reasoning_chain': '#f3e5f5'
+        }
+        bg_color = color_map.get(event_type, '#f5f5f5')
+        
+        st.markdown(f"""
+        <div style="background: {bg_color}; padding: 10px; margin: 5px 0; border-radius: 5px; border-left: 3px solid #666;">
+            <div style="display: flex; justify-content: between;">
+                <strong>{i}. {event_type.replace('_', ' ').title()}</strong>
+                <small style="color: #666; margin-left: auto;">{timestamp}</small>
+            </div>
+            <div style="margin-top: 5px; font-size: 0.9em;">{message}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
 def main():
     """Main Streamlit application focused on chain of thought wellness analysis"""
     st.set_page_config(
@@ -557,7 +782,7 @@ def main():
     if 'wellness_agent' not in st.session_state:
         try:
             st.session_state.wellness_agent = LinkedInWellnessAgent(
-                "linkedin-wellness-advisor", 
+                "linkedin-wellness-agent", 
                 gemini_api_key,
                 tavily_api_key
             )
@@ -630,6 +855,9 @@ def main():
                 st.session_state.chain_of_thought_updates.append(update_data)
             
             st.session_state.wellness_agent.set_update_callback(update_callback)
+            
+            # Show that we're starting fresh
+            st.info("🧹 Clearing previous reasoning logs to start fresh analysis...")
             
             with st.spinner(f"🧠 Analyzing LinkedIn profile: {username_input}..."):
                 try:
@@ -792,31 +1020,92 @@ def main():
         st.markdown("### 📊 BMasterAI Reasoning Logs & Analytics")
         
         if BMASTERAI_AVAILABLE:
-            # Display agent statistics
-            if st.button("📈 Show Agent Statistics"):
+            # Quick Stats Summary
+            try:
+                stats = st.session_state.wellness_agent.get_agent_stats()
+                
+                # Stats metrics in columns
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("Total Events", stats.get('total_events', 0))
+                with col2:
+                    event_types = stats.get('event_types', {})
+                    st.metric("Reasoning Chains", event_types.get('reasoning_chain', 0))
+                with col3:
+                    st.metric("Thinking Steps", event_types.get('llm_thinking_step', 0))
+                with col4:
+                    st.metric("Decision Points", event_types.get('decision_point', 0))
+                
+            except Exception as e:
+                st.error(f"Error getting statistics: {str(e)}")
+            
+            st.markdown("---")
+            
+            # Visual Reasoning Logs Display
+            st.markdown("### 🧠 Visual Reasoning Logs")
+            
+            # Control options
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                show_detailed_logs = st.checkbox("Show Detailed Event Logs", value=True)
+            with col2:
+                max_events = st.selectbox("Max Events to Display", [10, 25, 50, 100], index=1)
+            with col3:
+                event_filter = st.selectbox("Filter by Event Type", 
+                    ["All Events", "reasoning_chain", "llm_thinking_step", "decision_point", "llm_reasoning"])
+            
+            if show_detailed_logs:
                 try:
-                    stats = st.session_state.wellness_agent.get_agent_stats()
+                    # Get reasoning logs data
+                    export_data = st.session_state.wellness_agent.export_reasoning_logs("json")
+                    import json
+                    logs_data = json.loads(export_data)
                     
-                    col1, col2 = st.columns(2)
+                    reasoning_logs = logs_data.get('reasoning_logs', [])
                     
-                    with col1:
-                        st.metric("Total Events", stats.get('total_events', 0))
+                    if reasoning_logs:
+                        # Filter logs if needed
+                        if event_filter != "All Events":
+                            reasoning_logs = [log for log in reasoning_logs if log.get('event_type') == event_filter]
+                        
+                        # Limit number of events
+                        reasoning_logs = reasoning_logs[-max_events:]
+                        
+                        st.markdown(f"**Showing {len(reasoning_logs)} recent events**")
+                        
+                        # Group events by reasoning session
+                        sessions = {}
+                        for log in reasoning_logs:
+                            session_id = log.get('metadata', {}).get('session_id', 'unknown_session')
+                            if session_id not in sessions:
+                                sessions[session_id] = []
+                            sessions[session_id].append(log)
+                        
+                        # Display each session
+                        for session_id, session_logs in sessions.items():
+                            # Get session info from first log
+                            first_log = session_logs[0]
+                            task_desc = first_log.get('metadata', {}).get('task_description', 'Unknown Task')
+                            
+                            with st.expander(f"🎯 Session: {task_desc} ({len(session_logs)} events)", expanded=True):
+                                display_reasoning_session(session_logs)
+                        
+                        # Timeline view option
+                        st.markdown("---")
+                        if st.button("📈 Show Reasoning Timeline"):
+                            display_reasoning_timeline(reasoning_logs)
                     
-                    with col2:
-                        event_types = stats.get('event_types', {})
-                        if event_types:
-                            st.write("**Event Types:**")
-                            for event_type, count in event_types.items():
-                                st.write(f"• {event_type}: {count}")
+                    else:
+                        st.info("No reasoning logs found. Run an analysis first to generate reasoning data.")
                 
                 except Exception as e:
-                    st.error(f"Error getting statistics: {str(e)}")
+                    st.error(f"Error loading reasoning logs: {str(e)}")
             
             # Export functionality
             st.markdown("---")
             st.markdown("### 📥 Export Reasoning Logs")
             
-            col1, col2 = st.columns(2)
+            col1, col2, col3 = st.columns(3)
             
             with col1:
                 if st.button("📄 Export as JSON"):
@@ -843,6 +1132,28 @@ def main():
                         )
                     except Exception as e:
                         st.error(f"Error exporting Markdown: {str(e)}")
+            
+            with col3:
+                if st.button("🔄 Refresh Logs"):
+                    st.rerun()
+            
+            # Manual clear logs option
+            st.markdown("---")
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("🧹 Clear All Reasoning Logs"):
+                    try:
+                        cleared = st.session_state.wellness_agent.clear_reasoning_logs()
+                        if cleared:
+                            st.success("✅ Reasoning logs cleared successfully!")
+                            st.rerun()
+                        else:
+                            st.warning("⚠️ Unable to clear logs or BMasterAI not available")
+                    except Exception as e:
+                        st.error(f"❌ Error clearing logs: {str(e)}")
+            
+            with col2:
+                st.info("💡 **Note**: Logs are automatically cleared when starting a new profile analysis")
         
         else:
             st.warning("⚠️ BMasterAI not available. Install BMasterAI to access detailed reasoning logs and analytics.")

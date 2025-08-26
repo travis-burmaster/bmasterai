@@ -479,22 +479,125 @@ class LinkedInWellnessAgent:
         
         return recommendations
 
+    def clear_reasoning_logs(self):
+        """Clear existing reasoning logs to start fresh"""
+        if BMASTERAI_AVAILABLE:
+            try:
+                import os
+                reasoning_log_path = "logs/reasoning/linkedin_wellness_reasoning.jsonl"
+                
+                if os.path.exists(reasoning_log_path):
+                    # Clear the file content
+                    with open(reasoning_log_path, 'w') as f:
+                        pass  # This creates an empty file
+                    
+                    print(f"[{self.agent_id}] Cleared reasoning logs for new analysis")
+                
+                return True
+            except Exception as e:
+                print(f"[{self.agent_id}] Error clearing reasoning logs: {str(e)}")
+                return False
+        return False
+
     def analyze_linkedin_profile_for_wellness(self, username: str) -> Dict[str, Any]:
-        """Complete wellness analysis"""
+        """Complete wellness analysis with reasoning logging"""
         
-        # Get profile data
-        profile_data = self.get_linkedin_profile_data(username)
+        # Clear previous reasoning logs for this new analysis
+        self.clear_reasoning_logs()
         
-        # Analyze stress factors
-        stress_factors = self.analyze_stress_factors_with_reasoning(profile_data)
+        # Import reasoning components if available
+        reasoning_session = None
+        if BMASTERAI_AVAILABLE:
+            try:
+                from bmasterai import ReasoningSession
+                reasoning_session = ReasoningSession(
+                    agent_id=self.agent_id,
+                    task_description=f"LinkedIn Wellness Analysis for {username}",
+                    model="gemini-2.0-flash-exp"
+                )
+                reasoning_session.__enter__()
+                
+                reasoning_session.think(
+                    f"Starting comprehensive wellness analysis for LinkedIn user '{username}'",
+                    confidence=0.9
+                )
+            except ImportError:
+                pass
         
-        # Identify opportunities
-        opportunities = self.identify_happiness_opportunities_with_reasoning(profile_data, stress_factors)
+        try:
+            # Get profile data
+            if reasoning_session:
+                reasoning_session.think(
+                    "Fetching LinkedIn profile data using Tavily search and web scraping",
+                    confidence=0.8
+                )
+            
+            profile_data = self.get_linkedin_profile_data(username)
+            
+            if reasoning_session:
+                name = f"{profile_data.get('firstName', '')} {profile_data.get('lastName', '')}".strip()
+                reasoning_session.think(
+                    f"Successfully extracted profile data for {name}. Found {profile_data.get('experience_count', 0)} work experiences, current role: {profile_data.get('current_title', 'Unknown')}",
+                    confidence=0.9
+                )
+            
+            # Analyze stress factors
+            if reasoning_session:
+                reasoning_session.think(
+                    "Analyzing potential stress factors based on role, location, and career stage",
+                    confidence=0.8
+                )
+            
+            stress_factors = self.analyze_stress_factors_with_reasoning(profile_data)
+            
+            if reasoning_session:
+                reasoning_session.decide(
+                    "Stress factor assessment",
+                    ["High stress", "Medium stress", "Low stress"],
+                    f"{len(stress_factors)} stress factors identified",
+                    f"Found {len(stress_factors)} stress factors including: {', '.join([sf['category'] for sf in stress_factors[:2]])}"
+                )
+            
+            # Identify opportunities
+            if reasoning_session:
+                reasoning_session.think(
+                    "Identifying happiness enhancement opportunities based on profile strengths and growth areas",
+                    confidence=0.8
+                )
+            
+            opportunities = self.identify_happiness_opportunities_with_reasoning(profile_data, stress_factors)
+            
+            if reasoning_session:
+                reasoning_session.think(
+                    f"Identified {len(opportunities)} happiness opportunities: {', '.join([opp['category'] for opp in opportunities[:3]])}",
+                    confidence=0.9
+                )
+            
+            # Generate recommendations
+            if reasoning_session:
+                reasoning_session.think(
+                    "Generating personalized wellness recommendations based on identified stress factors and opportunities",
+                    confidence=0.8
+                )
+            
+            recommendations = self.generate_personalized_recommendations_with_reasoning(
+                profile_data, stress_factors, opportunities
+            )
+            
+            if reasoning_session:
+                reasoning_session.conclude(
+                    f"Completed comprehensive wellness analysis: {len(stress_factors)} stress factors, {len(opportunities)} opportunities, {len(recommendations)} actionable recommendations",
+                    confidence=0.9
+                )
+                
+                # Properly close the session
+                reasoning_session.__exit__(None, None, None)
         
-        # Generate recommendations
-        recommendations = self.generate_personalized_recommendations_with_reasoning(
-            profile_data, stress_factors, opportunities
-        )
+        except Exception as e:
+            if reasoning_session:
+                reasoning_session.think(f"Error during analysis: {str(e)}", confidence=0.5)
+                reasoning_session.__exit__(type(e), e, e.__traceback__)
+            raise
         
         return {
             'profile_summary': {
@@ -523,16 +626,144 @@ class LinkedInWellnessAgent:
 
     def get_agent_stats(self) -> Dict[str, Any]:
         """Get agent statistics"""
-        return {
+        stats = {
+            'bmasterai_available': BMASTERAI_AVAILABLE,
             'total_events': 0,
-            'event_types': {},
-            'bmasterai_available': BMASTERAI_AVAILABLE
+            'event_types': {}
         }
+        
+        # Read stats directly from reasoning log file
+        if BMASTERAI_AVAILABLE:
+            try:
+                import os
+                reasoning_log_path = "logs/reasoning/linkedin_wellness_reasoning.jsonl"
+                if os.path.exists(reasoning_log_path):
+                    # Use the same parsing logic as export
+                    event_counts = {}
+                    agent_events = 0
+                    
+                    with open(reasoning_log_path, 'r') as f:
+                        content = f.read()
+                    
+                    # Parse multi-line JSON objects
+                    json_objects = []
+                    current_object = ""
+                    
+                    for line in content.split('\n'):
+                        if line.strip().startswith('{'):
+                            if current_object.strip():
+                                json_objects.append(current_object.strip())
+                            current_object = line
+                        else:
+                            current_object += '\n' + line
+                    
+                    if current_object.strip():
+                        json_objects.append(current_object.strip())
+                    
+                    # Count events for our agent
+                    for json_str in json_objects:
+                        if json_str.strip():
+                            try:
+                                log_entry = json.loads(json_str)
+                                agent_id = log_entry.get('agent_id', '')
+                                if agent_id in [self.agent_id, 'linkedin-wellness-agent', 'linkedin-wellness-advisor'] or 'linkedin' in agent_id.lower():
+                                    agent_events += 1
+                                    event_type = log_entry.get('event_type', 'unknown')
+                                    event_counts[event_type] = event_counts.get(event_type, 0) + 1
+                            except json.JSONDecodeError:
+                                continue
+                    
+                    stats.update({
+                        'total_events': agent_events,
+                        'event_types': event_counts,
+                        'total_json_objects': len(json_objects)
+                    })
+                else:
+                    stats['note'] = "No reasoning log file found"
+                    
+            except Exception as e:
+                stats['error'] = f"Unable to retrieve stats: {str(e)}"
+        
+        return stats
 
     def export_reasoning_logs(self, format_type: str = "json") -> str:
         """Export reasoning logs"""
-        return json.dumps({
+        
+        export_data = {
             'agent_id': self.agent_id,
             'export_date': datetime.now().isoformat(),
-            'note': 'Simple version - full reasoning logs available in complex version'
-        }, indent=2)
+            'bmasterai_available': BMASTERAI_AVAILABLE,
+            'reasoning_logs': []
+        }
+        
+        if BMASTERAI_AVAILABLE:
+            try:
+                # Try to read reasoning logs from BMasterAI
+                import os
+                reasoning_log_path = "logs/reasoning/linkedin_wellness_reasoning.jsonl"
+                
+                if os.path.exists(reasoning_log_path):
+                    with open(reasoning_log_path, 'r') as f:
+                        content = f.read()
+                    
+                    # Split by lines that start with '{' to handle multi-line JSON objects
+                    json_objects = []
+                    current_object = ""
+                    
+                    for line in content.split('\n'):
+                        if line.strip().startswith('{'):
+                            # Start of new JSON object
+                            if current_object.strip():
+                                json_objects.append(current_object.strip())
+                            current_object = line
+                        else:
+                            # Continuation of current JSON object
+                            current_object += '\n' + line
+                    
+                    # Add the last object
+                    if current_object.strip():
+                        json_objects.append(current_object.strip())
+                    
+                    # Parse each JSON object
+                    for json_str in json_objects:
+                        if json_str.strip():
+                            try:
+                                log_entry = json.loads(json_str)
+                                # Include all LinkedIn wellness related entries
+                                agent_id = log_entry.get('agent_id', '')
+                                if agent_id in [self.agent_id, 'linkedin-wellness-agent', 'linkedin-wellness-advisor'] or 'linkedin' in agent_id.lower():
+                                    export_data['reasoning_logs'].append(log_entry)
+                            except json.JSONDecodeError as e:
+                                continue
+                
+                export_data['total_logs'] = len(export_data['reasoning_logs'])
+                export_data['note'] = f"Exported {len(export_data['reasoning_logs'])} reasoning log entries"
+                
+            except Exception as e:
+                export_data['error'] = f"Unable to export logs: {str(e)}"
+                export_data['note'] = "BMasterAI available but unable to access reasoning logs"
+        else:
+            export_data['note'] = "BMasterAI not available - install bmasterai for full reasoning logs"
+        
+        if format_type == "markdown":
+            # Convert to markdown format
+            md_content = f"# LinkedIn Wellness Agent Reasoning Logs\n\n"
+            md_content += f"**Agent ID:** {self.agent_id}\n"
+            md_content += f"**Export Date:** {export_data['export_date']}\n"
+            md_content += f"**Total Logs:** {export_data.get('total_logs', 0)}\n\n"
+            
+            for i, log in enumerate(export_data.get('reasoning_logs', [])[:10], 1):
+                md_content += f"## Reasoning Session {i}\n\n"
+                md_content += f"**Task:** {log.get('task_description', 'N/A')}\n"
+                md_content += f"**Model:** {log.get('model', 'N/A')}\n"
+                md_content += f"**Steps:** {log.get('total_steps', 0)}\n\n"
+                
+                if log.get('thinking_chain'):
+                    md_content += "### Thinking Chain:\n"
+                    for step in log.get('thinking_chain', []):
+                        md_content += f"- {step}\n"
+                    md_content += "\n"
+            
+            return md_content
+        
+        return json.dumps(export_data, indent=2)

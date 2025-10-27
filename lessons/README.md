@@ -1,160 +1,39 @@
-# BMasterAI Lessons
+# BMasterAI Learning Campaigns
 
-Welcome to the comprehensive tutorial collection for BMasterAI! This directory contains step-by-step lessons and guides to help you master the platform's capabilities.
+*Prefer the detailed syllabus view? See [`README.content.md`](README.content.md) in this folder.*
 
-## 📚 Available Lessons
+Welcome to the programming calendar for team enablement. Each lesson is designed as a live workshop you can run for prospects, customers, or internal squads exploring agent-powered workflows.
 
-### Lesson 01: GitHub MCP Streamlit Integration
-**File:** [`lesson-01-github-mcp-streamlit/`](./lesson-01-github-mcp-streamlit/)
-**Level:** Beginner to Intermediate
-**Duration:** 45-60 minutes
+## Curriculum Highlights
+- **Lesson 01 · GitHub MCP + Streamlit** (`lesson-01-github-mcp-streamlit/`)
+  - Format: 60-minute interactive build-along focused on teaching agent orchestration fundamentals
+  - Storyline: Turn repository audits into a sharable Streamlit report powered by MCP agents
+  - Assets: Slide deck prompts, feature request worksheet, demo checklist
 
-Learn how to integrate GitHub repositories with MCP (Model Context Protocol) using Streamlit for interactive analysis and feature development.
+- **Shared Resources** (`shared/`)
+  - `repository-analysis-guide.md` – Use as your pre-read or leave-behind for technical audiences
+  - `feature-request-workflow.md` – Workshop script for guiding stakeholders from idea to shipped agent
 
-**What you'll learn:**
-- Setting up the GitHub MCP Streamlit environment
-- Configuring repository connections
-- Performing comprehensive repository analysis
-- Creating and managing feature requests
-- Using AI agents for code analysis and development
+## How to Run a Session
+1. **Align on the Hook** – Clarify who you are teaching (e.g., product marketers, solution engineers) and the aha moment you want them to share.
+2. **Prep the Assets** – Clone the repository, provision API keys, and print or share the worksheets from `shared/`.
+3. **Tell the Story** – Narrate the business problem first, then walk through the agent build with code, telemetry, and outcomes.
+4. **Capture Proof** – Encourage participants to snapshot dashboards, reasoning logs, or Streamlit outputs for social recap posts.
+5. **Package the Win** – Update this folder with tweaks, scripts, or new lesson directories so the next facilitator has the latest playbook.
 
-## 🔧 Shared Resources
+## Prerequisites (Share Ahead of Time)
+- Accounts: GitHub + OpenAI (or alternate LLM provider)
+- Tools: Python 3.8+, Node.js 18+, Git, optional Docker for container segments
+- Skills: Comfortable with basic CLI usage and reading Python scripts
 
-### Repository Analysis Guide
-**File:** [`shared/repository-analysis-guide.md`](./shared/repository-analysis-guide.md)
-
-Comprehensive guide covering:
-- Repository structure analysis
-- Code quality assessment
-- Dependency mapping
-- Security vulnerability scanning
-- Performance optimization recommendations
-
-### Feature Request Workflow
-**File:** [`shared/feature-request-workflow.md`](./shared/feature-request-workflow.md)
-
-Step-by-step workflow for:
-- Feature request creation and documentation
-- Requirements analysis and validation
-- Implementation planning
-- Code generation and testing
-- Deployment and monitoring
-
-## 🎯 Prerequisites
-
-Before starting the lessons, ensure you have:
-
-### Required Software
-- **Node.js** (v18 or higher)
-- **Python** (v3.8 or higher)
-- **Git** (latest version)
-- **Docker** (optional, for containerized deployments)
-
-### Required Accounts
-- **GitHub Account** with repository access
-- **OpenAI API Key** (for AI-powered features)
-
-### Technical Knowledge
-- Basic understanding of JavaScript/Node.js
-- Familiarity with Git and GitHub
-- Basic command line usage
-- Understanding of REST APIs (helpful)
-
-## 🚀 Getting Started
-
-1. **Clone the Repository**
-   ```bash
-   git clone https://github.com/your-org/bmasterai-lessons.git
-   cd bmasterai-lessons
-   ```
-
-2. **Install Dependencies**
-   ```bash
-   npm install
-   pip install -r requirements.txt
-   ```
-
-3. **Set Up Environment Variables**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your API keys and configuration
-   ```
-
-4. **Choose Your Learning Path**
-   - **New to BMasterAI?** Start with [Lesson 01](./lesson-01-github-mcp-streamlit/)
-   - **Need specific guidance?** Check the [Shared Resources](#-shared-resources)
-   - **Want PDFs?** Run `python scripts/generate-lesson-pdf.py` to create PDF versions
-
-## 📖 Lesson Structure
-
-Each lesson follows a consistent structure:
-
+## Extend the Series
+Want to add a new workshop? Create `lesson-0X-topic/` with:
 ```
-lesson-XX-topic-name/
-├── README.md              # Main lesson content
-├── assets/               # Screenshots and diagrams
-├── code-examples/        # Sample code and configurations
-├── exercises/           # Hands-on practice exercises
-└── solutions/          # Exercise solutions and explanations
+lesson-0X-topic/
+├── README.md          # Session outline + talking points
+├── assets/            # Slides, imagery, or video notes
+├── code-examples/     # Demo scripts and snippets
+├── exercises/         # Hands-on challenges
+└── recap/             # Post-session metrics, testimonials, follow-up links
 ```
-
-## 🎓 Learning Objectives
-
-By completing these lessons, you will:
-
-- **Master BMasterAI Integration** - Understand how to integrate BMasterAI with various development tools and workflows
-- **Automate Repository Analysis** - Learn to perform comprehensive code analysis using AI-powered tools
-- **Streamline Feature Development** - Implement efficient workflows for feature request management and development
-- **Leverage AI Agents** - Utilize AI agents for code generation, testing, and optimization
-- **Build Production-Ready Solutions** - Create robust, scalable applications using BMasterAI capabilities
-
-## 🛠️ Tools and Technologies Covered
-
-- **BMasterAI Platform** - Core AI development platform
-- **GitHub MCP** - Model Context Protocol for GitHub integration
-- **Streamlit** - Interactive web application framework
-- **Node.js** - Server-side JavaScript runtime
-- **Python** - AI and automation scripting
-- **Docker** - Containerization and deployment
-- **REST APIs** - Service integration and communication
-
-## 📋 Progress Tracking
-
-Track your progress through the lessons:
-
-- [ ] **Lesson 01:** GitHub MCP Streamlit Integration
-- [ ] **Repository Analysis Guide** - Completed
-- [ ] **Feature Request Workflow** - Completed
-- [ ] **Advanced Topics** (Coming Soon)
-
-## 🤝 Contributing
-
-We welcome contributions to improve these lessons! Please:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b lesson-improvement`)
-3. Make your changes and test thoroughly
-4. Submit a pull request with detailed description
-
-### Contribution Guidelines
-- Follow the existing lesson structure and format
-- Include practical examples and exercises
-- Test all code examples before submitting
-- Update this README if adding new lessons
-
-
-## 📄 License
-
-This lesson collection is licensed under the MIT License. See [LICENSE](../LICENSE) for details.
-
-## 🔄 Updates and Versioning
-
-- **Current Version:** 1.0.0
-- **Last Updated:** December 2024
-- **Next Update:** Q1 2025 (Advanced AI Agent Workflows)
-
-Check back regularly for new lessons and updates to existing content!
-
----
-
-**Ready to start learning?** Begin with [Lesson 01: GitHub MCP Streamlit Integration](./lesson-01-github-mcp-streamlit/) or explore the [Shared Resources](#-shared-resources) for specific topics.
+Then submit a PR describing the audience, promise, and key takeaways. Let’s grow a catalogue of agent learning experiences people love to attend.

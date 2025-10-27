@@ -1,6 +1,6 @@
 # Agent Playbook Catalog
 
-Every directory in `examples/` is a marketing-ready story. Use this catalog to pick the experience that best fits your audience, remix the scripts, and record your next demo or webinar.
+Every directory in `examples/` is a self-contained learning module. Use this catalog to pick a scenario, dissect how it works, and practice adapting the agent to your own data or workflows.
 
 ## Quick Picks
 - **Rapid Launchers** – [`basic_usage.py`](basic_usage.py), [`minimal-rag/`](minimal-rag/), [`enhanced_examples.py`](enhanced_examples.py)
@@ -11,17 +11,15 @@ Every directory in `examples/` is a marketing-ready story. Use this catalog to p
 
 ## How to Activate a Playbook
 1. **Clone the repo** and install dependencies (`pip install -e .[dev]`).
-2. **Open the example** folder, read the README or inline notes, and note the hero outcome you want to showcase.
-3. **Customize the narrative** – tweak prompts, copy, or UI labels so the story resonates with your audience.
-4. **Record or stream** – use Loom, Streamlit sharing, or live demos to capture the experience.
-5. **Share the assets** – drop screenshots, scripts, and recap notes into the repository so others can replicate the magic.
+2. **Open the example** folder, read the README or inline notes, and identify the skills you want to practice.
+3. **Run the scripts** – follow the setup steps, observe the agent flow, and inspect the telemetry that is generated.
+4. **Experiment** – tweak prompts, swap tools, or adjust workflows to see how the agent responds.
+5. **Share your learnings** – document what worked (and what didn’t) so future contributors can build on your insights.
 
 ## Contribute a New Playbook
 Create a folder named after the outcome (e.g., `ai-patient-intake-navigator/`). Include:
-- `README.md` describing the audience, promise, and success metrics
+- `README.md` describing the learning objective, prerequisites, and success criteria
 - Demo scripts or notebooks
-- Suggested social copy or launch blurb
+- Suggested follow-up exercises or variations for learners
 
-Then open a PR highlighting how the playbook fuels adoption or revenue, plus any telemetry dashboards that prove the impact.
-
-Need inspiration? Browse [awesome-llm-apps](https://github.com/Shubhamsaboo/awesome-llm-apps) for more storytelling angles and bring your favorites back here.
+Then open a PR highlighting the skills covered, datasets or APIs required, and telemetry dashboards that help learners validate their results.

@@ -2,7 +2,7 @@
 
 *Prefer the detailed syllabus view? See [`README.content.md`](README.content.md) in this folder.*
 
-Welcome to the programming calendar for team enablement. Each lesson is designed as a live workshop you can run for prospects, customers, or internal squads exploring agent-powered workflows.
+Welcome to the programming calendar for agent skill-building. Each lesson is designed as a live workshop or self-paced lab you can run for teammates, cohorts, or community groups exploring agent-powered workflows.
 
 ## Curriculum Highlights
 - **Lesson 01 · GitHub MCP + Streamlit** (`lesson-01-github-mcp-streamlit/`)
@@ -11,14 +11,14 @@ Welcome to the programming calendar for team enablement. Each lesson is designed
   - Assets: Slide deck prompts, feature request worksheet, demo checklist
 
 - **Shared Resources** (`shared/`)
-  - `repository-analysis-guide.md` – Use as your pre-read or leave-behind for technical audiences
-  - `feature-request-workflow.md` – Workshop script for guiding stakeholders from idea to shipped agent
+  - `repository-analysis-guide.md` – Use as a pre-read or follow-up reference for technical audiences
+  - `feature-request-workflow.md` – Workshop script for guiding learners from idea to shipped agent
 
 ## How to Run a Session
-1. **Align on the Hook** – Clarify who you are teaching (e.g., product marketers, solution engineers) and the aha moment you want them to share.
-2. **Prep the Assets** – Clone the repository, provision API keys, and print or share the worksheets from `shared/`.
+1. **Align on the Hook** – Clarify who you are teaching (e.g., product engineers, applied scientists) and the aha moment you want them to share.
+2. **Prep the Assets** – Clone the repository, provision API keys, and share the worksheets from `shared/`.
 3. **Tell the Story** – Narrate the business problem first, then walk through the agent build with code, telemetry, and outcomes.
-4. **Capture Proof** – Encourage participants to snapshot dashboards, reasoning logs, or Streamlit outputs for social recap posts.
+4. **Capture Proof** – Encourage participants to save dashboards, reasoning logs, or Streamlit outputs for review and reflection.
 5. **Package the Win** – Update this folder with tweaks, scripts, or new lesson directories so the next facilitator has the latest playbook.
 
 ## Prerequisites (Share Ahead of Time)

@@ -1,23 +1,23 @@
 # BMasterAI • Agent Learning Lab
 
-> Launch compelling AI agent experiences, showcase them like case studies, and teach your team how to ship with confidence.
+> Learn how to build, instrument, and ship AI agents through polished, real-world examples that you can run end to end.
 
 *Need the deep technical reference? Jump to [`README.content.md`](README.content.md).*
 
-BMasterAI reframes multi-agent development as a marketing-ready product studio. Instead of burying features in raw engineering docs, we surface real-world playbooks, storytelling assets, and telemetry hooks that help you promote every agent you build.
+BMasterAI reframes multi-agent development as a hands-on learning studio. Instead of burying features in raw engineering docs, we surface real-world playbooks, storytelling assets, and telemetry hooks that help you understand how production-grade agents come together.
 
 Whether you're new to agents or leveling up a team, every asset is designed to teach best practices while you ship polished experiences.
 
 ## Why Builders Choose BMasterAI
-- **Story-first blueprints** – Each example doubles as a mini campaign with positioning, value props, and demo scripts.
-- **Telemetry-ready agents** – Track outcomes, reasoning, and costs out of the box so your marketing and product teams can brag with data.
+- **Story-first blueprints** – Each example pairs code with narrative context so you can see how an agent solves a real problem.
+- **Telemetry-ready agents** – Track outcomes, reasoning, and costs out of the box to learn how production monitoring is done.
 - **Enterprise-ready launchpad** – From laptop experiments to Kubernetes rollouts, the same agents scale without rework.
 
 ## Pick Your Learning Track
 - **Start Fast** → `docs/getting-started.md`, `lessons/` walkthroughs, and `examples/basic_usage.py` get a chatbot live in minutes.
 - **Build Skills** → follow the `lessons/` workshops and remix prompts inside `examples/` folders to learn agent patterns hands-on.
-- **Ship Experiences** → `examples/` catalog curates industry narratives (finance, real estate, growth) you can customize for demos.
-- **Scale the Story** → `k8s/`, `helm/`, and telemetry packages show how to operate agents in production campaigns.
+- **Explore Scenarios** → the `examples/` catalog curates industry narratives (finance, real estate, growth) to study end-to-end flows.
+- **Scale the Story** → `k8s/`, `helm/`, and telemetry packages show how to operate agents in real deployments.
 
 ## Featured Agent Playbooks
 - **Launch in Minutes** – [`examples/basic_usage.py`](examples/basic_usage.py), [`examples/minimal-rag/`](examples/minimal-rag/), [`examples/enhanced_examples.py`](examples/enhanced_examples.py)
@@ -26,7 +26,7 @@ Whether you're new to agents or leveling up a team, every asset is designed to t
 - **Interactive Launch Assets** – [`examples/gemini-reasoning-streamlit/`](examples/gemini-reasoning-streamlit/), [`examples/mcp-github-streamlit/`](examples/mcp-github-streamlit/), [`examples/streamlit-app/`](examples/streamlit-app/)
 - **Operations & Telemetry** – [`examples/kubernetes-telemetry/`](examples/kubernetes-telemetry/), [`examples/agno-telemetry/`](examples/agno-telemetry/), [`bmasterai_telemetry/`](bmasterai_telemetry/)
 
-Use these playbooks as templates for blog posts, launch landing pages, webinars, or customer enablement decks. Each directory includes scripts, assets, or configs you can remix into your own campaign.
+Use these playbooks to study prompts, orchestration patterns, and telemetry practices. Rebuild them locally, experiment with your own data, then adapt the flows to your projects when you're ready.
 
 ## Getting Started
 ```bash
@@ -42,14 +42,14 @@ python examples/basic_usage.py
 Add telemetry (optional): `pytest --cov=src/bmasterai`, `python examples/reasoning_logging_example.py`, or stream data into the dashboards under `examples/kubernetes-telemetry/`.
 
 ## Build, Measure, Scale
-- **Document the story** – Update `docs/` with campaign briefs and customer journeys as you ship new agents.
+- **Document what you learn** – Update `docs/` with runbooks, troubleshooting notes, and walkthroughs for future learners.
 - **Instrument outcomes** – Use `src/bmasterai/logging.py` and `bmasterai_telemetry/` to capture success metrics and decision trails.
 - **Deploy with confidence** – Follow `README-k8s.md` and `docs/kubernetes-deployment.md` to graduate from demo to production.
 
-## Join the Campaign
-We welcome community stories, launch recaps, and new playbooks. Open a PR with:
-- A marketing-ready description of your agent
-- Screenshots, Looms, or Streamlit share links
-- Lessons learned so others can replicate your win
+## Share What You Discover
+We welcome new tutorials, walkthroughs, and refined playbooks. Open a PR with:
+- A clear learning objective for the agent or workflow
+- Screenshots, Looms, or Streamlit share links that reinforce the lesson
+- Lessons learned so others can replicate (or extend) your approach
 
-Let’s build the go-to showcase of AI agent excellence—one playbook at a time.
+Let’s build the go-to showcase for learning AI agent excellence—one playbook at a time.

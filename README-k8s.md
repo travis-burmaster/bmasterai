@@ -2,12 +2,12 @@
 
 *Need the full infrastructure breakdown? See [`README-k8s.content.md`](README-k8s.content.md).*
 
-> Turn your winning demos into always-on experiences. This guide shows how to deploy BMasterAI on Amazon EKS so marketing, product, and ops teams stay in sync.
+> Turn your hands-on demos into always-on experiences. This guide shows how to deploy BMasterAI on Amazon EKS so learners see what production looks like.
 
 ## Why Take It to the Cloud?
-- **Campaign uptime:** Keep flagship agents live for trials, events, or customer pilots.
-- **Scalable storytelling:** Auto-scale pods so surging traffic never cuts the narrative short.
-- **Proof with telemetry:** Ship the same reasoning logs and cost metrics your launch team shares in recaps.
+- **Realistic practice:** Keep flagship agents live for trials, workshops, or internal labs.
+- **Scalable operations:** Auto-scale pods so surging traffic never interrupts hands-on experimentation.
+- **Proof with telemetry:** Share the same reasoning logs and cost metrics that matter in production.
 
 ## Fast-Track Checklist
 1. **Prep your runway** – Install AWS CLI, `eksctl`, `kubectl`, Helm 3, and Docker.

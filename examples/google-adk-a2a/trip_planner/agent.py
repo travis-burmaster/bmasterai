@@ -8,7 +8,7 @@ from typing import Optional
 from dotenv import load_dotenv
 from google.adk.agents import LlmAgent
 # A2A Imports
-from a2a.client import A2ACardResolver, A2AClient
+from a2a.client import A2ACardResolver, ClientConfig, ClientFactory
 from a2a.types import (
     DataPart,
     GetTaskRequest,
@@ -99,28 +99,34 @@ async def call_weather_agent(query: str) -> str:
             resolver = A2ACardResolver(httpx_client=http_client, base_url=WEATHER_AGENT_URL)
             agent_card = await resolver.get_agent_card()
             
-            # 2. Create Client
-            client = A2AClient(httpx_client=http_client, agent_card=agent_card)
+            # 2. Create Client using ClientFactory
+            config = ClientConfig(httpx_client=http_client)
+            client = ClientFactory(config).create(agent_card)
             
-            # 3. Send Message
-            payload = {
-                "message": {
-                    "role": "user",
-                    "parts": [{"kind": "text", "text": query}],
-                    "messageId": uuid.uuid4().hex,
-                }
-            }
-            
-            request = SendMessageRequest(
-                id=str(uuid.uuid4()), 
-                params=MessageSendParams(**payload)
+            # 3. Send Message and handle AsyncIterator
+            # Note: SendMessageRequest isn't strictly needed for the new client, we can send a Message
+            message_request = Message(
+                role="user",
+                parts=[TextPart(text=query)],
+                messageId=uuid.uuid4().hex,
             )
             
-            response = await client.send_message(request)
+            # send_message returns an AsyncIterator[ClientEvent | Message]
+            response_stream = client.send_message(message_request)
+            
+            # Extract the first event (Task or Message)
+            async for first_event in response_stream:
+                # first_event could be a Message OR a ClientEvent (Task, UpdateEvent)
+                if isinstance(first_event, Message):
+                    result = first_event
+                else:
+                    # It's a ClientEvent tuple: (Task, UpdateEvent)
+                    result = first_event[0]
+                break
+            else:
+                return "Weather Agent did not return any response."
 
-            if isinstance(response.root, SendMessageSuccessResponse):
-                result = response.root.result
-
+            if result:
                 if isinstance(result, Task):
                     # Poll for completion
                     task_id = result.id
@@ -142,12 +148,8 @@ async def call_weather_agent(query: str) -> str:
                         await asyncio.sleep(1.0)
                         
                         # Refresh task
-                        get_task_req = GetTaskRequest(id=str(uuid.uuid4()), params=TaskIdParams(id=task_id))
-                        get_task_response = await client.get_task(get_task_req)
-                        
-                        if get_task_response.is_error:
-                             return f"Error polling task {task_id}: {get_task_response.error}"
-                        result = get_task_response.root
+                        get_task_response = await client.get_task(TaskIdParams(id=task_id))
+                        result = get_task_response
                     
                     return f"Timeout waiting for Weather Agent task {task_id} to complete."
 
@@ -157,7 +159,7 @@ async def call_weather_agent(query: str) -> str:
                         return text
                     return "Weather Agent responded, but no readable content was returned."
 
-            return f"Failed to get successful response from Weather Agent. Response: {response}"
+            return f"Failed to get successful response from Weather Agent."
 
     except Exception as e:
         logger.logger.error(f"❌ Error calling Weather Agent: {e}")
@@ -175,7 +177,7 @@ SYSTEM_INSTRUCTION = (
 # Wrapper for ADK Tool not needed if passing function directly
 
     
-trip_planner = LlmAgent(
+root_agent = LlmAgent(
     model="gemini-2.5-flash",
     name="trip_planner",
     description="Plans trips based on weather.",

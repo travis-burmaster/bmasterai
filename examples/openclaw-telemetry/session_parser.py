@@ -1,6 +1,8 @@
 """
 OpenClaw Session Parser
 Parses OpenClaw JSONL session files and extracts telemetry data
+
+Enhanced with BMasterAI monitoring and alerting
 """
 
 import json
@@ -10,11 +12,39 @@ from datetime import datetime
 from typing import Dict, List, Any
 import sqlite3
 
+# BMasterAI integration
+try:
+    from bmasterai import configure_logging, get_logger, get_monitor, EventType, LogLevel
+    BMASTERAI_AVAILABLE = True
+except ImportError:
+    BMASTERAI_AVAILABLE = False
+    print("⚠️ bmasterai not installed. Install with: pip install bmasterai==0.2.1")
+
 
 class OpenClawSessionParser:
-    def __init__(self, sessions_dir: str, db_path: str = "openclaw_telemetry.db"):
+    def __init__(self, sessions_dir: str, db_path: str = "openclaw_telemetry.db", 
+                 enable_bmasterai: bool = True):
         self.sessions_dir = Path(sessions_dir)
         self.db_path = db_path
+        self.enable_bmasterai = enable_bmasterai and BMASTERAI_AVAILABLE
+        
+        # Initialize BMasterAI if available
+        if self.enable_bmasterai:
+            self.logger = configure_logging(
+                log_level=LogLevel.INFO,
+                log_file="openclaw_telemetry.log",
+                json_log_file="openclaw_telemetry.jsonl"
+            )
+            self.monitor = get_monitor()
+            self.monitor.start_monitoring()
+            
+            # Configure alert rules
+            self._setup_alerts()
+            print("✅ BMasterAI monitoring enabled")
+        else:
+            self.logger = None
+            self.monitor = None
+        
         self.init_database()
     
     def init_database(self):
@@ -77,6 +107,91 @@ class OpenClawSessionParser:
         
         conn.commit()
         conn.close()
+    
+    def _setup_alerts(self):
+        """Configure BMasterAI alert rules"""
+        if not self.enable_bmasterai:
+            return
+        
+        # Note: Alert rules require bmasterai >=0.2.1
+        # For now, we'll track metrics and check thresholds manually
+        try:
+            # Alert if session cost exceeds $1
+            self.monitor.add_alert_rule(
+                name="high_session_cost",
+                metric="session_cost",
+                condition="greater_than",
+                threshold=1.0,
+                notification_channels=["console"]
+            )
+            
+            # Alert if token rate is very high (>20k tokens in a session)
+            self.monitor.add_alert_rule(
+                name="high_token_usage",
+                metric="session_total_tokens",
+                condition="greater_than",
+                threshold=20000,
+                notification_channels=["console"]
+            )
+        except AttributeError:
+            # Older version of bmasterai doesn't support alert rules
+            pass
+    
+    def _record_bmasterai_metrics(self, session_data: Dict[str, Any]):
+        """Record custom metrics to BMasterAI monitor"""
+        if not self.enable_bmasterai:
+            return
+        
+        try:
+            totals = session_data['totals']
+            labels = {
+                "session_id": session_data['session_id'],
+                "model": session_data['model'] or "unknown",
+                "provider": session_data['provider'] or "unknown"
+            }
+            
+            # Only record if the method exists (bmasterai >=0.2.1)
+            if hasattr(self.monitor, 'record_custom_metric'):
+                # Record session-level metrics
+                self.monitor.record_custom_metric(
+                    "session_total_tokens",
+                    totals['total_tokens'],
+                    labels
+                )
+                
+                self.monitor.record_custom_metric(
+                    "session_cost",
+                    totals['cost'],
+                    labels
+                )
+                
+                self.monitor.record_custom_metric(
+                    "session_tool_calls",
+                    totals['tool_call_count'],
+                    labels
+                )
+                
+                # Calculate cache hit rate
+                total_tokens = totals['input_tokens'] + totals['output_tokens']
+                if total_tokens > 0:
+                    cache_hit_rate = totals['cache_read_tokens'] / total_tokens
+                    self.monitor.record_custom_metric(
+                        "cache_hit_rate",
+                        cache_hit_rate,
+                        labels
+                    )
+                
+                # Calculate cost efficiency (tokens per dollar)
+                if totals['cost'] > 0:
+                    tokens_per_dollar = totals['total_tokens'] / totals['cost']
+                    self.monitor.record_custom_metric(
+                        "tokens_per_dollar",
+                        tokens_per_dollar,
+                        labels
+                    )
+        except Exception as e:
+            # Silently fail if bmasterai API doesn't match
+            pass
     
     def parse_session_file(self, session_file: Path) -> Dict[str, Any]:
         """Parse a single session JSONL file"""
@@ -231,6 +346,33 @@ class OpenClawSessionParser:
         
         conn.commit()
         conn.close()
+        
+        # Record BMasterAI metrics
+        self._record_bmasterai_metrics(session_data)
+    
+    def get_bmasterai_alerts(self):
+        """Get active alerts from BMasterAI monitor"""
+        if not self.enable_bmasterai:
+            return []
+        
+        try:
+            if hasattr(self.monitor, 'get_active_alerts'):
+                return self.monitor.get_active_alerts()
+        except:
+            pass
+        return []
+    
+    def get_bmasterai_metrics(self, metric_name: str, duration_minutes: int = 60):
+        """Get metric statistics from BMasterAI monitor"""
+        if not self.enable_bmasterai:
+            return {}
+        
+        try:
+            if hasattr(self.monitor, 'get_metric_stats'):
+                return self.monitor.get_metric_stats(metric_name, duration_minutes)
+        except:
+            pass
+        return {}
     
     def scan_all_sessions(self):
         """Scan all session files in the sessions directory"""
@@ -246,6 +388,31 @@ class OpenClawSessionParser:
                 print(f"Error processing {session_file.name}: {e}")
         
         print(f"✅ Processed {len(session_files)} sessions")
+        
+        # Show BMasterAI summary if enabled
+        if self.enable_bmasterai:
+            print("\n📊 BMasterAI Metrics Summary:")
+            
+            # Get active alerts
+            alerts = self.get_bmasterai_alerts()
+            if alerts:
+                print(f"   🚨 Active Alerts: {len(alerts)}")
+                for alert in alerts:
+                    print(f"      - {alert['name']}: {alert.get('message', 'N/A')}")
+            else:
+                print("   ✅ No active alerts")
+            
+            # Show some key metrics
+            metrics_to_show = [
+                ("session_cost", "Session Cost"),
+                ("session_total_tokens", "Total Tokens"),
+                ("cache_hit_rate", "Cache Hit Rate")
+            ]
+            
+            for metric_name, display_name in metrics_to_show:
+                stats = self.get_bmasterai_metrics(metric_name)
+                if stats:
+                    print(f"   {display_name}: avg={stats.get('avg', 0):.2f}, max={stats.get('max', 0):.2f}")
 
 
 if __name__ == "__main__":

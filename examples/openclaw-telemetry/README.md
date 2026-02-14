@@ -60,6 +60,25 @@ Without observability, costs can spiral and performance issues go unnoticed. Thi
   - Per-session token and cost data
   - Cron job and sub-agent tracking
 
+### 🚨 BMasterAI Integration (Enhanced Dashboard Only)
+
+- **Alert System**
+  - Real-time notifications for cost/token thresholds
+  - Color-coded severity levels (info, warning, critical)
+  - Alert rules: high session cost (>$1), high token usage (>100k)
+  
+- **Custom Metrics**
+  - Session cost statistics (mean, max, percentiles)
+  - Token efficiency tracking (tokens per dollar)
+  - Cache hit rate monitoring
+  - Time-windowed metric aggregation (15min to 24hr)
+
+- **Enterprise Observability**
+  - Structured logging with JSON format
+  - Performance monitoring with custom metrics
+  - Alert rule configuration
+  - Graceful degradation (works with bmasterai 0.2.0+)
+
 ### 🎯 Time Filtering
 
 - **All Time** - Complete historical data
@@ -184,11 +203,23 @@ Processing 2/26: 3f27bc67-0933-47e7-a199-73743ff295f3.jsonl
 
 ### 5. Launch Dashboard
 
+**Option A: Basic Dashboard** (lightweight, no bmasterai dependency)
 ```bash
 streamlit run dashboard.py
 ```
 
+**Option B: Enhanced Dashboard** (with bmasterai metrics & alerts)
+```bash
+streamlit run dashboard_enhanced.py
+```
+
 Dashboard opens at: **http://localhost:8501**
+
+The enhanced dashboard adds:
+- ⚠️ Real-time alert notifications for cost/token thresholds
+- 📈 BMasterAI custom metrics (session cost, tokens, cache hit rate, efficiency)
+- 📊 Time-windowed metric statistics (15min, 1hr, 24hr)
+- 🔔 Alert rule visualization
 
 ### 6. (Optional) Use Launch Script
 

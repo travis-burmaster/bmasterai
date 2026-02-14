@@ -26,6 +26,13 @@ chmod +x start.sh
 
 That's it! The dashboard will open at **http://localhost:8501**
 
+**Want enhanced bmasterai features?** Run the enhanced dashboard instead:
+```bash
+streamlit run dashboard_enhanced.py
+```
+
+The enhanced version adds alert notifications, custom metrics, and time-windowed statistics.
+
 ## What You'll See
 
 ### Overview Metrics (Top Row)

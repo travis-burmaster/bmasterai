@@ -24,7 +24,7 @@ Whether you're new to agents or leveling up a team, every asset is designed to t
 - **Industry Spotlights** – [`examples/ai-real-estate-agent-team/`](examples/ai-real-estate-agent-team/), [`examples/ai-stock-research-agent/`](examples/ai-stock-research-agent/), [`examples/ai-sports_betting_analysis/`](examples/ai-sports_betting_analysis/)
 - **Executive Insights** – [`examples/ai-stress-linkedin-reasoning/`](examples/ai-stress-linkedin-reasoning/), [`examples/reasoning_logging_example.py`](examples/reasoning_logging_example.py)
 - **Interactive Launch Assets** – [`examples/gemini-reasoning-streamlit/`](examples/gemini-reasoning-streamlit/), [`examples/mcp-github-streamlit/`](examples/mcp-github-streamlit/), [`examples/streamlit-app/`](examples/streamlit-app/)
-- **Operations & Telemetry** – [`examples/kubernetes-telemetry/`](examples/kubernetes-telemetry/), [`examples/agno-telemetry/`](examples/agno-telemetry/), [`bmasterai_telemetry/`](bmasterai_telemetry/)
+- **Operations & Telemetry** – [`examples/kubernetes-telemetry/`](examples/kubernetes-telemetry/), [`examples/agno-telemetry/`](examples/agno-telemetry/), [`examples/openclaw-telemetry/`](examples/openclaw-telemetry/) (OpenClaw AI agent observability), [`bmasterai_telemetry/`](bmasterai_telemetry/)
 
 Use these playbooks to study prompts, orchestration patterns, and telemetry practices. Rebuild them locally, experiment with your own data, then adapt the flows to your projects when you're ready.
 

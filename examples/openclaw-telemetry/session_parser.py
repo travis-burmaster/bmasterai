@@ -1,0 +1,256 @@
+"""
+OpenClaw Session Parser
+Parses OpenClaw JSONL session files and extracts telemetry data
+"""
+
+import json
+import os
+from pathlib import Path
+from datetime import datetime
+from typing import Dict, List, Any
+import sqlite3
+
+
+class OpenClawSessionParser:
+    def __init__(self, sessions_dir: str, db_path: str = "openclaw_telemetry.db"):
+        self.sessions_dir = Path(sessions_dir)
+        self.db_path = db_path
+        self.init_database()
+    
+    def init_database(self):
+        """Initialize SQLite database for telemetry storage"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        # Sessions table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS sessions (
+                session_id TEXT PRIMARY KEY,
+                start_time TEXT,
+                end_time TEXT,
+                model TEXT,
+                provider TEXT,
+                thinking_level TEXT,
+                total_messages INTEGER DEFAULT 0,
+                total_tool_calls INTEGER DEFAULT 0,
+                total_input_tokens INTEGER DEFAULT 0,
+                total_output_tokens INTEGER DEFAULT 0,
+                total_cache_read_tokens INTEGER DEFAULT 0,
+                total_cache_write_tokens INTEGER DEFAULT 0,
+                total_cost REAL DEFAULT 0.0
+            )
+        """)
+        
+        # Messages table (for timeline)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS messages (
+                id TEXT PRIMARY KEY,
+                session_id TEXT,
+                timestamp TEXT,
+                role TEXT,
+                message_type TEXT,
+                model TEXT,
+                provider TEXT,
+                input_tokens INTEGER DEFAULT 0,
+                output_tokens INTEGER DEFAULT 0,
+                cache_read_tokens INTEGER DEFAULT 0,
+                cache_write_tokens INTEGER DEFAULT 0,
+                total_tokens INTEGER DEFAULT 0,
+                cost REAL DEFAULT 0.0,
+                stop_reason TEXT,
+                FOREIGN KEY (session_id) REFERENCES sessions(session_id)
+            )
+        """)
+        
+        # Tool calls table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS tool_calls (
+                id TEXT PRIMARY KEY,
+                session_id TEXT,
+                message_id TEXT,
+                timestamp TEXT,
+                tool_name TEXT,
+                FOREIGN KEY (session_id) REFERENCES sessions(session_id),
+                FOREIGN KEY (message_id) REFERENCES messages(id)
+            )
+        """)
+        
+        conn.commit()
+        conn.close()
+    
+    def parse_session_file(self, session_file: Path) -> Dict[str, Any]:
+        """Parse a single session JSONL file"""
+        session_id = session_file.stem
+        
+        session_data = {
+            "session_id": session_id,
+            "start_time": None,
+            "end_time": None,
+            "model": None,
+            "provider": None,
+            "thinking_level": None,
+            "messages": [],
+            "tool_calls": [],
+            "totals": {
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "cache_read_tokens": 0,
+                "cache_write_tokens": 0,
+                "total_tokens": 0,
+                "cost": 0.0,
+                "message_count": 0,
+                "tool_call_count": 0
+            }
+        }
+        
+        with open(session_file, 'r') as f:
+            for line in f:
+                try:
+                    event = json.loads(line)
+                    event_type = event.get('type')
+                    
+                    # Session metadata
+                    if event_type == 'session':
+                        session_data['start_time'] = event.get('timestamp')
+                    
+                    elif event_type == 'model_change':
+                        session_data['provider'] = event.get('provider')
+                        session_data['model'] = event.get('modelId')
+                    
+                    elif event_type == 'thinking_level_change':
+                        session_data['thinking_level'] = event.get('thinkingLevel')
+                    
+                    # Messages with usage data
+                    elif event_type == 'message':
+                        msg = event.get('message', {})
+                        usage = msg.get('usage', {})
+                        
+                        if usage:  # Only track assistant messages with usage
+                            message_data = {
+                                "id": event.get('id'),
+                                "session_id": session_id,
+                                "timestamp": event.get('timestamp'),
+                                "role": msg.get('role'),
+                                "message_type": event_type,
+                                "model": msg.get('model'),
+                                "provider": msg.get('provider'),
+                                "input_tokens": usage.get('input', 0),
+                                "output_tokens": usage.get('output', 0),
+                                "cache_read_tokens": usage.get('cacheRead', 0),
+                                "cache_write_tokens": usage.get('cacheWrite', 0),
+                                "total_tokens": usage.get('totalTokens', 0),
+                                "cost": usage.get('cost', {}).get('total', 0.0),
+                                "stop_reason": msg.get('stopReason')
+                            }
+                            
+                            session_data['messages'].append(message_data)
+                            session_data['end_time'] = event.get('timestamp')
+                            
+                            # Update totals
+                            session_data['totals']['input_tokens'] += message_data['input_tokens']
+                            session_data['totals']['output_tokens'] += message_data['output_tokens']
+                            session_data['totals']['cache_read_tokens'] += message_data['cache_read_tokens']
+                            session_data['totals']['cache_write_tokens'] += message_data['cache_write_tokens']
+                            session_data['totals']['total_tokens'] += message_data['total_tokens']
+                            session_data['totals']['cost'] += message_data['cost']
+                            session_data['totals']['message_count'] += 1
+                            
+                            # Extract tool calls from content
+                            content = msg.get('content', [])
+                            for item in content:
+                                if isinstance(item, dict) and item.get('type') == 'toolCall':
+                                    tool_call = {
+                                        "id": item.get('id'),
+                                        "session_id": session_id,
+                                        "message_id": event.get('id'),
+                                        "timestamp": event.get('timestamp'),
+                                        "tool_name": item.get('name')
+                                    }
+                                    session_data['tool_calls'].append(tool_call)
+                                    session_data['totals']['tool_call_count'] += 1
+                
+                except json.JSONDecodeError:
+                    continue
+        
+        return session_data
+    
+    def save_to_database(self, session_data: Dict[str, Any]):
+        """Save parsed session data to database"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        # Insert or update session
+        cursor.execute("""
+            INSERT OR REPLACE INTO sessions 
+            (session_id, start_time, end_time, model, provider, thinking_level,
+             total_messages, total_tool_calls, total_input_tokens, total_output_tokens,
+             total_cache_read_tokens, total_cache_write_tokens, total_cost)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            session_data['session_id'],
+            session_data['start_time'],
+            session_data['end_time'],
+            session_data['model'],
+            session_data['provider'],
+            session_data['thinking_level'],
+            session_data['totals']['message_count'],
+            session_data['totals']['tool_call_count'],
+            session_data['totals']['input_tokens'],
+            session_data['totals']['output_tokens'],
+            session_data['totals']['cache_read_tokens'],
+            session_data['totals']['cache_write_tokens'],
+            session_data['totals']['cost']
+        ))
+        
+        # Insert messages
+        for msg in session_data['messages']:
+            cursor.execute("""
+                INSERT OR REPLACE INTO messages
+                (id, session_id, timestamp, role, message_type, model, provider,
+                 input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
+                 total_tokens, cost, stop_reason)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                msg['id'], msg['session_id'], msg['timestamp'], msg['role'],
+                msg['message_type'], msg['model'], msg['provider'],
+                msg['input_tokens'], msg['output_tokens'], msg['cache_read_tokens'],
+                msg['cache_write_tokens'], msg['total_tokens'], msg['cost'],
+                msg['stop_reason']
+            ))
+        
+        # Insert tool calls
+        for tool in session_data['tool_calls']:
+            cursor.execute("""
+                INSERT OR REPLACE INTO tool_calls
+                (id, session_id, message_id, timestamp, tool_name)
+                VALUES (?, ?, ?, ?, ?)
+            """, (
+                tool['id'], tool['session_id'], tool['message_id'],
+                tool['timestamp'], tool['tool_name']
+            ))
+        
+        conn.commit()
+        conn.close()
+    
+    def scan_all_sessions(self):
+        """Scan all session files in the sessions directory"""
+        print(f"Scanning sessions in {self.sessions_dir}...")
+        session_files = list(self.sessions_dir.glob("*.jsonl"))
+        
+        for idx, session_file in enumerate(session_files, 1):
+            print(f"Processing {idx}/{len(session_files)}: {session_file.name}")
+            try:
+                session_data = self.parse_session_file(session_file)
+                self.save_to_database(session_data)
+            except Exception as e:
+                print(f"Error processing {session_file.name}: {e}")
+        
+        print(f"✅ Processed {len(session_files)} sessions")
+
+
+if __name__ == "__main__":
+    # Default OpenClaw sessions directory
+    sessions_dir = "/home/tadmin/.openclaw/agents/main/sessions"
+    
+    parser = OpenClawSessionParser(sessions_dir)
+    parser.scan_all_sessions()

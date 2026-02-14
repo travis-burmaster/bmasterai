@@ -1,6 +1,6 @@
 """
 OpenClaw Telemetry Dashboard
-Real-time observability dashboard for OpenClaw LLM usage
+Real-time observability dashboard for OpenClaw LLM usage with bmasterai integration
 """
 
 import streamlit as st
@@ -12,6 +12,7 @@ import sqlite3
 from datetime import datetime, timedelta
 import time
 from pathlib import Path
+from session_parser import SessionParser
 
 
 # Page config
@@ -53,10 +54,27 @@ st.markdown("""
 class OpenClawDashboard:
     def __init__(self, db_path: str = "openclaw_telemetry.db"):
         self.db_path = db_path
+        self.parser = SessionParser(db_path)
     
     def get_connection(self):
         """Create database connection"""
         return sqlite3.connect(self.db_path)
+    
+    def get_bmasterai_alerts(self):
+        """Get active bmasterai alerts"""
+        try:
+            return self.parser.get_bmasterai_alerts()
+        except Exception as e:
+            st.warning(f"Could not fetch bmasterai alerts: {e}")
+            return []
+    
+    def get_bmasterai_metrics(self, metric_name: str, duration_minutes: int = 60):
+        """Get bmasterai custom metrics"""
+        try:
+            return self.parser.get_bmasterai_metrics(metric_name, duration_minutes)
+        except Exception as e:
+            st.warning(f"Could not fetch metric {metric_name}: {e}")
+            return None
     
     def get_overview_metrics(self, time_filter: str = "all"):
         """Get high-level overview metrics"""
@@ -233,6 +251,23 @@ def main():
     # Get overview metrics
     metrics = dashboard.get_overview_metrics(time_filter)
     
+    # BMasterAI Alerts Section
+    alerts = dashboard.get_bmasterai_alerts()
+    if alerts:
+        st.warning("⚠️ **Active Alerts**")
+        for alert in alerts:
+            alert_type = alert.get('type', 'unknown')
+            message = alert.get('message', 'No message')
+            severity = alert.get('severity', 'info')
+            
+            # Color code by severity
+            if severity == 'critical':
+                st.error(f"🔴 **{alert_type}**: {message}")
+            elif severity == 'warning':
+                st.warning(f"🟡 **{alert_type}**: {message}")
+            else:
+                st.info(f"🔵 **{alert_type}**: {message}")
+    
     # Overview metrics row
     st.subheader("📊 Overview")
     col1, col2, col3, col4 = st.columns(4)
@@ -281,6 +316,74 @@ def main():
     
     with col4:
         st.metric("Cache Write", f"{int(metrics.get('total_cache_write_tokens', 0)):,}")
+    
+    # BMasterAI Custom Metrics Section
+    st.subheader("📈 BMasterAI Custom Metrics")
+    
+    metric_duration = st.selectbox(
+        "Metric Time Window",
+        [15, 30, 60, 120, 1440],
+        index=2,
+        format_func=lambda x: f"Last {x} minutes" if x < 1440 else "Last 24 hours"
+    )
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        cost_stats = dashboard.get_bmasterai_metrics("session_cost", metric_duration)
+        if cost_stats:
+            avg_cost = cost_stats.get('mean', 0)
+            max_cost = cost_stats.get('max', 0)
+            st.metric(
+                "Avg Session Cost",
+                f"${avg_cost:.4f}",
+                delta=f"Max: ${max_cost:.4f}",
+                help="Average cost per session in selected time window"
+            )
+        else:
+            st.metric("Avg Session Cost", "N/A")
+    
+    with col2:
+        token_stats = dashboard.get_bmasterai_metrics("total_tokens", metric_duration)
+        if token_stats:
+            avg_tokens = int(token_stats.get('mean', 0))
+            max_tokens = int(token_stats.get('max', 0))
+            st.metric(
+                "Avg Tokens/Session",
+                f"{avg_tokens:,}",
+                delta=f"Max: {max_tokens:,}",
+                help="Average tokens per session"
+            )
+        else:
+            st.metric("Avg Tokens/Session", "N/A")
+    
+    with col3:
+        cache_stats = dashboard.get_bmasterai_metrics("cache_hit_rate", metric_duration)
+        if cache_stats:
+            avg_cache = cache_stats.get('mean', 0) * 100
+            max_cache = cache_stats.get('max', 0) * 100
+            st.metric(
+                "Avg Cache Hit Rate",
+                f"{avg_cache:.1f}%",
+                delta=f"Max: {max_cache:.1f}%",
+                help="Percentage of tokens served from cache"
+            )
+        else:
+            st.metric("Avg Cache Hit Rate", "N/A")
+    
+    with col4:
+        efficiency_stats = dashboard.get_bmasterai_metrics("tokens_per_dollar", metric_duration)
+        if efficiency_stats:
+            avg_eff = int(efficiency_stats.get('mean', 0))
+            max_eff = int(efficiency_stats.get('max', 0))
+            st.metric(
+                "Token Efficiency",
+                f"{avg_eff:,} tok/$",
+                delta=f"Max: {max_eff:,}",
+                help="Tokens per dollar spent (higher is better)"
+            )
+        else:
+            st.metric("Token Efficiency", "N/A")
     
     # Charts row
     col1, col2 = st.columns(2)
@@ -408,7 +511,8 @@ def main():
     st.markdown("---")
     st.markdown("""
     <div style='text-align: center; color: #666; font-size: 0.9rem;'>
-        <p>OpenClaw Telemetry Dashboard | Powered by bmasterai telemetry concepts</p>
+        <p>OpenClaw Telemetry Dashboard | Powered by <a href="https://github.com/travis-burmaster/bmasterai" target="_blank">bmasterai</a> observability framework</p>
+        <p style='font-size: 0.8rem; margin-top: 0.5rem;'>Enterprise-grade monitoring • Custom metrics • Alert rules • Real-time insights</p>
     </div>
     """, unsafe_allow_html=True)
 

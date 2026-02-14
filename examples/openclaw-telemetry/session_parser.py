@@ -100,6 +100,7 @@ class OpenClawSessionParser:
                 message_id TEXT,
                 timestamp TEXT,
                 tool_name TEXT,
+                parameters TEXT,
                 FOREIGN KEY (session_id) REFERENCES sessions(session_id),
                 FOREIGN KEY (message_id) REFERENCES messages(id)
             )
@@ -274,12 +275,17 @@ class OpenClawSessionParser:
                             content = msg.get('content', [])
                             for item in content:
                                 if isinstance(item, dict) and item.get('type') == 'toolCall':
+                                    # Serialize parameters as JSON (OpenClaw uses "arguments" field)
+                                    params = item.get('arguments', {})
+                                    params_json = json.dumps(params) if params else None
+                                    
                                     tool_call = {
                                         "id": item.get('id'),
                                         "session_id": session_id,
                                         "message_id": event.get('id'),
                                         "timestamp": event.get('timestamp'),
-                                        "tool_name": item.get('name')
+                                        "tool_name": item.get('name'),
+                                        "parameters": params_json
                                     }
                                     session_data['tool_calls'].append(tool_call)
                                     session_data['totals']['tool_call_count'] += 1
@@ -337,11 +343,11 @@ class OpenClawSessionParser:
         for tool in session_data['tool_calls']:
             cursor.execute("""
                 INSERT OR REPLACE INTO tool_calls
-                (id, session_id, message_id, timestamp, tool_name)
-                VALUES (?, ?, ?, ?, ?)
+                (id, session_id, message_id, timestamp, tool_name, parameters)
+                VALUES (?, ?, ?, ?, ?, ?)
             """, (
                 tool['id'], tool['session_id'], tool['message_id'],
-                tool['timestamp'], tool['tool_name']
+                tool['timestamp'], tool['tool_name'], tool.get('parameters')
             ))
         
         conn.commit()
@@ -373,6 +379,51 @@ class OpenClawSessionParser:
         except:
             pass
         return {}
+    
+    def get_exec_history(self, limit: int = 100):
+        """Get history of all exec command calls with parameters"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        query = """
+            SELECT 
+                t.timestamp,
+                t.session_id,
+                s.model,
+                t.parameters
+            FROM tool_calls t
+            LEFT JOIN sessions s ON t.session_id = s.session_id
+            WHERE t.tool_name = 'exec'
+            ORDER BY t.timestamp DESC
+            LIMIT ?
+        """
+        
+        cursor.execute(query, (limit,))
+        results = []
+        
+        for row in cursor.fetchall():
+            timestamp, session_id, model, params_json = row
+            
+            # Parse parameters JSON
+            command = None
+            if params_json:
+                try:
+                    params = json.loads(params_json)
+                    command = params.get('command', 'N/A')
+                except:
+                    command = 'Error parsing params'
+            else:
+                command = 'No params stored'
+            
+            results.append({
+                'timestamp': timestamp,
+                'session_id': session_id[:8] + '...' if session_id else 'N/A',
+                'model': model or 'N/A',
+                'command': command
+            })
+        
+        conn.close()
+        return results
     
     def scan_all_sessions(self):
         """Scan all session files in the sessions directory"""

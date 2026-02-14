@@ -91,6 +91,12 @@ class OpenClawDashboard:
             return self.parser.get_bmasterai_metrics(metric_name, duration_minutes)
         return {}
     
+    def get_exec_history(self, limit=100):
+        """Get exec command history"""
+        if self.parser and hasattr(self.parser, 'get_exec_history'):
+            return self.parser.get_exec_history(limit)
+        return []
+    
     def get_overview_metrics(self, time_filter: str = "all"):
         """Get high-level overview metrics"""
         conn = self.get_connection()
@@ -460,7 +466,7 @@ def main():
         show_alerts_panel(dashboard)
     
     # Tab navigation
-    tabs = st.tabs(["📊 Overview", "🧠 BMasterAI Metrics", "🤖 Model Analytics", "🕐 Recent Activity"])
+    tabs = st.tabs(["📊 Overview", "🧠 BMasterAI Metrics", "🤖 Model Analytics", "🕐 Recent Activity", "⚡ Exec History"])
     
     # Tab 1: Overview (existing dashboard)
     with tabs[0]:
@@ -643,6 +649,102 @@ def main():
             )
         else:
             st.info("No recent sessions found")
+    
+    # Tab 5: Exec History
+    with tabs[4]:
+        st.header("⚡ Exec Command History")
+        st.markdown("Drill down into all bash commands executed by OpenClaw via the `exec` tool.")
+        
+        # Limit selector
+        col1, col2 = st.columns([3, 1])
+        with col2:
+            limit = st.selectbox("Show commands", [50, 100, 200, 500], index=1)
+        
+        # Get exec history
+        exec_history = dashboard.get_exec_history(limit=limit)
+        
+        if exec_history:
+            # Convert to DataFrame
+            df = pd.DataFrame(exec_history)
+            
+            # Add search filter
+            with col1:
+                search = st.text_input("🔍 Filter commands", placeholder="grep, git, cd, etc...")
+            
+            # Apply filter
+            if search:
+                df = df[df['command'].str.contains(search, case=False, na=False)]
+            
+            st.markdown(f"**Showing {len(df)} of {len(exec_history)} commands**")
+            
+            # Display table with enhanced formatting
+            st.dataframe(
+                df.rename(columns={
+                    'timestamp': 'Timestamp',
+                    'session_id': 'Session',
+                    'model': 'Model',
+                    'command': 'Command'
+                }),
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Command": st.column_config.TextColumn(
+                        "Command",
+                        width="large",
+                    ),
+                    "Timestamp": st.column_config.DatetimeColumn(
+                        "Timestamp",
+                        format="MMM DD, HH:mm:ss",
+                    )
+                }
+            )
+            
+            # Command statistics
+            st.markdown("---")
+            st.subheader("📊 Command Statistics")
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                total_commands = len(exec_history)
+                st.metric("Total Commands", f"{total_commands:,}")
+            
+            with col2:
+                # Top command prefixes (first word)
+                if not df.empty:
+                    commands = df['command'].str.split().str[0].value_counts()
+                    top_cmd = commands.index[0] if len(commands) > 0 else "N/A"
+                    st.metric("Most Common", top_cmd)
+            
+            with col3:
+                # Unique sessions
+                unique_sessions = df['session_id'].nunique()
+                st.metric("Sessions", unique_sessions)
+            
+            # Top commands chart
+            if not df.empty:
+                st.markdown("### Most Frequent Commands")
+                commands = df['command'].str.split().str[0].value_counts().head(10)
+                
+                fig = px.bar(
+                    x=commands.values,
+                    y=commands.index,
+                    orientation='h',
+                    labels={'x': 'Count', 'y': 'Command'},
+                    color=commands.values,
+                    color_continuous_scale='Purples'
+                )
+                fig.update_layout(height=400, showlegend=False)
+                fig.update_yaxes(categoryorder='total ascending')
+                st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("No exec command history found. Make sure the session parser has processed sessions with the updated schema.")
+            st.markdown("""
+            **To enable exec history tracking:**
+            1. Re-run the session parser: `python session_parser.py`
+            2. The parser will rebuild the database with parameter tracking
+            3. Refresh this dashboard to see command history
+            """)
     
     # Footer
     st.markdown("---")

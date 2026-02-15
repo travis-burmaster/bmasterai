@@ -16,7 +16,7 @@ with open("requirements.txt", "r", encoding="utf-8") as fh:
 
 setup(
     name="bmasterai",
-    version="0.2.1",
+    version="0.2.3",
     author="Travis Burmaster",
     author_email="travis@burmaster.com",
     description="A comprehensive Python framework for building multi-agent AI systems",

@@ -60,7 +60,7 @@ Without observability, costs can spiral and performance issues go unnoticed. Thi
   - Per-session token and cost data
   - Cron job and sub-agent tracking
 
-### 🚨 BMasterAI Integration (Enhanced Dashboard Only)
+### 🚨 BMasterAI Integration (Requires bmasterai>=0.2.3)
 
 - **Alert System**
   - Real-time notifications for cost/token thresholds
@@ -77,7 +77,7 @@ Without observability, costs can spiral and performance issues go unnoticed. Thi
   - Structured logging with JSON format
   - Performance monitoring with custom metrics
   - Alert rule configuration
-  - Graceful degradation (works with bmasterai 0.2.0+)
+  - Graceful degradation (works with bmasterai 0.2.0+, full metrics require 0.2.3+)
 
 ### 🎯 Time Filtering
 

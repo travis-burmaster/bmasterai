@@ -1,6 +1,6 @@
 # Requirements for BMasterAI examples
 # Core BMasterAI package with all its dependencies
-bmasterai>=0.2.1
+bmasterai>=0.2.3
 
 # Core dependencies (these come with bmasterai but listed for clarity)
 openai>=1.0.0

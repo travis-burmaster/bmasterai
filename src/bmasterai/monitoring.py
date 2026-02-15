@@ -349,6 +349,29 @@ class AgentMonitor:
             'recent_alerts': self.metrics_collector.get_recent_alerts(10)
         }
 
+    # Facade methods for easier access
+    def record_custom_metric(self, name: str, value: float, labels: Optional[Dict[str, str]] = None):
+        """Record a custom metric"""
+        self.metrics_collector.record_custom_metric(name, value, labels)
+        
+    def get_metric_stats(self, metric_name: str, duration_minutes: int = 60) -> Dict[str, float]:
+        """Get statistics for a specific metric"""
+        return self.metrics_collector.get_metric_stats(metric_name, duration_minutes)
+        
+    def add_alert_rule(self, name: str, metric: str, threshold: float, condition: str = 'greater_than', 
+                       notification_channels: list = None):
+        """Add an alert rule"""
+        # Map parameters to MetricsCollector.add_alert_rule
+        self.metrics_collector.add_alert_rule(
+            metric_name=metric,
+            threshold=threshold,
+            condition=condition
+        )
+        
+    def get_active_alerts(self) -> List[Dict[str, Any]]:
+        """Get active alerts"""
+        return self.metrics_collector.get_recent_alerts()
+
 # Global monitor instance
 _monitor_instance = None
 

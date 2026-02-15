@@ -91,6 +91,7 @@ class OpenClawDashboard:
         self.db_path = db_path
         self.parser = None
         self.parser_error = None
+        self.metrics_populated = False
         
         # Only initialize parser if not skipped and BMasterAI is available
         if not skip_parser and BMASTERAI_AVAILABLE:
@@ -103,12 +104,24 @@ class OpenClawDashboard:
                         db_path, 
                         enable_bmasterai=True
                     )
-                    # Don't scan here - let it be lazy loaded when needed
+                    # Scan sessions to populate bmasterai metrics (needed for in-memory monitor)
+                    # This is lazy-loaded via ensure_metrics_populated()
                 else:
                     self.parser_error = f"Sessions directory not found: {sessions_dir}"
             except Exception as e:
                 self.parser_error = f"Parser initialization failed: {e}"
                 traceback.print_exc()
+    
+    def ensure_metrics_populated(self):
+        """Ensure bmasterai metrics are populated (lazy load on first access)"""
+        if self.parser and not self.metrics_populated:
+            try:
+                # Scan sessions to populate in-memory metrics
+                self.parser.scan_all_sessions()
+                self.metrics_populated = True
+            except Exception as e:
+                st.warning(f"Failed to populate metrics: {e}")
+                self.metrics_populated = True  # Don't retry
     
     def get_connection(self):
         """Create database connection with error handling"""
@@ -143,6 +156,8 @@ class OpenClawDashboard:
         if not self.parser:
             return {}
         try:
+            # Ensure metrics are populated before accessing
+            self.ensure_metrics_populated()
             if hasattr(self.parser, 'get_bmasterai_metrics'):
                 return self.parser.get_bmasterai_metrics(metric_name, duration_minutes)
         except Exception as e:

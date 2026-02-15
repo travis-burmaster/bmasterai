@@ -249,6 +249,7 @@ pandas==2.2.0
 plotly==5.18.0
 watchdog==4.0.0
 sqlalchemy==2.0.25
+bmasterai==0.2.3
 ```
 
 ## Database Schema

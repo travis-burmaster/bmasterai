@@ -290,6 +290,36 @@ def show_bmasterai_tab(dashboard, time_filter):
     
     if not BMASTERAI_AVAILABLE or not dashboard.parser:
         st.warning("⚠️ BMasterAI integration not available. Install with: `pip install bmasterai==0.2.1`")
+        st.info("""
+        **What you're missing:**
+        - Real-time alert notifications
+        - Custom metric tracking (session cost, token efficiency, cache hit rate)
+        - Time-windowed metric aggregation
+        - Performance monitoring with percentiles
+        
+        **To enable:** Run `pip install bmasterai==0.2.1` in your virtual environment.
+        """)
+        return
+    
+    # Check if advanced metrics are available (bmasterai 0.2.1+)
+    test_metrics = dashboard.get_bmasterai_metrics("session_cost", 60)
+    if not test_metrics or not test_metrics.get('mean'):
+        st.warning("⚠️ BMasterAI metrics require version 0.2.1+ (currently installed: 0.2.0)")
+        st.info("""
+        **Upgrade to enable advanced metrics:**
+        ```bash
+        cd /home/tadmin/.openclaw/workspace/openclaw-telemetry-dash
+        source .venv/bin/activate
+        pip install --upgrade bmasterai==0.2.1
+        ```
+        
+        Then restart the dashboard to see:
+        - Real-time alert notifications
+        - Session cost statistics (mean, max, percentiles)
+        - Token efficiency tracking
+        - Cache hit rate monitoring
+        - Time-windowed metric aggregation
+        """)
         return
     
     # Metric cards

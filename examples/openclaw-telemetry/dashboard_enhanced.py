@@ -301,24 +301,28 @@ def show_bmasterai_tab(dashboard, time_filter):
         """)
         return
     
-    # Check if advanced metrics are available (bmasterai 0.2.1+)
+    # Check if advanced metrics are available
+    # Note: The custom metrics API (record_custom_metric, get_metric_stats, get_active_alerts) 
+    # was designed for a future bmasterai version but isn't available in 0.2.1
     test_metrics = dashboard.get_bmasterai_metrics("session_cost", 60)
     if not test_metrics or not test_metrics.get('mean'):
-        st.warning("⚠️ BMasterAI metrics require version 0.2.1+ (currently installed: 0.2.0)")
         st.info("""
-        **Upgrade to enable advanced metrics:**
-        ```bash
-        cd /home/tadmin/.openclaw/workspace/openclaw-telemetry-dash
-        source .venv/bin/activate
-        pip install --upgrade bmasterai==0.2.1
-        ```
+        **📊 BMasterAI Custom Metrics**
         
-        Then restart the dashboard to see:
-        - Real-time alert notifications
-        - Session cost statistics (mean, max, percentiles)
-        - Token efficiency tracking
-        - Cache hit rate monitoring
-        - Time-windowed metric aggregation
+        The custom metrics API (session cost stats, token efficiency, cache monitoring, alerts) 
+        is currently not available in bmasterai 0.2.1.
+        
+        **What works now:**
+        - Basic monitoring (via `track_llm_call`, `track_task_duration`)
+        - System health tracking
+        - Agent dashboard
+        
+        **For advanced metrics, use:**
+        - The **Overview** tab (session costs, tokens, cache stats)
+        - The **Model Analytics** tab (per-model breakdowns)
+        - The **Exec History** tab (command drill-down)
+        
+        These tabs provide comprehensive telemetry without requiring custom bmasterai metrics.
         """)
         return
     

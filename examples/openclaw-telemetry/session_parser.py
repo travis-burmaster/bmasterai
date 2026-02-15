@@ -18,7 +18,7 @@ try:
     BMASTERAI_AVAILABLE = True
 except ImportError:
     BMASTERAI_AVAILABLE = False
-    print("⚠️ bmasterai not installed. Install with: pip install bmasterai==0.2.1")
+    print("⚠️ bmasterai not installed. Install with: pip install bmasterai>=0.2.3")
 
 
 class OpenClawSessionParser:

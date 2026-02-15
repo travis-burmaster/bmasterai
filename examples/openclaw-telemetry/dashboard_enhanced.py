@@ -289,7 +289,7 @@ def show_bmasterai_tab(dashboard, time_filter):
     st.header("📊 BMasterAI Metrics & Analytics")
     
     if not BMASTERAI_AVAILABLE or not dashboard.parser:
-        st.warning("⚠️ BMasterAI integration not available. Install with: `pip install bmasterai==0.2.1`")
+        st.warning("⚠️ BMasterAI integration not available. Install with: `pip install bmasterai>=0.2.3`")
         st.info("""
         **What you're missing:**
         - Real-time alert notifications
@@ -297,7 +297,7 @@ def show_bmasterai_tab(dashboard, time_filter):
         - Time-windowed metric aggregation
         - Performance monitoring with percentiles
         
-        **To enable:** Run `pip install bmasterai==0.2.1` in your virtual environment.
+        **To enable:** Run `pip install bmasterai>=0.2.3` in your virtual environment.
         """)
         return
     
@@ -310,7 +310,7 @@ def show_bmasterai_tab(dashboard, time_filter):
         **📊 BMasterAI Custom Metrics**
         
         The custom metrics API (session cost stats, token efficiency, cache monitoring, alerts) 
-        is currently not available in bmasterai 0.2.1.
+        is now available in bmasterai 0.2.3!
         
         **What works now:**
         - Basic monitoring (via `track_llm_call`, `track_task_duration`)

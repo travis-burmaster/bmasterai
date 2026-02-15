@@ -88,6 +88,36 @@ Last 20 sessions with:
 
 Includes your direct chats AND background cron jobs!
 
+### Exec Command History (Enhanced Dashboard Only)
+
+**NEW!** The enhanced dashboard includes a 5th tab: **⚡ Exec History**
+
+This lets you drill down into every bash command OpenClaw has executed:
+
+- **Full command history** - See all `exec` tool calls with complete commands
+- **Search/filter** - Type "git", "grep", "cd", etc. to filter commands
+- **Statistics** - Total commands, most common command, unique sessions
+- **Top 10 chart** - Bar chart of most frequently used commands
+- **Configurable limit** - Show 50, 100, 200, or 500 recent commands
+
+**Why this matters:**
+- **Debug automation** - See exactly what commands your agent ran
+- **Security audit** - Review all system-level operations
+- **Pattern analysis** - Identify most-used commands and workflows
+- **Troubleshooting** - Trace command history when something goes wrong
+
+**How to access:**
+1. Run the enhanced dashboard: `streamlit run dashboard_enhanced.py`
+2. Click the **⚡ Exec History** tab
+3. Browse all commands or use the search box to filter
+
+**Example use cases:**
+- "Show me all git commands" → Type "git" in search
+- "What files did I read recently?" → Filter for "cat" or "head"
+- "Debug a failed cron job" → Filter by session ID
+
+This is perfect for understanding your agent's automation patterns and ensuring it's executing commands as expected!
+
 ## Understanding Costs
 
 ### Typical OpenClaw Usage

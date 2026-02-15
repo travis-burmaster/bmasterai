@@ -64,6 +64,12 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
+@st.cache_resource
+def get_dashboard_instance(db_path: str = "openclaw_telemetry.db"):
+    """Create or retrieve cached dashboard instance"""
+    return OpenClawDashboard(db_path)
+
+
 class OpenClawDashboard:
     def __init__(self, db_path: str = "openclaw_telemetry.db"):
         self.db_path = db_path
@@ -72,6 +78,9 @@ class OpenClawDashboard:
             try:
                 sessions_dir = "/home/tadmin/.openclaw/agents/main/sessions"
                 self.parser = OpenClawSessionParser(sessions_dir, db_path, enable_bmasterai=True)
+                # Scan sessions to populate bmasterai metrics (monitor is instance-based)
+                if self.parser:
+                    self.parser.scan_all_sessions()
             except:
                 pass
     
@@ -486,8 +495,8 @@ def main():
     else:
         st.sidebar.warning("⚠️ BMasterAI Not Available")
     
-    # Initialize dashboard
-    dashboard = OpenClawDashboard()
+    # Initialize dashboard (cached for performance)
+    dashboard = get_dashboard_instance()
     
     # Check if database exists
     if not Path(dashboard.db_path).exists():

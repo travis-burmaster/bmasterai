@@ -23,6 +23,15 @@ pip install -q -r requirements.txt
 echo "🔄 Parsing OpenClaw sessions..."
 python session_parser.py
 
+# Check for existing dashboard process
+if pgrep -f "streamlit run dashboard.py" > /dev/null; then
+    echo "⚠️  Found running dashboard instance."
+    echo "🛑 Stopping existing process..."
+    pkill -f "streamlit run dashboard.py"
+    sleep 2
+    echo "✅ Stopped."
+fi
+
 # Launch dashboard
 echo "🚀 Launching dashboard..."
 echo ""

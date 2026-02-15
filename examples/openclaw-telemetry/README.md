@@ -179,11 +179,11 @@ Edit `session_parser.py` to point to your OpenClaw sessions directory:
 
 ```python
 # Default OpenClaw sessions directory
-sessions_dir = "/home/tadmin/.openclaw/agents/main/sessions"
+sessions_dir = os.path.expanduser("~/.openclaw/agents/main/sessions")
 
 # Or use environment variable
 import os
-sessions_dir = os.getenv("OPENCLAW_SESSIONS_DIR", "/home/tadmin/.openclaw/agents/main/sessions")
+sessions_dir = os.getenv("OPENCLAW_SESSIONS_DIR", os.path.expanduser("~/.openclaw/agents/main/sessions"))
 ```
 
 ### 4. Parse OpenClaw Sessions
@@ -194,7 +194,7 @@ python session_parser.py
 
 Output:
 ```
-Scanning sessions in /home/tadmin/.openclaw/agents/main/sessions...
+Scanning sessions in /home/user/.openclaw/agents/main/sessions...
 Processing 1/26: 741ef758-4cf0-454e-91bf-6094594efad5.jsonl
 Processing 2/26: 3f27bc67-0933-47e7-a199-73743ff295f3.jsonl
 ...
@@ -203,19 +203,13 @@ Processing 2/26: 3f27bc67-0933-47e7-a199-73743ff295f3.jsonl
 
 ### 5. Launch Dashboard
 
-**Option A: Basic Dashboard** (lightweight, no bmasterai dependency)
 ```bash
 streamlit run dashboard.py
 ```
 
-**Option B: Enhanced Dashboard** (with bmasterai metrics & alerts)
-```bash
-streamlit run dashboard_enhanced.py
-```
-
 Dashboard opens at: **http://localhost:8501**
 
-The enhanced dashboard adds:
+The dashboard includes:
 - ⚠️ Real-time alert notifications for cost/token thresholds
 - 📈 BMasterAI custom metrics (session cost, tokens, cache hit rate, efficiency)
 - 📊 Time-windowed metric statistics (15min, 1hr, 24hr)
@@ -229,6 +223,21 @@ chmod +x start.sh
 ```
 
 The script handles venv creation, dependency installation, session parsing, and dashboard launch.
+
+### 7. Managing the Dashboard
+
+**To Stop:**
+```bash
+pkill -f streamlit
+```
+
+**To Restart:**
+```bash
+cd ~/.openclaw/workspace/openclaw-telemetry-dash
+source .venv/bin/activate
+streamlit run dashboard.py --server.port 8501
+```
+
 
 ## Requirements
 

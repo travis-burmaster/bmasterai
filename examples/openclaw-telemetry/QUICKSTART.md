@@ -17,7 +17,7 @@ git clone https://github.com/travis-burmaster/bmasterai.git
 cd bmasterai/examples/openclaw-telemetry
 ```
 
-### 2. Run the Launcher
+### 2. Run the Dashboard
 
 ```bash
 chmod +x start.sh
@@ -25,13 +25,6 @@ chmod +x start.sh
 ```
 
 That's it! The dashboard will open at **http://localhost:8501**
-
-**Want enhanced bmasterai features?** Run the enhanced dashboard instead:
-```bash
-streamlit run dashboard_enhanced.py
-```
-
-The enhanced version adds alert notifications, custom metrics, and time-windowed statistics.
 
 ## What You'll See
 
@@ -88,9 +81,9 @@ Last 20 sessions with:
 
 Includes your direct chats AND background cron jobs!
 
-### Exec Command History (Enhanced Dashboard Only)
+### Exec Command History
 
-**NEW!** The enhanced dashboard includes a 5th tab: **⚡ Exec History**
+**NEW!** The dashboard includes a 5th tab: **⚡ Exec History**
 
 This lets you drill down into every bash command OpenClaw has executed:
 
@@ -107,7 +100,7 @@ This lets you drill down into every bash command OpenClaw has executed:
 - **Troubleshooting** - Trace command history when something goes wrong
 
 **How to access:**
-1. Run the enhanced dashboard: `streamlit run dashboard_enhanced.py`
+1. Open the dashboard (http://localhost:8501)
 2. Click the **⚡ Exec History** tab
 3. Browse all commands or use the search box to filter
 

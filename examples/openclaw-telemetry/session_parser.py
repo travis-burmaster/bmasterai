@@ -468,7 +468,7 @@ class OpenClawSessionParser:
 
 if __name__ == "__main__":
     # Default OpenClaw sessions directory
-    sessions_dir = "/home/tadmin/.openclaw/agents/main/sessions"
+    sessions_dir = os.path.expanduser("~/.openclaw/agents/main/sessions")
     
     parser = OpenClawSessionParser(sessions_dir)
     parser.scan_all_sessions()

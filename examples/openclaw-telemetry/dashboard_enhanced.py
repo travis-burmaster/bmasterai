@@ -301,28 +301,28 @@ def show_bmasterai_tab(dashboard, time_filter):
         """)
         return
     
-    # Check if advanced metrics are available
-    # Note: The custom metrics API (record_custom_metric, get_metric_stats, get_active_alerts) 
-    # was designed for a future bmasterai version but isn't available in 0.2.1
+    # Check if advanced metrics are available (bmasterai 0.2.3+ required)
     test_metrics = dashboard.get_bmasterai_metrics("session_cost", 60)
-    if not test_metrics or not test_metrics.get('mean'):
+    if not test_metrics or not test_metrics.get('avg'):
         st.info("""
         **📊 BMasterAI Custom Metrics**
         
-        The custom metrics API (session cost stats, token efficiency, cache monitoring, alerts) 
-        is currently not available in bmasterai 0.2.1.
+        Custom metrics require bmasterai 0.2.3+. 
         
-        **What works now:**
-        - Basic monitoring (via `track_llm_call`, `track_task_duration`)
-        - System health tracking
-        - Agent dashboard
+        **To enable:**
+        ```bash
+        pip install --upgrade bmasterai>=0.2.3
+        ```
         
-        **For advanced metrics, use:**
-        - The **Overview** tab (session costs, tokens, cache stats)
-        - The **Model Analytics** tab (per-model breakdowns)
-        - The **Exec History** tab (command drill-down)
+        Then restart the dashboard to see:
+        - Real-time alert notifications
+        - Session cost statistics (avg, max, median)
+        - Token efficiency tracking
+        - Cache hit rate monitoring
+        - Time-windowed metric aggregation
         
-        These tabs provide comprehensive telemetry without requiring custom bmasterai metrics.
+        **Alternative:** Use the **Overview**, **Model Analytics**, and **Exec History** tabs 
+        for comprehensive telemetry without bmasterai custom metrics.
         """)
         return
     

@@ -180,11 +180,26 @@ gcloud services enable run.googleapis.com aiplatform.googleapis.com
 
 ```bash
 chmod +x deploy.sh
+
+# Production (IAM-authenticated — recommended)
 ./deploy.sh YOUR_PROJECT_ID us-central1
+
+# Demo / open access
+./deploy.sh YOUR_PROJECT_ID us-central1 --allow-unauthenticated
 ```
 
-This deploys both the demo site and the agent as separate Cloud Run services,
-then runs a smoke test.
+By default, both services require IAM authentication. Callers must include an
+identity token (`gcloud auth print-identity-token`). This deploys both the demo
+site and the agent as separate Cloud Run services, then runs a smoke test.
+
+**Calling an authenticated service:**
+```bash
+TOKEN=$(gcloud auth print-identity-token)
+curl -X POST $AGENT_URL/run \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"task": "Find me a laptop under $1000 and add it to the cart"}'
+```
 
 ---
 
@@ -255,11 +270,29 @@ The agent will automatically discover and call your tools. No backend changes ne
 ## Notes
 
 - **WebMCP is a draft spec** (W3C Web Machine Learning Community Group, Feb 2026).
-  Browser support is not yet widespread — the polyfill handles this.
+  Browser support is not yet widespread — the polyfill handles this. The bridge
+  detects and skips polyfill injection if a native `navigator.modelContext` is present.
 - **Playwright runs in the Cloud Run container** — the headless Chromium browser
   adds ~200MB to the image. Ensure your Cloud Run instance has at least 1GB memory.
+  Browser binaries are pinned to `/opt/pw-browsers` (controlled by
+  `PLAYWRIGHT_BROWSERS_PATH`) for reproducible builds.
 - **The bridge is stateful per-request** — each `POST /run` opens and closes its
   own browser session. For high-throughput use, consider a browser pool.
+- **Request timeout** — tasks are capped at `AGENT_TIMEOUT_SECONDS` (default 90s)
+  with a clean 504 response instead of a raw gateway timeout.
+- **Authentication** — `deploy.sh` defaults to IAM-authenticated Cloud Run services.
+  Pass `--allow-unauthenticated` for open demos or set `WEBMCP_ALLOW_UNAUTHENTICATED=true`.
+
+### Environment Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `DEMO_SITE_URL` | `http://localhost:8080` | Target WebMCP site URL |
+| `GOOGLE_CLOUD_PROJECT` | _(required for Vertex AI)_ | GCP project ID |
+| `GEMINI_MODEL` | `gemini-2.0-flash` | Vertex AI model name |
+| `MAX_TOOL_ROUNDS` | `8` | Max agent/tool cycles per request |
+| `AGENT_TIMEOUT_SECONDS` | `90` | Per-request timeout (seconds) |
+| `PORT` | `8080` | HTTP port (set automatically by Cloud Run) |
 
 ---
 

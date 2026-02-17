@@ -13,6 +13,20 @@
  */
 
 (function registerStoreTools() {
+  /**
+   * Sanitize a string for safe embedding in error messages that may be
+   * rendered as HTML. Prevents XSS if error messages are ever displayed
+   * via innerHTML instead of textContent.
+   */
+  function sanitize(str) {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#x27;");
+  }
+
   // Wait for polyfill/native WebMCP to be ready
   function onReady(fn) {
     if (window.__webmcp_ready || navigator.modelContext) {
@@ -117,7 +131,7 @@
           (p) => p.id === input.product_id
         );
         if (!product) {
-          return { error: `Product not found: ${input.product_id}` };
+          return { error: `Product not found: ${sanitize(input.product_id)}` };
         }
         return { product };
       },
@@ -153,7 +167,7 @@
         );
 
         if (!product) {
-          return { error: `Product not found: ${input.product_id}` };
+          return { error: `Product not found: ${sanitize(input.product_id)}` };
         }
         if (product.stock < quantity) {
           return {

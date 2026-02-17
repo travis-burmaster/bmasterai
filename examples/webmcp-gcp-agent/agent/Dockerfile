@@ -3,6 +3,10 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
+# Pin Playwright browser to a known-good path so the version matches the
+# Python package. PLAYWRIGHT_BROWSERS_PATH must be set before `playwright install`.
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers
+
 # System deps for Playwright (Chromium)
 RUN apt-get update && apt-get install -y \
     wget \
@@ -46,8 +50,11 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install Playwright Chromium browser
-RUN playwright install chromium
+# Install Playwright Chromium browser.
+# The version installed here is determined by the `playwright` pin in
+# requirements.txt (playwright==1.47.0 → Chromium 130.x).
+# PLAYWRIGHT_BROWSERS_PATH is set above so the path is deterministic.
+RUN playwright install chromium --with-deps
 
 # Copy agent source
 COPY . .

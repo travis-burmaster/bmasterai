@@ -11,10 +11,12 @@ Deploy on GCP Cloud Run:
     gcloud run deploy webmcp-agent --source . --region us-central1 --allow-unauthenticated
 
 Environment variables:
-    DEMO_SITE_URL       URL of the WebMCP demo site (default: http://demo-site:8080)
-    GOOGLE_CLOUD_PROJECT  GCP project ID (required for Vertex AI)
-    GEMINI_MODEL        Gemini model to use (default: gemini-2.0-flash)
-    PORT                HTTP port (default: 8080, set by Cloud Run)
+    DEMO_SITE_URL          URL of the WebMCP demo site (default: http://demo-site:8080)
+    GOOGLE_CLOUD_PROJECT   GCP project ID (required for Vertex AI)
+    GEMINI_MODEL           Gemini model to use (default: gemini-2.0-flash)
+    MAX_TOOL_ROUNDS        Max Gemini<->WebMCP cycles per task (default: 8)
+    AGENT_TIMEOUT_SECONDS  Per-request deadline in seconds (default: 90)
+    PORT                   HTTP port (default: 8080, set by Cloud Run)
 """
 
 import os
@@ -40,7 +42,7 @@ from vertexai.generative_models import (
 from bmasterai.logging import configure_logging, get_logger, LogLevel, EventType
 from bmasterai.monitoring import get_monitor
 
-from webmcp_bridge import WebMCPBridge
+from webmcp_bridge import WebMCPBridge, WebMCPToolNotFoundError, WebMCPToolCallError, WebMCPConnectionError
 
 # ─── Configuration ───────────────────────────────────────────────────────────
 
@@ -48,7 +50,17 @@ DEMO_SITE_URL = os.environ.get("DEMO_SITE_URL", "http://localhost:8080")
 GCP_PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT", "")
 GCP_REGION = os.environ.get("GOOGLE_CLOUD_REGION", "us-central1")
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+
+# MAX_TOOL_ROUNDS: max Gemini<->WebMCP tool exchange cycles per request.
+# A typical e-commerce task (search → details → add-to-cart → checkout) needs
+# 4 tool calls. 8 gives 2x headroom for error-recovery retries and multi-step
+# tasks without risk of infinite loops on misbehaving tool results.
 MAX_TOOL_ROUNDS = int(os.environ.get("MAX_TOOL_ROUNDS", "8"))
+
+# AGENT_TIMEOUT_SECONDS: Cloud Run has a default 60s HTTP timeout; we impose our
+# own slightly shorter deadline so we can return a clean error instead of a 504.
+# Increase if tasks consistently require long Playwright browser sessions.
+AGENT_TIMEOUT_SECONDS = int(os.environ.get("AGENT_TIMEOUT_SECONDS", "90"))
 
 # ─── BMasterAI setup ─────────────────────────────────────────────────────────
 
@@ -225,24 +237,22 @@ async def run_agent(task: str, site_url: str) -> TaskResponse:
                     tool_results.append(
                         Part.from_function_response(name=tool_name, response={"result": result})
                     )
+                except WebMCPToolNotFoundError as e:
+                    error_msg = f"Tool not found: {tool_name}"
+                    logger.log_event(EventType.ERROR, error_msg, {"tool": tool_name})
+                    tool_call_log.append({"tool": tool_name, "args": tool_args, "error": error_msg, "success": False})
+                    tool_results.append(Part.from_function_response(name=tool_name, response={"error": error_msg}))
+                except WebMCPToolCallError as e:
+                    error_msg = f"Tool execution error [{tool_name}]: {e}"
+                    logger.log_event(EventType.ERROR, error_msg, {"tool": tool_name})
+                    tool_call_log.append({"tool": tool_name, "args": tool_args, "error": error_msg, "success": False})
+                    tool_results.append(Part.from_function_response(name=tool_name, response={"error": error_msg}))
                 except Exception as e:
-                    error_msg = str(e)
-                    logger.log_event(
-                        EventType.ERROR,
-                        f"Tool call failed: {tool_name}: {error_msg}",
-                    )
-                    tool_call_log.append({
-                        "tool": tool_name,
-                        "args": tool_args,
-                        "error": error_msg,
-                        "success": False,
-                    })
-                    tool_results.append(
-                        Part.from_function_response(
-                            name=tool_name,
-                            response={"error": error_msg},
-                        )
-                    )
+                    # Unexpected errors (network, Playwright crash, etc.)
+                    error_msg = f"Unexpected error in tool call [{tool_name}]: {type(e).__name__}: {e}"
+                    logger.log_event(EventType.ERROR, error_msg)
+                    tool_call_log.append({"tool": tool_name, "args": tool_args, "error": error_msg, "success": False})
+                    tool_results.append(Part.from_function_response(name=tool_name, response={"error": error_msg}))
 
             # Feed results back to Gemini
             messages.append(Content(role="function", parts=tool_results))
@@ -295,14 +305,34 @@ async def list_tools(site_url: str = DEMO_SITE_URL):
 
 @app.post("/run", response_model=TaskResponse)
 async def run_task(request: TaskRequest):
-    """Run an agent task against the WebMCP-enabled website."""
+    """Run an agent task against the WebMCP-enabled website.
+
+    Long-running tasks are capped at AGENT_TIMEOUT_SECONDS (default 90s) to
+    avoid Cloud Run 504s. If the task exceeds this deadline, a structured error
+    response is returned rather than a raw gateway timeout.
+    """
     site_url = request.site_url or DEMO_SITE_URL
 
     if not request.task.strip():
         raise HTTPException(status_code=400, detail="task must not be empty")
 
     try:
-        return await run_agent(request.task, site_url)
+        return await asyncio.wait_for(
+            run_agent(request.task, site_url),
+            timeout=AGENT_TIMEOUT_SECONDS,
+        )
+    except asyncio.TimeoutError:
+        logger.log_event(
+            EventType.ERROR,
+            f"Agent task timed out after {AGENT_TIMEOUT_SECONDS}s",
+            {"task": request.task[:80]},
+        )
+        raise HTTPException(
+            status_code=504,
+            detail=f"Agent task exceeded {AGENT_TIMEOUT_SECONDS}s timeout. "
+                   f"Consider breaking the task into smaller steps or increasing "
+                   f"AGENT_TIMEOUT_SECONDS.",
+        )
     except Exception as e:
         logger.log_event(EventType.ERROR, f"Agent run failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))

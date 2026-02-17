@@ -26,10 +26,30 @@ Works as an async context manager:
 
 import json
 import asyncio
-from pathlib import Path
+import logging
 from typing import Any
 
 from playwright.async_api import async_playwright, Page, Browser
+
+logger = logging.getLogger(__name__)
+
+
+# ── Custom exceptions ────────────────────────────────────────────────────────
+
+class WebMCPError(Exception):
+    """Base class for WebMCP bridge errors."""
+
+
+class WebMCPToolNotFoundError(WebMCPError):
+    """Raised when a requested tool is not registered on the page."""
+
+
+class WebMCPToolCallError(WebMCPError):
+    """Raised when a tool call throws an error on the browser side."""
+
+
+class WebMCPConnectionError(WebMCPError):
+    """Raised when the bridge fails to connect or navigate."""
 
 
 # Minimal polyfill script injected before the page loads.
@@ -55,7 +75,11 @@ _BRIDGE_INJECT_SCRIPT = """
       return await tool.execute(args, client);
     };
 
-    // Polyfill navigator.modelContext if absent
+    // Polyfill navigator.modelContext if absent (i.e. no native WebMCP support).
+    // If the browser already exposes a native navigator.modelContext, skip
+    // injection entirely so we don't interfere with the native implementation.
+    // We use configurable: true so a future native implementation loaded later
+    // can override our polyfill via defineProperty.
     if (!navigator.modelContext) {
       var mc = {
         provideContext: function(opts) {
@@ -69,7 +93,9 @@ _BRIDGE_INJECT_SCRIPT = """
         clearContext: function() { window.__webmcp_tools = {}; }
       };
       try {
-        Object.defineProperty(navigator, 'modelContext', { value: mc, configurable: false });
+        // configurable: true — allows a native WebMCP implementation to
+        // override this polyfill if it loads later (e.g. via browser update).
+        Object.defineProperty(navigator, 'modelContext', { value: mc, configurable: true, writable: false });
       } catch(e) { navigator.modelContext = mc; }
     }
 
@@ -118,17 +144,37 @@ class WebMCPBridge:
         # Navigate and wait for the page to load
         await self._page.goto(self.url, wait_until="domcontentloaded", timeout=self.timeout_ms)
 
-        # Wait for WebMCP tools to be registered (up to timeout)
-        try:
-            await self._page.wait_for_function(
-                "window.__webmcp_tools && Object.keys(window.__webmcp_tools).length > 0",
-                timeout=self.timeout_ms,
-            )
-        except Exception:
-            pass  # Page may have no tools; list_tools() will return []
+        # Wait for WebMCP tools to be registered — retry with exponential backoff.
+        # Tools may finish registering after initial domcontentloaded (e.g. async
+        # fetch or dynamic imports), so we poll rather than waiting for a single
+        # event that may already have fired.
+        await self._wait_for_tools_with_backoff()
 
         # Warm up the cache
         self._tools_cache = None
+
+    async def _wait_for_tools_with_backoff(self) -> None:
+        """
+        Poll for WebMCP tools to appear, using exponential backoff.
+        Retries up to 5 times before giving up (page may have no tools).
+        """
+        delay_ms = 200
+        max_retries = 5
+        for attempt in range(max_retries):
+            try:
+                await self._page.wait_for_function(
+                    "window.__webmcp_tools && Object.keys(window.__webmcp_tools).length > 0",
+                    timeout=delay_ms * (2 ** attempt),
+                )
+                return  # Tools found
+            except Exception:
+                if attempt < max_retries - 1:
+                    logger.debug(
+                        "WebMCP tools not yet registered (attempt %d/%d), retrying in %dms...",
+                        attempt + 1, max_retries, delay_ms * (2 ** attempt),
+                    )
+                    await asyncio.sleep((delay_ms * (2 ** attempt)) / 1000)
+                # else: give up — list_tools() will return []
 
     async def close(self) -> None:
         """Close the browser and clean up."""
@@ -179,8 +225,8 @@ class WebMCPBridge:
             The tool's return value (deserialized from JSON)
 
         Raises:
-            ValueError: If the tool is not found on the page
-            RuntimeError: If the tool call throws an error
+            WebMCPToolNotFoundError: If the tool is not registered on the page
+            WebMCPToolCallError: If the tool call throws an error on the browser side
         """
         self._assert_connected()
         args = args or {}
@@ -191,7 +237,10 @@ class WebMCPBridge:
                 [name, args],
             )
         except Exception as e:
-            raise RuntimeError(f"WebMCP tool call failed [{name}]: {e}") from e
+            err = str(e)
+            if "tool not found" in err.lower():
+                raise WebMCPToolNotFoundError(f"Tool not registered on page: {name!r}") from e
+            raise WebMCPToolCallError(f"Tool call failed [{name}]: {e}") from e
 
         return result
 

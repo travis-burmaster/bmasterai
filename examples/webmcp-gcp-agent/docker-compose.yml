@@ -1,0 +1,49 @@
+version: "3.9"
+
+# WebMCP GCP Agent — Local Development Stack
+# Run: docker-compose up
+# Then: curl -X POST http://localhost:8081/run -H "Content-Type: application/json" \
+#         -d '{"task": "Find me a laptop under $1000 and add it to the cart"}'
+
+services:
+
+  # ── Demo website (WebMCP-enabled store) ─────────────────────────────────
+  demo-site:
+    build:
+      context: ./demo-site
+      dockerfile: Dockerfile.demo
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ── WebMCP GCP Agent ─────────────────────────────────────────────────────
+  agent:
+    build:
+      context: ./agent
+    ports:
+      - "8081:8080"
+    environment:
+      PORT: "8080"
+      DEMO_SITE_URL: "http://demo-site:8080"
+      GEMINI_MODEL: "gemini-2.0-flash"
+      # Set these for real GCP usage:
+      # GOOGLE_CLOUD_PROJECT: "your-project-id"
+      # GOOGLE_APPLICATION_CREDENTIALS: "/app/credentials/service-account.json"
+    depends_on:
+      demo-site:
+        condition: service_healthy
+    volumes:
+      # Mount GCP credentials for local dev
+      - ~/.config/gcloud:/root/.config/gcloud:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 30s

@@ -1,0 +1,18 @@
+# WebMCP GCP Agent — Python dependencies
+
+# Web framework (Cloud Run)
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+
+# Playwright for WebMCP bridge
+playwright==1.47.0
+
+# Google Vertex AI (Gemini)
+google-cloud-aiplatform==1.65.0
+vertexai==1.65.0
+
+# BMasterAI monitoring + logging
+bmasterai>=0.2.3
+
+# Data validation
+pydantic==2.8.2

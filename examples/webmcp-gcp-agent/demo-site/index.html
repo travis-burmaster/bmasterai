@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WebMCP Demo Store — BMasterAI Example</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f5f7fa; color: #1a1a2e; }
+
+    header {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      padding: 1.5rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    header h1 { font-size: 1.5rem; }
+    header .badge {
+      background: rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.4);
+      padding: 0.3rem 0.8rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+    }
+
+    .status-bar {
+      background: #1a1a2e;
+      color: #00ff88;
+      font-family: monospace;
+      font-size: 0.82rem;
+      padding: 0.5rem 2rem;
+      display: flex;
+      gap: 2rem;
+    }
+    .status-bar span { opacity: 0.7; color: #aaa; }
+
+    main {
+      max-width: 1100px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 1.5rem;
+    }
+
+    .panel {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    }
+    .panel h2 { font-size: 1.1rem; color: #667eea; margin-bottom: 1rem; }
+
+    .tool-list { list-style: none; }
+    .tool-item {
+      border: 1px solid #e8eaf0;
+      border-radius: 8px;
+      padding: 0.8rem 1rem;
+      margin-bottom: 0.6rem;
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+    }
+    .tool-icon { font-size: 1.4rem; }
+    .tool-name { font-weight: 600; font-size: 0.95rem; }
+    .tool-desc { font-size: 0.82rem; color: #666; margin-top: 0.2rem; }
+    .tool-status {
+      margin-left: auto;
+      background: #e8f5e9;
+      color: #2e7d32;
+      font-size: 0.75rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 10px;
+      white-space: nowrap;
+    }
+
+    .cart-empty { color: #999; font-size: 0.9rem; text-align: center; padding: 2rem 0; }
+    .cart-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 0.9rem;
+    }
+    .cart-total {
+      margin-top: 0.8rem;
+      font-weight: 700;
+      font-size: 1rem;
+      text-align: right;
+      color: #667eea;
+    }
+
+    .products-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    .product-card {
+      border: 1px solid #e8eaf0;
+      border-radius: 8px;
+      padding: 1rem;
+      font-size: 0.85rem;
+    }
+    .product-card .name { font-weight: 600; margin-bottom: 0.3rem; }
+    .product-card .price { color: #667eea; font-size: 1rem; font-weight: 700; }
+    .product-card .stock { color: #888; font-size: 0.78rem; }
+
+    .webmcp-info {
+      background: #f0f4ff;
+      border-left: 4px solid #667eea;
+      padding: 1rem;
+      border-radius: 0 8px 8px 0;
+      font-size: 0.85rem;
+      margin-bottom: 1.5rem;
+    }
+    .webmcp-info code { background: #e0e7ff; padding: 0.1rem 0.4rem; border-radius: 4px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🛒 WebMCP Demo Store</h1>
+  <span class="badge">🤖 AI Agent Ready — WebMCP Enabled</span>
+</header>
+
+<div class="status-bar">
+  <div>WebMCP: <span id="webmcp-status">⏳ initializing...</span></div>
+  <div>Tools registered: <span id="tool-count">0</span></div>
+  <div>Cart items: <span id="cart-count">0</span></div>
+</div>
+
+<main>
+  <div>
+    <div class="webmcp-info">
+      <strong>🔌 WebMCP Active</strong> — This page exposes tools via <code>navigator.modelContext</code>.
+      An AI agent can call <code>search_products</code>, <code>add_to_cart</code>, <code>checkout</code>,
+      and more — directly through the browser without any backend API.
+    </div>
+
+    <div class="panel">
+      <h2>🛍️ Product Catalog</h2>
+      <div class="products-grid" id="products-grid">
+        <!-- populated by JS -->
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:1.5rem;">
+    <div class="panel">
+      <h2>🔧 Registered WebMCP Tools</h2>
+      <ul class="tool-list" id="tool-list">
+        <li style="color:#999;font-size:0.85rem;">Loading...</li>
+      </ul>
+    </div>
+
+    <div class="panel">
+      <h2>🛒 Cart</h2>
+      <div id="cart-display">
+        <p class="cart-empty">Cart is empty</p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Load polyfill first (before any tool registrations) -->
+<script src="webmcp-polyfill.js"></script>
+<!-- Product data -->
+<script src="products.js"></script>
+<!-- Tool registrations -->
+<script src="webmcp-tools.js"></script>
+
+<script>
+  // Update status bar
+  window.addEventListener("webmcp:ready", function () {
+    document.getElementById("webmcp-status").textContent = "✅ active";
+  });
+
+  // Render tool list once tools are registered
+  function renderTools() {
+    const tools = window.__webmcp_list_tools ? window.__webmcp_list_tools() : [];
+    document.getElementById("tool-count").textContent = tools.length;
+
+    const icons = {
+      search_products: "🔍",
+      get_product_details: "📋",
+      add_to_cart: "🛒",
+      get_cart: "📦",
+      checkout: "💳",
+    };
+
+    const list = document.getElementById("tool-list");
+    list.innerHTML = tools.map(t => `
+      <li class="tool-item">
+        <span class="tool-icon">${icons[t.name] || "🔧"}</span>
+        <div>
+          <div class="tool-name">${t.name}</div>
+          <div class="tool-desc">${t.description.slice(0, 80)}…</div>
+        </div>
+        <span class="tool-status">✓ ready</span>
+      </li>
+    `).join("");
+  }
+
+  // Render product catalog
+  function renderProducts() {
+    const grid = document.getElementById("products-grid");
+    grid.innerHTML = (window.PRODUCT_CATALOG || []).map(p => `
+      <div class="product-card">
+        <div class="name">${p.name}</div>
+        <div class="price">$${p.price.toFixed(2)}</div>
+        <div class="stock">${p.stock > 0 ? `✅ ${p.stock} in stock` : "❌ Out of stock"}</div>
+      </div>
+    `).join("");
+  }
+
+  // Update cart UI (called by tools)
+  window.updateCartUI = function () {
+    const cart = window.SHOPPING_CART || [];
+    document.getElementById("cart-count").textContent = cart.length;
+
+    const display = document.getElementById("cart-display");
+    if (cart.length === 0) {
+      display.innerHTML = '<p class="cart-empty">Cart is empty</p>';
+      return;
+    }
+
+    const total = cart.reduce((s, i) => s + i.price * i.quantity, 0);
+    display.innerHTML = cart.map(i => `
+      <div class="cart-item">
+        <span>${i.quantity}× ${i.name}</span>
+        <span>$${(i.price * i.quantity).toFixed(2)}</span>
+      </div>
+    `).join("") + `<div class="cart-total">Total: $${total.toFixed(2)}</div>`;
+  };
+
+  // Poll for tool registration (tools register async on webmcp:ready)
+  setTimeout(function () {
+    renderTools();
+    renderProducts();
+  }, 100);
+</script>
+</body>
+</html>

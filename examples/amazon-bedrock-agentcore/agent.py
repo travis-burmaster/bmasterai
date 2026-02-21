@@ -1,266 +1,294 @@
 """
-BMasterAI + Amazon Bedrock AgentCore — Research Agent
-======================================================
-A general-purpose research agent that runs inside Bedrock AgentCore Runtime
-and uses bmasterai for structured logging, monitoring, and telemetry.
+BMasterAI + Amazon Bedrock AgentCore — Cost Optimization Agent
+==============================================================
+A Strands agent that monitors AWS spend, detects anomalies, forecasts costs,
+and analyzes service-level breakdowns — with bmasterai structured telemetry
+logged on every agent action.
 
 Entry point for `bedrock-agentcore-starter-toolkit` Runtime.
+
+Features:
+  - Cost Anomaly Detection  : unusual spending spikes via AWS Cost Anomaly Detection
+  - Budget Monitoring       : utilization tracking and overrun forecasting
+  - Cost Forecasting        : ML-based future spend prediction with confidence intervals
+  - Service Breakdown       : per-service, per-usage-type cost drill-down
+  - Current Spending        : month-to-date and daily cost visibility + burn rate
 """
 
 import os
 import time
 import uuid
+from datetime import datetime, timedelta
 
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
 from strands import Agent, tool
 from strands.models import BedrockModel
 
-from bmasterai.logging import configure_logging, get_logger, LogLevel, EventType
-from bmasterai.monitoring import get_monitor
+from bmasterai.logging import configure_logging, LogLevel, EventType
 
-from tools.research_tools import (
-    search_knowledge_base,
-    summarize_text,
-    analyze_data,
-    fetch_url_content,
+from tools.cost_explorer_tools import (
+    get_cost_and_usage,
+    get_cost_forecast,
+    detect_cost_anomalies,
+    get_service_costs,
+)
+from tools.budget_tools import (
+    get_all_budgets,
+    get_budget_status,
+    calculate_burn_rate,
 )
 
-# ── Configuration ──────────────────────────────────────────────────────────────
+# ── Config ─────────────────────────────────────────────────────────────────────
 MODEL_ID = os.getenv("MODEL_ID", "us.anthropic.claude-3-5-sonnet-20241022-v2:0")
-AGENT_ID = os.getenv("AGENT_ID", f"bmasterai-agentcore-{uuid.uuid4().hex[:8]}")
+AGENT_ID  = os.getenv("AGENT_ID", "bmasterai-cost-agent")
 
-# ── BMasterAI Logging & Monitoring ─────────────────────────────────────────────
-bm_logger = configure_logging(
+# ── BMasterAI — structured telemetry ──────────────────────────────────────────
+bm = configure_logging(
     log_level=LogLevel.INFO,
     enable_console=True,
     enable_file=True,
-    enable_json=True,
+    enable_json=True,   # → logs/bmasterai.jsonl
 )
-monitor = get_monitor()
-monitor.start_monitoring()
 
-bm_logger.log_event(
+bm.log_event(
     agent_id=AGENT_ID,
     event_type=EventType.AGENT_START,
-    message="BMasterAI Research Agent starting inside AgentCore Runtime",
-    metadata={"model_id": MODEL_ID, "agent_id": AGENT_ID},
+    message="BMasterAI Cost Optimization Agent starting on AgentCore Runtime",
+    metadata={"model_id": MODEL_ID},
 )
 
-# ── AgentCore App ──────────────────────────────────────────────────────────────
+# ── AgentCore app ──────────────────────────────────────────────────────────────
 app = BedrockAgentCoreApp()
 
 
-# ── Strands Tool Wrappers (with bmasterai telemetry) ──────────────────────────
+# ── Helper: wrap every tool call with bmasterai telemetry ────────────────────
+def _log_tool(name: str, metadata: dict):
+    bm.log_event(agent_id=AGENT_ID, event_type=EventType.TOOL_USE,
+                 message=f"Tool: {name}", metadata={"tool": name, **metadata})
 
+def _log_done(name: str, duration_ms: float, extra: dict = {}):
+    bm.log_event(agent_id=AGENT_ID, event_type=EventType.TASK_COMPLETE,
+                 message=f"{name} completed in {duration_ms:.0f}ms",
+                 metadata={"tool": name, **extra}, duration_ms=duration_ms)
+
+def _log_err(name: str, error: Exception):
+    bm.log_event(agent_id=AGENT_ID, event_type=EventType.TASK_ERROR,
+                 message=f"{name} failed: {error}",
+                 metadata={"tool": name, "error": str(error)})
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# FEATURE 1 — Cost Anomaly Detection
+# ══════════════════════════════════════════════════════════════════════════════
 @tool
-def research_topic(query: str, max_results: int = 5) -> str:
+def analyze_cost_anomalies(days: int = 7) -> str:
     """
-    Search a knowledge base or web source for information on a topic.
+    Detect unusual spending spikes or anomalies in AWS costs.
+
+    Uses AWS Cost Anomaly Detection to identify unexpected cost increases
+    with root-cause analysis by service and region.
 
     Args:
-        query: The research question or topic to search for.
-        max_results: Maximum number of results to return (default: 5).
+        days: Number of days to analyze for anomalies (default: 7).
 
     Returns:
-        str: Relevant information found for the query.
+        str: Detected anomalies ranked by financial impact, with root causes.
     """
-    task_id = str(uuid.uuid4())
-    start_time = time.time()
-
-    bm_logger.log_event(
-        agent_id=AGENT_ID,
-        event_type=EventType.TOOL_USE,
-        message=f"Tool: research_topic | query='{query}'",
-        metadata={"tool": "research_topic", "query": query, "max_results": max_results, "task_id": task_id},
-    )
-
+    t0 = time.time()
+    _log_tool("analyze_cost_anomalies", {"days": days})
     try:
-        result = search_knowledge_base(query, max_results)
-        duration_ms = (time.time() - start_time) * 1000
-
-        bm_logger.log_event(
-            agent_id=AGENT_ID,
-            event_type=EventType.TASK_COMPLETE,
-            message=f"research_topic completed in {duration_ms:.0f}ms",
-            metadata={"task_id": task_id, "result_length": len(result)},
-            duration_ms=duration_ms,
-        )
+        result = detect_cost_anomalies(days)
+        _log_done("analyze_cost_anomalies", (time.time()-t0)*1000)
         return result
-
     except Exception as e:
-        bm_logger.log_event(
-            agent_id=AGENT_ID,
-            event_type=EventType.TASK_ERROR,
-            message=f"research_topic failed: {e}",
-            metadata={"task_id": task_id, "error": str(e)},
-        )
-        return f"Error performing research: {e}"
+        _log_err("analyze_cost_anomalies", e)
+        return f"Error detecting anomalies: {e}"
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# FEATURE 2 — Budget Monitoring
+# ══════════════════════════════════════════════════════════════════════════════
 @tool
-def summarize(text: str, max_sentences: int = 5) -> str:
+def get_budget_information(budget_name: str = "") -> str:
     """
-    Summarize a block of text into key points.
+    Retrieve AWS budget status and utilization.
+
+    Shows budget limits, actual spend, forecasted spend, utilization percentage,
+    and overrun risk. Returns all budgets if no name is specified.
 
     Args:
-        text: The text to summarize.
-        max_sentences: Target number of sentences in the summary (default: 5).
+        budget_name: Specific budget name to check. If empty, returns all budgets.
 
     Returns:
-        str: A concise summary of the provided text.
+        str: Budget utilization with OK / WARNING / EXCEEDED status per budget.
     """
-    task_id = str(uuid.uuid4())
-    start_time = time.time()
-
-    bm_logger.log_event(
-        agent_id=AGENT_ID,
-        event_type=EventType.TOOL_USE,
-        message="Tool: summarize",
-        metadata={"tool": "summarize", "input_length": len(text), "task_id": task_id},
-    )
-
+    t0 = time.time()
+    _log_tool("get_budget_information", {"budget_name": budget_name or "ALL"})
     try:
-        result = summarize_text(text, max_sentences)
-        duration_ms = (time.time() - start_time) * 1000
-
-        bm_logger.log_event(
-            agent_id=AGENT_ID,
-            event_type=EventType.TASK_COMPLETE,
-            message=f"summarize completed in {duration_ms:.0f}ms",
-            metadata={"task_id": task_id, "summary_length": len(result)},
-            duration_ms=duration_ms,
-        )
+        result = get_budget_status(budget_name) if budget_name else get_all_budgets()
+        _log_done("get_budget_information", (time.time()-t0)*1000)
         return result
-
     except Exception as e:
-        bm_logger.log_event(
-            agent_id=AGENT_ID,
-            event_type=EventType.TASK_ERROR,
-            message=f"summarize failed: {e}",
-            metadata={"task_id": task_id, "error": str(e)},
-        )
-        return f"Error summarizing text: {e}"
+        _log_err("get_budget_information", e)
+        return f"Error fetching budgets: {e}"
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# FEATURE 3 — Cost Forecasting
+# ══════════════════════════════════════════════════════════════════════════════
 @tool
-def analyze(data: str, question: str) -> str:
+def forecast_future_costs(days_ahead: int = 30) -> str:
     """
-    Analyze structured or unstructured data to answer a specific question.
+    Predict future AWS costs using machine learning.
+
+    Generates a cost forecast with 80% confidence interval bounds based on
+    historical spend patterns. Also includes burn rate trend analysis.
 
     Args:
-        data: Raw data in JSON, CSV, or plain text format.
-        question: The analytical question to answer about the data.
+        days_ahead: Number of days to forecast (default: 30, max: 90).
 
     Returns:
-        str: Analysis results and insights.
+        str: Cost forecast with mean, lower bound, upper bound, and burn rate trend.
     """
-    task_id = str(uuid.uuid4())
-    start_time = time.time()
-
-    bm_logger.log_event(
-        agent_id=AGENT_ID,
-        event_type=EventType.TOOL_USE,
-        message=f"Tool: analyze | question='{question}'",
-        metadata={"tool": "analyze", "question": question, "data_length": len(data), "task_id": task_id},
-    )
-
+    t0 = time.time()
+    _log_tool("forecast_future_costs", {"days_ahead": days_ahead})
     try:
-        result = analyze_data(data, question)
-        duration_ms = (time.time() - start_time) * 1000
+        forecast_start = datetime.now().strftime("%Y-%m-%d")
+        forecast_end   = (datetime.now() + timedelta(days=days_ahead)).strftime("%Y-%m-%d")
 
-        bm_logger.log_event(
-            agent_id=AGENT_ID,
-            event_type=EventType.TASK_COMPLETE,
-            message=f"analyze completed in {duration_ms:.0f}ms",
-            metadata={"task_id": task_id},
-            duration_ms=duration_ms,
-        )
-        return result
+        forecast = get_cost_forecast(forecast_start, forecast_end)
+        burn     = calculate_burn_rate("LAST_7_DAYS")
 
+        _log_done("forecast_future_costs", (time.time()-t0)*1000, {"days_ahead": days_ahead})
+        return f"Cost Forecast:\n{forecast}\n\nCurrent Burn Rate:\n{burn}"
     except Exception as e:
-        bm_logger.log_event(
-            agent_id=AGENT_ID,
-            event_type=EventType.TASK_ERROR,
-            message=f"analyze failed: {e}",
-            metadata={"task_id": task_id, "error": str(e)},
-        )
-        return f"Error analyzing data: {e}"
+        _log_err("forecast_future_costs", e)
+        return f"Error generating forecast: {e}"
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# FEATURE 4 — Service Breakdown
+# ══════════════════════════════════════════════════════════════════════════════
 @tool
-def fetch_page(url: str) -> str:
+def get_service_cost_breakdown(service_name: str = "", time_period: str = "LAST_30_DAYS") -> str:
     """
-    Fetch and extract readable text content from a URL.
+    Get detailed AWS cost breakdown by service or across all services.
+
+    Breaks costs down by usage type within a service, or returns the top 10
+    most expensive services if no service name is provided.
 
     Args:
-        url: The HTTP/HTTPS URL to fetch content from.
+        service_name: AWS service name (e.g., "Amazon Bedrock", "Amazon EC2").
+                      Leave empty to get a ranked list of all services.
+        time_period:  LAST_7_DAYS | LAST_30_DAYS | LAST_90_DAYS (default: LAST_30_DAYS).
 
     Returns:
-        str: Extracted text content from the page.
+        str: Cost breakdown sorted by spend, with per-usage-type detail.
     """
-    task_id = str(uuid.uuid4())
-    start_time = time.time()
-
-    bm_logger.log_event(
-        agent_id=AGENT_ID,
-        event_type=EventType.TOOL_USE,
-        message=f"Tool: fetch_page | url='{url}'",
-        metadata={"tool": "fetch_page", "url": url, "task_id": task_id},
-    )
-
+    t0 = time.time()
+    _log_tool("get_service_cost_breakdown", {"service": service_name or "ALL", "period": time_period})
     try:
-        result = fetch_url_content(url)
-        duration_ms = (time.time() - start_time) * 1000
+        if service_name:
+            result = get_service_costs(service_name, time_period)
+        else:
+            # Rank all services by cost
+            import json
+            days = {"LAST_7_DAYS": 7, "LAST_30_DAYS": 30, "LAST_90_DAYS": 90}.get(time_period, 30)
+            end   = datetime.now().strftime("%Y-%m-%d")
+            start = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
 
-        bm_logger.log_event(
-            agent_id=AGENT_ID,
-            event_type=EventType.TASK_COMPLETE,
-            message=f"fetch_page completed in {duration_ms:.0f}ms | {len(result)} chars",
-            metadata={"task_id": task_id, "content_length": len(result)},
-            duration_ms=duration_ms,
-        )
+            raw = get_cost_and_usage(
+                start, end, "MONTHLY",
+                [{"Type": "DIMENSION", "Key": "SERVICE"}],
+            )
+            data = json.loads(raw)
+            svc_totals: dict = {}
+            for period in data.get("results", []):
+                for group in period.get("groups", []):
+                    svc = group["keys"][0]
+                    svc_totals[svc] = svc_totals.get(svc, 0) + group["cost"]
+
+            ranked = sorted(svc_totals.items(), key=lambda x: x[1], reverse=True)
+            lines  = [f"Top AWS Services by Cost ({time_period}):\n"]
+            for i, (svc, cost) in enumerate(ranked[:10], 1):
+                lines.append(f"  {i:2d}. {svc:<45} ${cost:>10.2f}")
+            lines.append(f"\n  Total: ${sum(svc_totals.values()):.2f}")
+            result = "\n".join(lines)
+
+        _log_done("get_service_cost_breakdown", (time.time()-t0)*1000)
         return result
-
     except Exception as e:
-        bm_logger.log_event(
-            agent_id=AGENT_ID,
-            event_type=EventType.TASK_ERROR,
-            message=f"fetch_page failed: {e}",
-            metadata={"task_id": task_id, "url": url, "error": str(e)},
-        )
-        return f"Error fetching page: {e}"
+        _log_err("get_service_cost_breakdown", e)
+        return f"Error getting service breakdown: {e}"
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# FEATURE 5 — Current Spending (MTD + Daily)
+# ══════════════════════════════════════════════════════════════════════════════
+@tool
+def get_current_month_costs() -> str:
+    """
+    Get month-to-date cost visibility and daily spend breakdown.
+
+    Retrieves every day's cost since the start of the current month,
+    grouped by AWS service, plus burn rate analysis for the last 7 days.
+
+    Returns:
+        str: MTD total, daily costs by service, and current burn rate.
+    """
+    t0 = time.time()
+    _log_tool("get_current_month_costs", {})
+    try:
+        start = datetime.now().replace(day=1).strftime("%Y-%m-%d")
+        end   = datetime.now().strftime("%Y-%m-%d")
+
+        mtd   = get_cost_and_usage(start, end, "DAILY",
+                                   [{"Type": "DIMENSION", "Key": "SERVICE"}])
+        burn  = calculate_burn_rate("LAST_7_DAYS")
+
+        _log_done("get_current_month_costs", (time.time()-t0)*1000)
+        return f"Month-to-Date Costs ({start} → {end}):\n{mtd}\n\nBurn Rate (last 7 days):\n{burn}"
+    except Exception as e:
+        _log_err("get_current_month_costs", e)
+        return f"Error fetching current month costs: {e}"
 
 
 # ── Strands Agent ──────────────────────────────────────────────────────────────
 agent = Agent(
     model=BedrockModel(model_id=MODEL_ID),
-    tools=[research_topic, summarize, analyze, fetch_page],
+    tools=[
+        analyze_cost_anomalies,    # Feature 1 — Anomaly Detection
+        get_budget_information,    # Feature 2 — Budget Monitoring
+        forecast_future_costs,     # Feature 3 — Cost Forecasting
+        get_service_cost_breakdown, # Feature 4 — Service Breakdown
+        get_current_month_costs,   # Feature 5 — Current Spending
+    ],
     system_prompt=(
-        "You are a precise research and analysis assistant powered by BMasterAI "
-        "and running inside Amazon Bedrock AgentCore Runtime. "
-        "Use your tools to gather information, analyze data, and produce clear, "
-        "well-structured responses. Always cite your sources and be transparent "
-        "about confidence levels. When unsure, say so."
+        "You are an expert AWS FinOps assistant running inside Amazon Bedrock AgentCore. "
+        "You have real-time access to AWS cost data via five specialized tools:\n\n"
+        "  1. analyze_cost_anomalies      — detect unexpected spending spikes\n"
+        "  2. get_budget_information      — check budget utilization and overrun risk\n"
+        "  3. forecast_future_costs       — predict future spend with confidence intervals\n"
+        "  4. get_service_cost_breakdown  — drill into per-service cost detail\n"
+        "  5. get_current_month_costs     — see MTD spend and daily burn rate\n\n"
+        "Always use live data. Provide specific numbers, flag risks clearly, and suggest "
+        "concrete actions when costs are anomalous or budgets are at risk."
     ),
 )
 
 
-# ── AgentCore Request Handler ──────────────────────────────────────────────────
+# ── AgentCore Entry Point ──────────────────────────────────────────────────────
 @app.entrypoint
 def handle(payload: dict) -> str:
     """
-    AgentCore Runtime entry point. Called for each inbound task.
+    AgentCore Runtime entry point — called for every inbound task.
 
-    Args:
-        payload: AgentCore request payload containing the user message.
-
-    Returns:
-        str: Agent response text.
+    Accepts A2A / direct invocation payloads. Extracts the user message,
+    invokes the Strands agent, and returns the response.
     """
     task_id = str(uuid.uuid4())
-    start_time = time.time()
+    t0 = time.time()
 
-    # Extract message from A2A / AgentCore payload
     user_message = (
         payload.get("message")
         or payload.get("text")
@@ -268,42 +296,28 @@ def handle(payload: dict) -> str:
         or str(payload)
     )
 
-    bm_logger.log_event(
-        agent_id=AGENT_ID,
-        event_type=EventType.TASK_START,
-        message=f"Received task: '{user_message[:100]}...'",
-        metadata={"task_id": task_id, "payload_keys": list(payload.keys())},
-    )
+    bm.log_event(agent_id=AGENT_ID, event_type=EventType.TASK_START,
+                 message=f"Task received: '{user_message[:120]}'",
+                 metadata={"task_id": task_id})
+
+    bm.log_event(agent_id=AGENT_ID, event_type=EventType.LLM_CALL,
+                 message="Invoking Strands agent",
+                 metadata={"task_id": task_id, "model_id": MODEL_ID})
 
     try:
-        bm_logger.log_event(
-            agent_id=AGENT_ID,
-            event_type=EventType.LLM_CALL,
-            message="Invoking Strands agent",
-            metadata={"task_id": task_id, "model_id": MODEL_ID},
-        )
-
         response = agent(user_message)
-        result_text = str(response)
-        duration_ms = (time.time() - start_time) * 1000
+        result   = str(response)
+        duration = (time.time() - t0) * 1000
 
-        bm_logger.log_event(
-            agent_id=AGENT_ID,
-            event_type=EventType.TASK_COMPLETE,
-            message=f"Task completed in {duration_ms:.0f}ms",
-            metadata={"task_id": task_id, "response_length": len(result_text)},
-            duration_ms=duration_ms,
-        )
-
-        return result_text
+        bm.log_event(agent_id=AGENT_ID, event_type=EventType.TASK_COMPLETE,
+                     message=f"Task completed in {duration:.0f}ms",
+                     metadata={"task_id": task_id, "response_length": len(result)},
+                     duration_ms=duration)
+        return result
 
     except Exception as e:
-        duration_ms = (time.time() - start_time) * 1000
-        bm_logger.log_event(
-            agent_id=AGENT_ID,
-            event_type=EventType.TASK_ERROR,
-            message=f"Task failed: {e}",
-            metadata={"task_id": task_id, "error": str(e)},
-            duration_ms=duration_ms,
-        )
+        bm.log_event(agent_id=AGENT_ID, event_type=EventType.TASK_ERROR,
+                     message=f"Task failed: {e}",
+                     metadata={"task_id": task_id, "error": str(e)},
+                     duration_ms=(time.time()-t0)*1000)
         raise

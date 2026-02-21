@@ -1,7 +1,7 @@
 [project]
-name = "bmasterai-agentcore"
+name = "bmasterai-agentcore-cost-optimization"
 version = "0.1.0"
-description = "BMasterAI Research Agent on Amazon Bedrock AgentCore Runtime"
+description = "BMasterAI Cost Optimization Agent on Amazon Bedrock AgentCore Runtime"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -12,16 +12,13 @@ dependencies = [
     "bedrock-agentcore>=0.2.0",
     "bedrock-agentcore-starter-toolkit>=0.2.0",
 
-    # Strands — LLM + tool orchestration framework
+    # Strands — LLM + tool orchestration
     "strands-agents>=0.1.0",
 
-    # AWS SDK
+    # AWS SDK (Cost Explorer, Budgets, STS)
     "boto3>=1.34.0",
     "botocore>=1.34.0",
 
-    # HTTP requests (for fetch_page and search tools)
-    "requests>=2.32.0",
-
-    # Local dev helpers
+    # Local dev
     "python-dotenv>=1.0.0",
 ]

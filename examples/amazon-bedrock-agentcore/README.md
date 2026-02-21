@@ -1,101 +1,99 @@
-# BMasterAI + Amazon Bedrock AgentCore
+# BMasterAI + Amazon Bedrock AgentCore — Cost Optimization Agent
 
-Deploy a **BMasterAI Research Agent** to **Amazon Bedrock AgentCore Runtime** — AWS's fully managed infrastructure for production AI agents.
+A **Strands agent** that monitors AWS spend, detects anomalies, forecasts costs,
+and analyzes service-level breakdowns — with **bmasterai structured telemetry**
+logged on every agent action.
 
-This example shows how to combine:
-- **BMasterAI** — structured logging, monitoring, and telemetry for every agent event
-- **Amazon Bedrock AgentCore** — managed container runtime, auto-scaling, native A2A support
-- **Strands Agents** — LLM + tool orchestration framework
+Inspired by [awslabs/amazon-bedrock-agentcore-samples #695](https://github.com/awslabs/amazon-bedrock-agentcore-samples/pull/695).
 
-No Dockerfile. No manual ECR push. The starter toolkit handles container build and deployment automatically.
+---
+
+## Features
+
+| # | Feature | Tool | AWS API |
+|---|---|---|---|
+| 1 | **Cost Anomaly Detection** | `analyze_cost_anomalies(days)` | Cost Anomaly Detection |
+| 2 | **Budget Monitoring** | `get_budget_information(name)` | AWS Budgets |
+| 3 | **Cost Forecasting** | `forecast_future_costs(days_ahead)` | Cost Explorer Forecast |
+| 4 | **Service Breakdown** | `get_service_cost_breakdown(service, period)` | Cost Explorer |
+| 5 | **Current Spending** | `get_current_month_costs()` | Cost Explorer + Burn Rate |
+
+BMasterAI logs every `AGENT_START`, `TASK_START`, `LLM_CALL`, `TOOL_USE`, and `TASK_COMPLETE` event to structured JSONL — ready for CloudWatch Insights, Datadog, or any log aggregator.
 
 ---
 
 ## Architecture
 
 ```
+User (FinOps)
+     │ Query
+     ▼
+Amazon Bedrock AgentCore Runtime
+     │ Request
+     ▼
+Strands AI Agent ◄──────────────► Amazon Bedrock (LLM reasoning)
+     │                              Tool Selection ◄──────────────┘
+     │ Request
+     ▼
 ┌─────────────────────────────────────────────────────┐
-│           Amazon Bedrock AgentCore Runtime          │
+│  Agent Tools                                        │
 │                                                     │
-│  ┌──────────────────────────────────────────────┐  │
-│  │              agent.py (entry point)          │  │
-│  │                                              │  │
-│  │   BedrockAgentCoreApp  ←→  Strands Agent    │  │
-│  │          │                      │            │  │
-│  │    @app.entrypoint        @tool functions    │  │
-│  │          │                      │            │  │
-│  │    BMasterAI Logger     Research Tools       │  │
-│  │    BMasterAI Monitor    (search/analyze/     │  │
-│  │    (JSONL telemetry)     fetch/summarize)    │  │
-│  └──────────────────────────────────────────────┘  │
-│                                                     │
-│  AgentCore Memory  │  CloudWatch Logs  │  X-Ray    │
-└─────────────────────────────────────────────────────┘
+│  [Budget Status]  [Anomaly Detection]               │
+│  [Cost Forecast]  [Service Breakdown]  [MTD Costs]  │
+└──────────────┬──────────────┬──────────────────────┘
+               │              │
+        ┌──────┴──────┐  ┌────┴──────────────┐
+        │ AWS Budgets │  │ Amazon CloudWatch  │
+        └─────────────┘  │ AWS Cost Explorer  │
+                         └───────────────────┘
+
+📊 BMasterAI telemetry → logs/bmasterai.jsonl → CloudWatch Logs
 ```
-
-**Request flow:**
-1. Caller invokes the AgentCore Runtime endpoint (A2A or direct)
-2. `@app.entrypoint` receives the payload and extracts the user message
-3. BMasterAI logs `TASK_START` with full metadata
-4. Strands Agent selects and calls the appropriate `@tool`
-5. BMasterAI logs `TOOL_USE` → `TASK_COMPLETE` with duration
-6. Response returned to caller; telemetry in JSONL + CloudWatch
-
----
-
-## Prerequisites
-
-- Python 3.11+
-- [uv](https://docs.astral.sh/uv/) package manager
-- AWS credentials configured (`aws configure` or IAM role)
-- Bedrock model access enabled in your AWS account:
-  - `us.anthropic.claude-3-5-sonnet-20241022-v2:0` (or update `MODEL_ID`)
 
 ---
 
 ## Quick Start
 
-### 1. Install dependencies
 ```bash
+# Install deps
 uv sync
-```
 
-### 2. Configure environment
-```bash
-cp .env.example .env
-# Edit .env — set AWS_REGION and optionally KNOWLEDGE_BASE_ID or BRAVE_API_KEY
-```
+# Configure AWS credentials
+aws configure   # or export AWS_PROFILE=...
 
-### 3. Test locally (no deployment needed)
-```bash
-# Run tool unit tests only
+# Test tools locally (no LLM call)
 uv run python test_local.py --tools-only
 
-# Run a full agent query locally (calls Bedrock)
-uv run python test_local.py --query "What are the key differences between EC2 and Lambda?"
-```
+# Full local agent test (calls Bedrock)
+uv run python test_local.py
 
-### 4. Deploy to AgentCore
-```bash
+# Deploy to AgentCore
 uv run python deploy.py
 ```
 
-This will:
-- Create an IAM execution role with the required permissions
-- Provision AgentCore Memory (semantic + user preference strategies)
-- Build a container image and push it to ECR automatically
-- Launch the AgentCore Runtime and save the ARN to `.agent_arn`
+---
 
-### 5. Tail logs after deployment
+## BMasterAI Telemetry
+
+Every agent event is captured as structured JSONL:
+
+```jsonl
+{"event_type": "agent_start",   "message": "BMasterAI Cost Optimization Agent starting..."}
+{"event_type": "task_start",    "message": "Task received: 'Show me cost anomalies...'"}
+{"event_type": "llm_call",      "message": "Invoking Strands agent", "metadata": {...}}
+{"event_type": "tool_use",      "message": "Tool: analyze_cost_anomalies", "metadata": {"days": 7}}
+{"event_type": "task_complete", "message": "analyze_cost_anomalies completed in 842ms", "duration_ms": 842}
+{"event_type": "task_complete", "message": "Task completed in 3214ms", "duration_ms": 3214}
+```
+
+Logs written to:
+- `logs/bmasterai.log` — human-readable
+- `logs/bmasterai.jsonl` — structured JSONL for aggregators
+
+After deployment, logs also stream to CloudWatch:
 ```bash
 AGENT_ID=$(cat .agent_arn | awk -F/ '{print $NF}')
 aws logs tail /aws/bedrock-agentcore/runtimes/${AGENT_ID}-DEFAULT --follow
-```
-
-### 6. Clean up
-```bash
-uv run python cleanup.py
-# Add --keep-memory to retain AgentCore Memory for future deploys
 ```
 
 ---
@@ -104,80 +102,34 @@ uv run python cleanup.py
 
 ```
 amazon-bedrock-agentcore/
-├── agent.py              # AgentCore entry point — BedrockAgentCoreApp + Strands + BMasterAI
-├── deploy.py             # Automated deployment: IAM → Memory → ECR → Runtime
-├── cleanup.py            # Tear down all provisioned resources
-├── test_local.py         # Local test runner (no AgentCore runtime needed)
+├── agent.py              # AgentCore entry point — 5 @tool wrappers + bmasterai telemetry
+├── deploy.py             # Automated deploy: IAM → Memory → ECR → Runtime
+├── cleanup.py            # Tear down all AWS resources
+├── test_local.py         # Tool unit tests + agent test (no deploy needed)
 ├── tools/
-│   ├── __init__.py
-│   └── research_tools.py # Tool implementations: search, summarize, analyze, fetch
-├── pyproject.toml        # Dependencies (uv)
-├── .env.example          # Environment variable template
+│   ├── cost_explorer_tools.py  # get_cost_and_usage, forecast, anomalies, service breakdown
+│   └── budget_tools.py         # get_all_budgets, get_budget_status, calculate_burn_rate
+├── pyproject.toml
+├── .env.example
 └── README.md
 ```
 
 ---
 
-## BMasterAI Telemetry
+## Example Queries
 
-Every agent event is captured by BMasterAI's structured logger:
-
-```jsonl
-{"timestamp": "...", "event_type": "agent_start",    "agent_id": "...", "message": "BMasterAI Research Agent starting"}
-{"timestamp": "...", "event_type": "task_start",      "agent_id": "...", "message": "Received task: '...'"}
-{"timestamp": "...", "event_type": "llm_call",        "agent_id": "...", "message": "Invoking Strands agent"}
-{"timestamp": "...", "event_type": "tool_use",        "agent_id": "...", "message": "Tool: research_topic | query='...'"}
-{"timestamp": "...", "event_type": "task_complete",   "agent_id": "...", "duration_ms": 1234}
+```
+"Show me any cost anomalies in the last 7 days"
+"Are any of my budgets at risk of being exceeded?"
+"Forecast my AWS spend for the next 30 days"
+"What are my top 10 most expensive services this month?"
+"What's my current month-to-date spend and daily burn rate?"
 ```
 
-Logs written to:
-- `logs/bmasterai.log` — human-readable
-- `logs/bmasterai.jsonl` — structured JSONL for log aggregators (CloudWatch Insights, Datadog, etc.)
-
 ---
 
-## Tools
+## Related
 
-| Tool | Description |
-|---|---|
-| `research_topic(query)` | Search knowledge base or web (Bedrock KB → Brave → DuckDuckGo) |
-| `summarize(text)` | Extractive summarization of long text |
-| `analyze(data, question)` | Analyze JSON or CSV data to answer a question |
-| `fetch_page(url)` | Fetch and extract plain text content from a URL |
-
-### Swap in your own tools
-
-Add a function to `tools/research_tools.py`, create a `@tool` wrapper in `agent.py`, and add it to the `Agent(tools=[...])` list. The Strands framework handles tool selection automatically based on docstrings.
-
----
-
-## AgentCore Memory
-
-Two memory strategies are provisioned automatically:
-
-| Strategy | Name | Purpose |
-|---|---|---|
-| Semantic | `ResearchContext` | Retains research findings and analytical patterns across sessions |
-| User Preference | `UserPreferences` | Remembers output format and domain preferences per user |
-
-Memory ARN is persisted in SSM Parameter Store at `/bmasterai/agentcore/memory-arn` so redeployments reuse the same memory store.
-
----
-
-## Configuration
-
-| Variable | Default | Description |
-|---|---|---|
-| `MODEL_ID` | `us.anthropic.claude-3-5-sonnet-20241022-v2:0` | Bedrock model for the Strands agent |
-| `AWS_REGION` | `us-east-1` | Deployment region |
-| `KNOWLEDGE_BASE_ID` | *(empty)* | Bedrock Knowledge Base ID (optional) |
-| `BRAVE_API_KEY` | *(empty)* | Brave Search API key for web search fallback |
-| `MEMORY_ARN` | Set by deploy.py | AgentCore Memory ARN |
-
----
-
-## Related Examples
-
-- [`google-adk-a2a/`](../google-adk-a2a/) — A2A agent patterns with Google ADK
-- [`ai-stock-research-agent/`](../ai-stock-research-agent/) — domain-specific research agent
-- [`webmcp-gcp-agent/`](../webmcp-gcp-agent/) — GCP-hosted agent with MCP tools
+- [awslabs/amazon-bedrock-agentcore-samples #695](https://github.com/awslabs/amazon-bedrock-agentcore-samples/pull/695) — original cost optimization agent (no bmasterai)
+- [google-adk-a2a/](../google-adk-a2a/) — A2A agent patterns with Google ADK
+- [ai-stock-research-agent/](../ai-stock-research-agent/) — domain-specific research agent

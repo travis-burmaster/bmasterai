@@ -28,7 +28,50 @@ Real-world agents you can clone and run. Most recent first.
 
 ### 2026
 
-#### [WebMCP + GCP Agent Runtime](examples/webmcp-gcp-agent/) `NEW`
+#### [AgentCore Memory Agent + BMasterAI Telemetry](examples/agentcore-memory-agent/) `NEW`
+*February 2026*
+
+A Telegram bot with persistent memory built on AWS Bedrock AgentCore — fully instrumented with BMasterAI structured telemetry. The agent remembers past conversations, learns user preferences across sessions, and can execute bash commands, search the web, and send files. No Mac mini, no local server — just AWS and a Telegram message.
+
+**Stack:** AWS Bedrock AgentCore, Strands, Claude (Bedrock), DynamoDB, Lambda, API Gateway, Cedar policies, BMasterAI
+
+**What it demonstrates:**
+- Three-strategy persistent memory (user preferences, session summaries, semantic facts) via AgentCore Memory
+- Serverless Telegram webhook with session lifecycle management
+- Cedar policy enforcement at the AgentCore Gateway boundary
+- BMasterAI telemetry on every agent lifecycle event, memory retrieval, tool invocation, and error path — output to console, flat log, and structured JSONL
+
+```bash
+pip install -r requirements.txt
+# Deploy to AgentCore Runtime:
+./scripts/deploy.sh
+# Set Telegram webhook:
+./scripts/setup_telegram_webhook.sh
+```
+
+---
+
+#### [Amazon Bedrock AgentCore — Cost Optimization Agent](examples/amazon-bedrock-agentcore/) `NEW`
+*February 2026*
+
+A Strands agent that monitors AWS spend, detects anomalies, forecasts costs, and analyzes service-level breakdowns — with BMasterAI structured telemetry logged on every agent action. Inspired by the awslabs/amazon-bedrock-agentcore-samples reference implementation.
+
+**Stack:** AWS Bedrock AgentCore, Strands, AWS Cost Explorer, AWS Budgets, Cost Anomaly Detection, BMasterAI
+
+**What it demonstrates:**
+- Cost anomaly detection, budget monitoring, and ML-based cost forecasting via Strands tools
+- Full BMasterAI instrumentation: `AGENT_START`, `TASK_START`, `LLM_CALL`, `TOOL_USE`, `TASK_COMPLETE` on every operation
+- Structured JSONL output ready for CloudWatch Insights, Datadog, or any log aggregator
+- AgentCore Runtime deployment with `bedrock-agentcore-starter-toolkit`
+
+```bash
+pip install -r requirements.txt
+python agent.py
+```
+
+---
+
+#### [WebMCP + GCP Agent Runtime](examples/webmcp-gcp-agent/)
 *February 2026*
 
 An AI agent running on GCP Cloud Run that controls a website by calling its browser-native [WebMCP](https://webmachinelearning.github.io/webmcp/) tools via a Playwright bridge. The agent uses Gemini to complete shopping tasks by discovering and calling JavaScript tools registered in the browser via `navigator.modelContext` — instrumented end-to-end with BMasterAI.

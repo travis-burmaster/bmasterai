@@ -1,0 +1,17 @@
+# AgentCore SDK
+bedrock-agentcore-starter-toolkit>=0.1.0
+strands-agents>=0.1.0
+strands-agents-tools>=0.1.0
+
+# AWS SDK
+boto3>=1.35.0
+botocore>=1.35.0
+
+# Telegram Bot API calls
+requests>=2.31.0
+
+# Utilities
+python-dotenv>=1.0.0
+
+# BMasterAI — structured agent telemetry
+bmasterai>=0.3.0

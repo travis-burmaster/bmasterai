@@ -1,0 +1,70 @@
+## AgentCore project configuration
+## Docs: https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/
+
+name: telegram-memory-agent
+framework: strands
+runtime: python3.12
+
+# --- Agent entrypoint ---
+entrypoint: agent/main.py
+
+# --- Model configuration ---
+model:
+  provider: bedrock
+  model_id: anthropic.claude-sonnet-4-20250514-v1:0
+  region: us-east-1
+
+# --- Memory ---
+memory:
+  enabled: true
+  name: TelegramAgentMemory
+  event_expiry_days: 180
+  strategies:
+    - type: summary
+      name: SessionSummarizer
+      namespace: /summaries/{actorId}/{sessionId}/
+    - type: user_preference
+      name: PreferenceLearner
+      namespace: /preferences/{actorId}/
+    - type: semantic
+      name: FactExtractor
+      namespace: /facts/{actorId}/
+
+# --- Tools ---
+tools:
+  # Built-in AgentCore tools
+  code_interpreter:
+    enabled: true
+    languages: [python, bash]
+  browser:
+    enabled: true
+    type: aws.browser.v1
+    session_timeout_minutes: 15
+
+  # Gateway-managed tools (MCP)
+  gateway:
+    - name: telegram-bot-api
+      type: lambda
+      lambda_arn: ${TELEGRAM_TOOL_LAMBDA_ARN}
+      description: Send and receive Telegram messages
+
+# --- Policy ---
+policy:
+  engine: telegram-agent-policies
+  cedar_dir: policies/
+
+# --- Observability ---
+observability:
+  enabled: true
+  cloudwatch:
+    log_group: /agentcore/telegram-memory-agent
+  opentelemetry:
+    enabled: true
+
+# --- Deployment ---
+deploy:
+  timeout_seconds: 300
+  memory_size_mb: 1024
+  environment:
+    TELEGRAM_BOT_TOKEN_SECRET: arn:aws:secretsmanager:us-east-1:${AWS_ACCOUNT_ID}:secret:telegram-bot-token
+    MEMORY_ID: ${MEMORY_ID}

@@ -28,7 +28,28 @@ Real-world agents you can clone and run. Most recent first.
 
 ### 2026
 
-#### [AgentCore Memory Agent + BMasterAI Telemetry](examples/agentcore-memory-agent/) `NEW`
+#### [A2A Real Estate Multi-Agent — AgentCore Edition](examples/a2a-realestate-agentcore/) `NEW`
+*March 2026*
+
+A BMasterAI adaptation of the [AWS Labs A2A Real Estate sample](https://github.com/awslabs/amazon-bedrock-agentcore-samples/tree/main/02-use-cases/A2A-realestate-agentcore-multiagents). Three Strands agents — Property Search, Property Booking, and a Coordinator — communicate over the A2A (Agent-to-Agent) protocol, with every tool call and A2A hop instrumented via BMasterAI structured telemetry.
+
+**Stack:** AWS Bedrock AgentCore, Strands, A2A Protocol, OAuth 2.0 (Cognito), BMasterAI
+
+**What it demonstrates:**
+- Multi-agent orchestration with the A2A protocol: coordinator delegates to specialized sub-agents at runtime
+- BMasterAI telemetry replacing custom loggers: `TOOL_USE`, `TASK_COMPLETE`, `TASK_ERROR` on every operation across all three agents
+- Bearer token forwarding from AgentCore Runtime context to sub-agent A2A calls
+- Local REPL mode for development + `BedrockAgentCoreApp` path for serverless deployment
+
+```bash
+# Start all three agents locally + interactive REPL
+pip install -r realestate_coordinator/requirements.txt
+python run_local.py
+```
+
+---
+
+#### [AgentCore Memory Agent + BMasterAI Telemetry](examples/agentcore-memory-agent/)
 *February 2026*
 
 A Telegram bot with persistent memory built on AWS Bedrock AgentCore — fully instrumented with BMasterAI structured telemetry. The agent remembers past conversations, learns user preferences across sessions, and can execute bash commands, search the web, and send files. No Mac mini, no local server — just AWS and a Telegram message.
@@ -47,27 +68,6 @@ pip install -r requirements.txt
 ./scripts/deploy.sh
 # Set Telegram webhook:
 ./scripts/setup_telegram_webhook.sh
-```
-
----
-
-#### [A2A Real Estate Multi-Agent — AgentCore Edition](examples/a2a-realestate-agentcore/) `NEW`
-*March 2026*
-
-A BMasterAI adaptation of the [AWS Labs A2A Real Estate sample](https://github.com/awslabs/amazon-bedrock-agentcore-samples/tree/main/02-use-cases/A2A-realestate-agentcore-multiagents). Three Strands agents — Property Search, Property Booking, and a Coordinator — communicate over the A2A (Agent-to-Agent) protocol, with every tool call and A2A hop instrumented via BMasterAI structured telemetry.
-
-**Stack:** AWS Bedrock AgentCore, Strands, A2A Protocol, OAuth 2.0 (Cognito), BMasterAI
-
-**What it demonstrates:**
-- Multi-agent orchestration with the A2A protocol: coordinator delegates to specialized sub-agents at runtime
-- BMasterAI telemetry replacing custom loggers: `TOOL_USE`, `TASK_COMPLETE`, `TASK_ERROR` on every operation across all three agents
-- Bearer token forwarding from AgentCore Runtime context to sub-agent A2A calls
-- Local REPL mode for development + `BedrockAgentCoreApp` path for serverless deployment
-
-```bash
-# Start all three agents locally + interactive REPL
-pip install -r realestate_coordinator/requirements.txt
-python run_local.py
 ```
 
 ---

@@ -51,7 +51,28 @@ pip install -r requirements.txt
 
 ---
 
-#### [Amazon Bedrock AgentCore — Cost Optimization Agent](examples/amazon-bedrock-agentcore/) `NEW`
+#### [A2A Real Estate Multi-Agent — AgentCore Edition](examples/a2a-realestate-agentcore/) `NEW`
+*March 2026*
+
+A BMasterAI adaptation of the [AWS Labs A2A Real Estate sample](https://github.com/awslabs/amazon-bedrock-agentcore-samples/tree/main/02-use-cases/A2A-realestate-agentcore-multiagents). Three Strands agents — Property Search, Property Booking, and a Coordinator — communicate over the A2A (Agent-to-Agent) protocol, with every tool call and A2A hop instrumented via BMasterAI structured telemetry.
+
+**Stack:** AWS Bedrock AgentCore, Strands, A2A Protocol, OAuth 2.0 (Cognito), BMasterAI
+
+**What it demonstrates:**
+- Multi-agent orchestration with the A2A protocol: coordinator delegates to specialized sub-agents at runtime
+- BMasterAI telemetry replacing custom loggers: `TOOL_USE`, `TASK_COMPLETE`, `TASK_ERROR` on every operation across all three agents
+- Bearer token forwarding from AgentCore Runtime context to sub-agent A2A calls
+- Local REPL mode for development + `BedrockAgentCoreApp` path for serverless deployment
+
+```bash
+# Start all three agents locally + interactive REPL
+pip install -r realestate_coordinator/requirements.txt
+python run_local.py
+```
+
+---
+
+#### [Amazon Bedrock AgentCore — Cost Optimization Agent](examples/amazon-bedrock-agentcore/)
 *February 2026*
 
 A Strands agent that monitors AWS spend, detects anomalies, forecasts costs, and analyzes service-level breakdowns — with BMasterAI structured telemetry logged on every agent action. Inspired by the awslabs/amazon-bedrock-agentcore-samples reference implementation.

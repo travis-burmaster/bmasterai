@@ -28,7 +28,49 @@ Real-world agents you can clone and run. Most recent first.
 
 ### 2026
 
-#### [A2A Real Estate Multi-Agent — AgentCore Edition](examples/a2a-realestate-agentcore/) `NEW`
+#### [Deep Research Agent — LangGraph + BMasterAI Telemetry](examples/deep-research-agent/) `NEW`
+*March 2026*
+
+A multi-step web research agent built with **LangGraph** and fully instrumented with **BMasterAI** logging and telemetry. Inspired by [langchain-ai/deepagents](https://github.com/langchain-ai/deepagents). Give it any research question and it plans, searches, analyzes, reflects on quality, and synthesizes a structured report — automatically looping back for more research if gaps are found.
+
+**Stack:** LangGraph, Claude (Anthropic), Tavily, BMasterAI
+
+**What it demonstrates:**
+- Multi-node LangGraph pipeline with a conditional reflection loop (planner → search → analyze → reflect → synthesize)
+- Quality-gated research: reflector scores findings 1–10, loops back for follow-up searches when score < 7 (max 2 loops)
+- BMasterAI on every step: `track_agent_start/stop`, `track_llm_call`, `track_task_duration`, `log_event(TOOL_USE)`, `log_reasoning_chain`, `log_event(DECISION_POINT)`
+- Structured JSONL telemetry at `logs/research.jsonl` — pipe to any analytics tool
+
+```bash
+pip install -r requirements.txt
+cp .env.example .env  # add ANTHROPIC_API_KEY + TAVILY_API_KEY
+python main.py "What is the current state of multi-agent AI systems in 2026?"
+```
+
+---
+
+#### [Viral YouTube Short Generator — LangGraph](examples/langgraph-viral-youtube/) 
+*March 2026*
+
+A four-agent LangGraph pipeline that researches trending topics and generates complete viral YouTube Short production packages — title, hook, 45-60 second script, tags, and thumbnail concept — with a quality gate that retries automatically if the output doesn't meet bar.
+
+**Stack:** LangGraph, Claude (Anthropic), Tavily, BMasterAI
+
+**What it demonstrates:**
+- Four specialist agents in sequence: Trend Researcher → Hook Writer → Script Writer → Title & Tags
+- Quality gate node with automatic retry (max 2 loops) using LangGraph conditional edges
+- BMasterAI structured logging on every agent call: `configure_logging`, `track_agent_start/stop`, `track_llm_call`, `log_event(EventType.*)` 
+- Shared `VideoState` TypedDict flowing through all nodes — clean state handoff pattern
+
+```bash
+pip install -r requirements.txt
+cp .env.example .env  # add ANTHROPIC_API_KEY + TAVILY_API_KEY
+python main.py "AI agents taking over software engineering"
+```
+
+---
+
+#### [A2A Real Estate Multi-Agent — AgentCore Edition](examples/a2a-realestate-agentcore/)
 *March 2026*
 
 A BMasterAI adaptation of the [AWS Labs A2A Real Estate sample](https://github.com/awslabs/amazon-bedrock-agentcore-samples/tree/main/02-use-cases/A2A-realestate-agentcore-multiagents). Three Strands agents — Property Search, Property Booking, and a Coordinator — communicate over the A2A (Agent-to-Agent) protocol, with every tool call and A2A hop instrumented via BMasterAI structured telemetry.

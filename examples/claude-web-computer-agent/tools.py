@@ -11,7 +11,7 @@ All tools log TOOL_USE events via BMasterAI before and after execution.
 import os
 import base64
 import subprocess
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 # ── Optional imports (graceful degradation) ──────────────────────────────────
 try:
@@ -136,8 +136,10 @@ def _run_web_search(query: str, max_results: int = 5) -> Dict[str, Any]:
     }
 
 
-def _run_computer_use(action: str, x: int = None, y: int = None,
-                      text: str = None, key: str = None,
+_SUBPROCESS_TIMEOUT = 10  # seconds — prevents hanging processes
+
+def _run_computer_use(action: str, x: Optional[int] = None, y: Optional[int] = None,
+                      text: Optional[str] = None, key: Optional[str] = None,
                       delta_y: int = 300) -> Dict[str, Any]:
     """
     Execute a computer use action using xdotool + scrot (Linux).
@@ -147,7 +149,8 @@ def _run_computer_use(action: str, x: int = None, y: int = None,
         if action == "screenshot":
             result = subprocess.run(
                 ["scrot", "-", "--quality", "80"],
-                capture_output=True, check=True
+                capture_output=True, check=True,
+                timeout=_SUBPROCESS_TIMEOUT,  # prevent hang if display is unresponsive
             )
             img_b64 = base64.b64encode(result.stdout).decode("utf-8")
             return {
@@ -161,19 +164,30 @@ def _run_computer_use(action: str, x: int = None, y: int = None,
         elif action == "click":
             if x is None or y is None:
                 return {"error": "click requires x and y coordinates."}
-            subprocess.run(["xdotool", "mousemove", str(x), str(y), "click", "1"], check=True)
+            subprocess.run(
+                ["xdotool", "mousemove", str(x), str(y), "click", "1"],
+                check=True, timeout=_SUBPROCESS_TIMEOUT,
+            )
             return {"action": "click", "success": True, "x": x, "y": y}
 
         elif action == "type":
             if not text:
                 return {"error": "type requires text parameter."}
-            subprocess.run(["xdotool", "type", "--clearmodifiers", text], check=True)
+            # "--" signals end of options, preventing text from being parsed as flags
+            subprocess.run(
+                ["xdotool", "type", "--clearmodifiers", "--", text],
+                check=True, timeout=_SUBPROCESS_TIMEOUT,
+            )
             return {"action": "type", "success": True, "typed": text}
 
         elif action == "key":
             if not key:
                 return {"error": "key requires key parameter."}
-            subprocess.run(["xdotool", "key", key], check=True)
+            # "--" prevents key names from being treated as options
+            subprocess.run(
+                ["xdotool", "key", "--", key],
+                check=True, timeout=_SUBPROCESS_TIMEOUT,
+            )
             return {"action": "key", "success": True, "key": key}
 
         elif action == "scroll":
@@ -184,13 +198,15 @@ def _run_computer_use(action: str, x: int = None, y: int = None,
             for _ in range(steps):
                 subprocess.run(
                     ["xdotool", "mousemove", str(x), str(y), "click", direction],
-                    check=True
+                    check=True, timeout=_SUBPROCESS_TIMEOUT,
                 )
             return {"action": "scroll", "success": True, "x": x, "y": y, "delta_y": delta_y}
 
         else:
             return {"error": f"Unknown action: {action}"}
 
+    except subprocess.TimeoutExpired:
+        return {"error": f"Timed out after {_SUBPROCESS_TIMEOUT}s", "action": action, "success": False}
     except FileNotFoundError as e:
         tool = "scrot" if "scrot" in str(e) else "xdotool"
         return {

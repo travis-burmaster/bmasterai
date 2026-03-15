@@ -161,12 +161,19 @@ class WebComputerAgent:
                 final_response = self._extract_text(response)
 
         except Exception as e:
+            import traceback
             self.bm.log_event(
                 agent_id=AGENT_ID,
                 event_type=EventType.TASK_ERROR,
-                message=f"Agent error: {e}",
+                message=f"Agent error: {type(e).__name__}: {e}",
                 level=LogLevel.ERROR,
-                metadata={"error": str(e), "turn": turn},
+                metadata={
+                    "error_type": type(e).__name__,
+                    "error": str(e),
+                    "turn": turn,
+                    "message_count": len(messages),
+                    "traceback": traceback.format_exc(limit=5),
+                },
             )
             self.monitor.track_error(AGENT_ID, type(e).__name__)
             raise

@@ -28,7 +28,28 @@ Real-world agents you can clone and run. Most recent first.
 
 ### 2026
 
-#### [Deep Research Agent — LangGraph + BMasterAI Telemetry](examples/deep-research-agent/) `NEW`
+#### [Claude Web + Computer Agent — Native Tool-Use Loop](examples/claude-web-computer-agent/) `NEW`
+*March 2026*
+
+A bare-metal Claude tool-use agent combining **web search** (Tavily) and **computer use** (screenshot/click/type/key/scroll) — no LangGraph, no framework, just the Anthropic SDK — fully instrumented with BMasterAI logging and telemetry. The foundational pattern that every Claude agent is built on.
+
+**Stack:** Claude (Anthropic), Tavily, xdotool + scrot, BMasterAI
+
+**What it demonstrates:**
+- The raw Anthropic `tool_use` / `tool_result` message cycle — the core loop behind every Claude agent
+- Multimodal tool results: screenshots sent back to Claude as image blocks so it can see the screen
+- BMasterAI telemetry on every LLM call, tool dispatch, decision point, and error path
+- Structured JSONL telemetry at `logs/agent.jsonl` — pipe to any analytics tool
+
+```bash
+pip install -r requirements.txt
+cp .env.example .env  # add ANTHROPIC_API_KEY + TAVILY_API_KEY
+python main.py "Search for today's top AI news, open a browser to the first result, take a screenshot, and summarize what you see."
+```
+
+---
+
+#### [Deep Research Agent — LangGraph + BMasterAI Telemetry](examples/deep-research-agent/)
 *March 2026*
 
 A multi-step web research agent built with **LangGraph** and fully instrumented with **BMasterAI** logging and telemetry. Inspired by [langchain-ai/deepagents](https://github.com/langchain-ai/deepagents). Give it any research question and it plans, searches, analyzes, reflects on quality, and synthesizes a structured report — automatically looping back for more research if gaps are found.

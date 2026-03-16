@@ -1,5 +1,5 @@
 """
-tools.py — Tool schemas and dispatch for claude-web-computer-agent
+tools.py — Tool schemas and dispatch for gemini-web-computer-agent
 
 Defines two tool types:
   1. web_search    — Tavily search (client-side wrapper)
@@ -22,7 +22,7 @@ except ImportError:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Tool JSON schemas (passed to Claude in the `tools` array)
+# Tool JSON schemas (passed to Gemini in the `tools` array)
 # ─────────────────────────────────────────────────────────────────────────────
 
 WEB_SEARCH_SCHEMA = {
@@ -97,7 +97,7 @@ COMPUTER_USE_SCHEMA = {
     },
 }
 
-# All schemas to pass to Claude
+# All schemas to pass to Gemini
 ALL_TOOL_SCHEMAS: List[Dict] = [
     WEB_SEARCH_SCHEMA,
     COMPUTER_USE_SCHEMA,

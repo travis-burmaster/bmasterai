@@ -115,12 +115,50 @@ class CrosswordGrid:
                         cell_index = cells.index((row, col))
                         proposed_letters.add(answer[cell_index])
 
-                # Commit only if there is exactly one proposed letter
+                # Commit only if there is exactly one proposed letter (and it's a real letter)
                 if len(proposed_letters) == 1:
                     letter = proposed_letters.pop()
+                    if letter.isalpha():
+                        self.grid[row][col] = letter
+                        committed_count += 1
+
+        return committed_count
+
+    def commit_all_proposed(self) -> int:
+        """
+        Force-commit all proposed answers to the grid (trust the solver).
+
+        ACROSS answers are committed first, then DOWN fills remaining cells.
+        This ensures ACROSS answers take priority at crossings.
+
+        Returns:
+            Number of cells committed
+        """
+        committed_count = 0
+        # Commit ACROSS first
+        for (num, direction), answer in self.proposed_answers.items():
+            if direction != "ACROSS":
+                continue
+            clue = self.clues[(num, direction)]
+            for i, (row, col) in enumerate(clue["cells"]):
+                if self.grid[row][col] == "#":
+                    continue
+                letter = answer[i]
+                if letter.isalpha():
                     self.grid[row][col] = letter
                     committed_count += 1
-
+        # Then DOWN (only fills cells not already set by ACROSS)
+        for (num, direction), answer in self.proposed_answers.items():
+            if direction != "DOWN":
+                continue
+            clue = self.clues[(num, direction)]
+            for i, (row, col) in enumerate(clue["cells"]):
+                if self.grid[row][col] not in (".", "#"):
+                    continue  # Already filled by ACROSS
+                letter = answer[i]
+                if letter.isalpha():
+                    self.grid[row][col] = letter
+                    committed_count += 1
         return committed_count
 
     def get_conflicts(self) -> List[Tuple[Tuple[int, int], Set[str]]]:
@@ -194,6 +232,8 @@ class CrosswordGrid:
                 cell = self.grid[row][col]
                 if cell == ".":
                     row_chars.append("·")
+                elif cell == "#":
+                    row_chars.append("█")
                 else:
                     row_chars.append(cell)
             lines.append("│" + " ".join(row_chars) + "│")
@@ -202,7 +242,7 @@ class CrosswordGrid:
         return "\n".join(lines)
 
     def get_empty_cell_count(self) -> int:
-        """Return number of unfilled cells."""
+        """Return number of unfilled cells (excluding black cells)."""
         count = 0
         for row in range(self.size):
             for col in range(self.size):

@@ -26,7 +26,7 @@ def screenshot_to_base64(image_bytes: bytes) -> str:
 
 
 def ask_vision(
-    prompt: str, image_b64: str, model: str = "qwen2.5vl:7b"
+    prompt: str, image_b64: str, model: str = "qwen2.5:7b"
 ) -> str:
     """
     Query the Ollama vision model with an image.
@@ -123,10 +123,10 @@ def propose_answer(
     length: int,
     context: str = "",
     image_b64: Optional[str] = None,
-    model: str = "qwen2.5vl:7b",
+    model: str = "qwen2.5:7b",
 ) -> str:
     """
-    Ask the vision model to propose an answer for a clue.
+    Ask the model to propose an answer for a crossword clue.
 
     Args:
         clue: The clue text (e.g., "Small dog")
@@ -139,19 +139,13 @@ def propose_answer(
         Proposed answer (uppercase, exactly 'length' characters)
     """
     context_hint = ""
-    if context:
-        context_hint = f"\n\nCrossing context: {context}\n(Use this to resolve conflicts with crossing answers)"
+    if context and any(c.isalpha() for c in context):
+        context_hint = f"\nSome letters are already known from crossing answers: {context}\nThe answer must match these known letters in their positions.\n"
 
-    image_part = ""
-    if image_b64:
-        image_part = "\n\nFor reference, the crossword grid is shown in the image."
-
-    prompt = f"""Solve this crossword clue:
-
-Clue: {clue}
-Answer length: {length} letters{context_hint}{image_part}
-
-Return ONLY the answer in uppercase, exactly {length} letters. No explanation."""
+    prompt = f"""Crossword clue: "{clue}"
+The answer is a single word or phrase with exactly {length} letters, no more, no less.
+{context_hint}
+What is the {length}-letter answer? Reply with just the answer in UPPERCASE, nothing else."""
 
     messages = [
         {
@@ -165,15 +159,40 @@ Return ONLY the answer in uppercase, exactly {length} letters. No explanation.""
 
     try:
         response = ollama.chat(model=model, messages=messages)
-        answer = response["message"]["content"].strip().upper()
+        raw = response["message"]["content"].strip()
 
-        # Ensure answer is exactly the right length (truncate or pad if needed)
-        if len(answer) > length:
-            answer = answer[:length]
-        elif len(answer) < length:
+        # Extract just alphabetic characters from the response
+        import re
+        # Try to find the answer: look for a word of the right length
+        words = re.findall(r'[A-Za-z]+', raw)
+        answer = ""
+
+        # First try: exact length match
+        for word in words:
+            if len(word) == length:
+                answer = word.upper()
+                break
+
+        # Second try: first word that's close to the right length
+        if not answer:
+            for word in words:
+                if abs(len(word) - length) <= 1:
+                    answer = word.upper()[:length]
+                    break
+
+        # Third try: concatenate all alpha chars and truncate
+        if not answer:
+            all_alpha = re.sub(r'[^A-Za-z]', '', raw).upper()
+            if all_alpha:
+                answer = all_alpha[:length]
+
+        # Pad if needed
+        if answer and len(answer) < length:
             answer = answer.ljust(length, "_")
+        elif not answer:
+            answer = "_" * length
 
         return answer
     except Exception as e:
-        # Return placeholder on error
+        print(f"   [ollama error] {e}")
         return "_" * length

@@ -1,0 +1,6 @@
+ollama>=0.3.0
+playwright>=1.44.0
+bmasterai>=0.2.3
+python-dotenv>=1.0.0
+psutil>=5.9.0
+Pillow>=10.0.0

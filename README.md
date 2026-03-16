@@ -28,7 +28,30 @@ Real-world agents you can clone and run. Most recent first.
 
 ### 2026
 
-#### [Gemini Web + Computer Agent — Native Function-Calling Loop](examples/gemini-web-computer-agent/) `NEW`
+#### [Ollama Crossword Agent — Hybrid Vision + Constraint Solver](examples/ollama-crossword-agent/) `NEW`
+*March 2026*
+
+A hybrid crossword-solving agent that combines **qwen2.5vl:7b** (local vision model via Ollama) for reading clues and proposing answers, **Playwright** for deterministic browser control, and a **Python constraint engine** that only commits letters when crossing ACROSS and DOWN answers agree. Runs 100% locally — no API keys required.
+
+**Stack:** Ollama (qwen2.5vl:7b), Playwright, BMasterAI
+
+**What it demonstrates:**
+- Hybrid LLM + code architecture: model proposes, code enforces — reliable solves without hallucination drift
+- Crossing-constraint engine: cells committed only when all intersecting answers agree on the same letter
+- Local vision inference via Ollama — screenshot → clue extraction → answer proposal in one pipeline
+- Full BMasterAI instrumentation on every vision call, browser action, constraint decision, and retry
+- `--demo` mode works offline without Ollama or a browser for easy local testing
+
+```bash
+ollama pull qwen2.5vl:7b
+pip install -r requirements.txt && playwright install chromium
+python main.py --demo   # no browser or Ollama needed
+python main.py          # live NYT Mini Crossword
+```
+
+---
+
+#### [Gemini Web + Computer Agent — Native Function-Calling Loop](examples/gemini-web-computer-agent/)
 *March 2026*
 
 A bare-metal Gemini function-calling agent combining **web search** (Tavily) and **computer use** (screenshot/click/type/key/scroll) — no LangGraph, no framework, just the Google GenAI SDK — fully instrumented with BMasterAI logging and telemetry. Cross-platform: works on Linux (xdotool + scrot) and macOS (cliclick + screencapture).

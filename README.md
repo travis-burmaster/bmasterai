@@ -28,7 +28,28 @@ Real-world agents you can clone and run. Most recent first.
 
 ### 2026
 
-#### [Claude Web + Computer Agent — Native Tool-Use Loop](examples/claude-web-computer-agent/) `NEW`
+#### [Gemini Web + Computer Agent — Native Function-Calling Loop](examples/gemini-web-computer-agent/) `NEW`
+*March 2026*
+
+A bare-metal Gemini function-calling agent combining **web search** (Tavily) and **computer use** (screenshot/click/type/key/scroll) — no LangGraph, no framework, just the Google GenAI SDK — fully instrumented with BMasterAI logging and telemetry. Cross-platform: works on Linux (xdotool + scrot) and macOS (cliclick + screencapture).
+
+**Stack:** Gemini (Google GenAI SDK), Tavily, xdotool/cliclick, BMasterAI
+
+**What it demonstrates:**
+- The raw Gemini `function_call` / `function_response` message cycle — the core loop behind every Gemini agent
+- Multimodal tool results: screenshots sent back to Gemini as image parts so it can see the screen
+- BMasterAI telemetry on every LLM call, tool dispatch, decision point, and error path
+- Structured JSONL telemetry at `logs/agent.jsonl` — pipe to any analytics tool
+
+```bash
+pip install -r requirements.txt
+cp .env.example .env  # add GEMINI_API_KEY + TAVILY_API_KEY
+python main.py "Search for today's top AI news, open a browser to the first result, take a screenshot, and summarize what you see."
+```
+
+---
+
+#### [Claude Web + Computer Agent — Native Tool-Use Loop](examples/claude-web-computer-agent/)
 *March 2026*
 
 A bare-metal Claude tool-use agent combining **web search** (Tavily) and **computer use** (screenshot/click/type/key/scroll) — no LangGraph, no framework, just the Anthropic SDK — fully instrumented with BMasterAI logging and telemetry. The foundational pattern that every Claude agent is built on.

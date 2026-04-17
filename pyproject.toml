@@ -1,14 +1,15 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.27.0"]
 build-backend = "hatchling.build"
 
 [project]
 name = "bmasterai"
-version = "0.2.3"
+version = "0.2.4"
 authors = [{ name = "Travis Burmaster", email = "travis@burmaster.com" }]
 description = "A comprehensive Python framework for building multi-agent AI systems with advanced logging, monitoring, and integrations"
 readme = "README.md"
 requires-python = ">=3.8"
+license = "MIT"
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -24,6 +25,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 keywords = ["ai", "agents", "multi-agent", "automation", "monitoring", "logging"]
+license-files = ["LICENSE"]
 
 dependencies = [
     "openai>=1.0.0",

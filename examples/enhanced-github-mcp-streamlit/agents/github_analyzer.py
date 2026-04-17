@@ -269,8 +269,8 @@ class GitHubAnalyzerAgent:
         key_files_analysis = {}
         
         important_files = [
-            "README.md", "requirements.txt", "package.json", 
-            "Dockerfile", "setup.py", ".gitignore"
+            "README.md", "LICENSE", "package.json",
+            "package-lock.json", "Dockerfile", ".gitignore"
         ]
         
         for file_name in important_files:
@@ -336,9 +336,9 @@ class GitHubAnalyzerAgent:
         # Important files scoring (60 points max)
         important_files_score = {
             "README.md": 20,
-            "LICENSE": 10,
-            "requirements.txt": 10,
+            "LICENSE": 15,
             "package.json": 10,
+            "package-lock.json": 10,
             ".gitignore": 5,
             "Dockerfile": 5
         }
@@ -350,83 +350,310 @@ class GitHubAnalyzerAgent:
         return min(score, 100)
     
     async def _analyze_security(self, repo_url: str, repo_info: Dict[str, Any]) -> Dict[str, Any]:
-        """Analyze repository for security issues and best practices"""
+        """Analyze repository for security issues.
+
+        Three layers:
+          1. Exposed-secret-file check (cheap — existing behavior).
+          2. Dependency vulnerability scan via OSV.dev (package.json/package-lock.json, requirements.txt).
+          3. LLM-driven code audit over a sample of source files.
+        """
         security_analysis = {
             "issues": [],
             "recommendations": [],
-            "score": 100  # Start with perfect score and deduct
+            "score": 100,
+            "scan_metadata": {}
         }
-        
-        try:
-            # Check for sensitive files
-            sensitive_files = [".env", "config.py", "secrets.json", "private_key"]
-            for file_name in sensitive_files:
-                try:
-                    self.github_client.get_file_content(repo_url, file_name)
-                    security_analysis["issues"].append({
-                        "type": "sensitive_file",
-                        "severity": "high",
-                        "file": file_name,
-                        "description": f"Sensitive file {file_name} found in repository"
-                    })
-                    security_analysis["score"] -= 20
-                except:
-                    pass  # File not found, which is good
-            
-            # Check for hardcoded secrets in common files
-            files_to_check = ["README.md", "config.py", "settings.py"]
-            secret_patterns = ["password", "api_key", "secret", "token"]
-            
-            for file_name in files_to_check:
-                try:
-                    content = self.github_client.get_file_content(repo_url, file_name).lower()
-                    for pattern in secret_patterns:
-                        if pattern in content and "=" in content:
-                            security_analysis["issues"].append({
-                                "type": "potential_secret",
-                                "severity": "medium",
-                                "file": file_name,
-                                "description": f"Potential hardcoded secret pattern '{pattern}' found in {file_name}"
-                            })
-                            security_analysis["score"] -= 10
-                except:
-                    pass
-            
-            # Check repository settings
-            if repo_info.get("basic_info", {}).get("private") is False:
-                security_analysis["recommendations"].append({
-                    "type": "repository_visibility",
-                    "description": "Repository is public - ensure no sensitive data is exposed"
+
+        # --- Layer 1: sensitive files committed to repo ---
+        sensitive_files = [".env", "config.py", "secrets.json", "private_key"]
+        for file_name in sensitive_files:
+            try:
+                self.github_client.get_file_content(repo_url, file_name)
+                security_analysis["issues"].append({
+                    "type": "sensitive_file",
+                    "severity": "high",
+                    "file": file_name,
+                    "description": f"Sensitive file {file_name} committed to repository"
                 })
-            
-            # Check for license
-            if not any(key_file.get("exists", False) for key_file in [
-                repo_info.get("key_files", {}).get("LICENSE", {}),
-                repo_info.get("key_files", {}).get("LICENSE.txt", {})
-            ]):
-                security_analysis["recommendations"].append({
-                    "type": "missing_license",
-                    "description": "Consider adding a LICENSE file to clarify usage rights"
+                security_analysis["score"] -= 20
+            except Exception:
+                pass
+
+        # --- Layer 2: dependency vulnerability scan (OSV.dev) ---
+        try:
+            dep_scan = await self._scan_dependencies(repo_url)
+            security_analysis["scan_metadata"]["deps_scanned"] = dep_scan.get("deps_scanned", 0)
+            for f in dep_scan.get("findings", []):
+                security_analysis["issues"].append({
+                    "type": "vulnerable_dependency",
+                    "severity": f.get("severity", "high"),
+                    "file": f.get("manifest", "package.json"),
+                    "package": f.get("package"),
+                    "ecosystem": f.get("ecosystem"),
+                    "advisory_count": f.get("count"),
+                    "advisory_ids": f.get("advisory_ids", []),
+                    "description": (
+                        f"Known vulnerable dependency {f.get('package')} "
+                        f"({f.get('count')} advisories in {f.get('ecosystem')})"
+                    )
                 })
                 security_analysis["score"] -= 5
-            
-            # Generate security recommendations
-            if security_analysis["score"] < 80:
-                security_analysis["recommendations"].append({
-                    "type": "security_review",
-                    "description": "Consider conducting a thorough security review"
-                })
-            
         except Exception as e:
             self.logger.log_event(
                 agent_id=self.agent_id,
                 event_type=EventType.TASK_ERROR,
-                message=f"Security analysis failed: {str(e)}",
-                level=LogLevel.ERROR
+                message=f"Dependency scan failed: {e}",
+                level=LogLevel.WARNING
             )
-            security_analysis["error"] = str(e)
-        
+
+        # --- Layer 3: LLM source code audit ---
+        try:
+            src_scan = await self._scan_source_code(repo_url)
+            security_analysis["scan_metadata"]["files_scanned"] = src_scan.get("files_scanned", 0)
+            sev_deduct = {"critical": 15, "high": 10, "medium": 5, "low": 2}
+            for f in src_scan.get("findings", []):
+                sev = (f.get("severity") or "medium").lower()
+                security_analysis["issues"].append({
+                    "type": f.get("type", "other"),
+                    "severity": sev,
+                    "file": f.get("file"),
+                    "description": f.get("description"),
+                    "evidence": f.get("evidence"),
+                })
+                security_analysis["score"] -= sev_deduct.get(sev, 5)
+        except Exception as e:
+            self.logger.log_event(
+                agent_id=self.agent_id,
+                event_type=EventType.TASK_ERROR,
+                message=f"Source code security scan failed: {e}",
+                level=LogLevel.WARNING
+            )
+
+        # --- Repository meta recommendations ---
+        if repo_info.get("basic_info", {}).get("private") is False:
+            security_analysis["recommendations"].append({
+                "type": "repository_visibility",
+                "description": "Repository is public - ensure no sensitive data is exposed"
+            })
+
+        if not any(key_file.get("exists", False) for key_file in [
+            repo_info.get("key_files", {}).get("LICENSE", {}),
+            repo_info.get("key_files", {}).get("LICENSE.txt", {})
+        ]):
+            security_analysis["recommendations"].append({
+                "type": "missing_license",
+                "description": "Consider adding a LICENSE file to clarify usage rights"
+            })
+
+        security_analysis["score"] = max(security_analysis["score"], 0)
+        if security_analysis["score"] < 80:
+            security_analysis["recommendations"].append({
+                "type": "security_review",
+                "description": "Thorough security review recommended given issue count"
+            })
+
         return security_analysis
+
+    async def _scan_dependencies(self, repo_url: str) -> Dict[str, Any]:
+        """Scan project dependencies against OSV.dev for known vulnerabilities.
+
+        Prefers package-lock.json (concrete versions) over package.json (version ranges).
+        Supports npm + PyPI.
+        """
+        import json as _json
+        import re
+        queries: List[Dict[str, Any]] = []
+
+        # package-lock.json v2+/v3 → { "packages": { "node_modules/<name>": {"version": "x"} } }
+        # package-lock.json v1     → { "dependencies": { "<name>": {"version": "x"} } }
+        lock_parsed = False
+        try:
+            lock = _json.loads(self.github_client.get_file_content(repo_url, "package-lock.json"))
+            if isinstance(lock.get("packages"), dict):
+                for key, meta in lock["packages"].items():
+                    if key and key.startswith("node_modules/") and isinstance(meta, dict) and meta.get("version"):
+                        name = key.split("node_modules/", 1)[1]
+                        queries.append({"package": {"name": name, "ecosystem": "npm"},
+                                        "version": meta["version"], "_meta": ("npm", name, meta["version"], "package-lock.json")})
+                lock_parsed = True
+            elif isinstance(lock.get("dependencies"), dict):
+                def _walk_v1(deps):
+                    for name, meta in deps.items():
+                        if isinstance(meta, dict) and meta.get("version"):
+                            queries.append({"package": {"name": name, "ecosystem": "npm"},
+                                            "version": meta["version"],
+                                            "_meta": ("npm", name, meta["version"], "package-lock.json")})
+                        if isinstance(meta, dict) and isinstance(meta.get("dependencies"), dict):
+                            _walk_v1(meta["dependencies"])
+                _walk_v1(lock["dependencies"])
+                lock_parsed = True
+        except Exception:
+            pass
+
+        if not lock_parsed:
+            try:
+                pkg = _json.loads(self.github_client.get_file_content(repo_url, "package.json"))
+                all_deps = {**(pkg.get("dependencies") or {}), **(pkg.get("devDependencies") or {})}
+                for name, spec in all_deps.items():
+                    if not spec:
+                        continue
+                    ver = re.sub(r"^[\^~>=<\s]+", "", str(spec)).split()[0]
+                    if ver and re.match(r"^\d", ver):
+                        queries.append({"package": {"name": name, "ecosystem": "npm"},
+                                        "version": ver,
+                                        "_meta": ("npm", name, ver, "package.json")})
+            except Exception:
+                pass
+
+        # PyPI from requirements.txt
+        try:
+            req_text = self.github_client.get_file_content(repo_url, "requirements.txt")
+            for raw in req_text.splitlines():
+                line = raw.strip()
+                if not line or line.startswith("#"):
+                    continue
+                m = re.match(r"^([A-Za-z0-9_.\-]+)\s*(?:==|>=|~=)\s*([0-9][A-Za-z0-9.\-]*)", line)
+                if m:
+                    queries.append({"package": {"name": m.group(1), "ecosystem": "PyPI"},
+                                    "version": m.group(2),
+                                    "_meta": ("PyPI", m.group(1), m.group(2), "requirements.txt")})
+        except Exception:
+            pass
+
+        if not queries:
+            return {"deps_scanned": 0, "findings": []}
+
+        # Cap batch size to avoid huge payloads on megalithic lockfiles
+        queries = queries[:500]
+        clean = [{"package": q["package"], "version": q["version"]} for q in queries]
+
+        import requests
+        findings: List[Dict[str, Any]] = []
+        try:
+            resp = requests.post("https://api.osv.dev/v1/querybatch",
+                                 json={"queries": clean}, timeout=30)
+            resp.raise_for_status()
+            results = resp.json().get("results", [])
+            for q, res in zip(queries, results):
+                vulns = (res or {}).get("vulns") or []
+                if not vulns:
+                    continue
+                ecosystem, name, version, manifest = q["_meta"]
+                findings.append({
+                    "package": f"{name}@{version}",
+                    "ecosystem": ecosystem,
+                    "manifest": manifest,
+                    "count": len(vulns),
+                    "advisory_ids": [v.get("id") for v in vulns[:5]],
+                    "severity": "high",
+                })
+        except Exception as e:
+            self.logger.log_event(
+                agent_id=self.agent_id,
+                event_type=EventType.TASK_ERROR,
+                message=f"OSV.dev query failed: {e}",
+                level=LogLevel.WARNING
+            )
+
+        return {"deps_scanned": len(queries), "findings": findings}
+
+    async def _scan_source_code(self, repo_url: str,
+                                max_files: int = 8,
+                                max_bytes_per_file: int = 8000) -> Dict[str, Any]:
+        """Sample source files and ask the LLM to identify concrete security vulnerabilities."""
+        code_exts = (".js", ".ts", ".jsx", ".tsx", ".py", ".rb", ".go", ".java", ".php")
+        candidates = ["routes", "src/routes", "controllers", "src/controllers",
+                      "api", "src/api", "app", "src", "lib", "server", "backend"]
+        sampled: List[str] = []
+
+        def walk(path: str, depth: int = 0):
+            if len(sampled) >= max_files or depth > 2:
+                return
+            try:
+                items = self.github_client.get_repository_contents(repo_url, path)
+            except Exception:
+                return
+            for item in items:
+                if len(sampled) >= max_files:
+                    break
+                name = item.get("name", "")
+                item_path = item.get("path") or (f"{path}/{name}".strip("/"))
+                if item.get("type") == "file" and name.endswith(code_exts):
+                    sampled.append(item_path)
+                elif item.get("type") == "dir" and depth < 2:
+                    walk(item_path, depth + 1)
+
+        for c in candidates:
+            if len(sampled) >= max_files:
+                break
+            walk(c, 0)
+
+        if not sampled:
+            try:
+                for item in self.github_client.get_repository_contents(repo_url, ""):
+                    if item.get("type") == "file" and item.get("name", "").endswith(code_exts):
+                        sampled.append(item["name"])
+                        if len(sampled) >= max_files:
+                            break
+            except Exception:
+                pass
+
+        if not sampled:
+            return {"files_scanned": 0, "findings": []}
+
+        snippets: List[str] = []
+        for p in sampled[:max_files]:
+            try:
+                content = self.github_client.get_file_content(repo_url, p)
+                if len(content) > max_bytes_per_file:
+                    content = content[:max_bytes_per_file] + "\n... [TRUNCATED] ..."
+                snippets.append(f"=== FILE: {p} ===\n{content}")
+            except Exception:
+                continue
+
+        if not snippets:
+            return {"files_scanned": 0, "findings": []}
+
+        prompt = (
+            "You are a security auditor. Review the following source files from a GitHub repository "
+            "and identify SPECIFIC, EXPLOITABLE security vulnerabilities. Look for: SQL/NoSQL "
+            "injection, XSS, command/code injection, insecure deserialization, broken auth/authz, "
+            "hardcoded secrets, insecure crypto, SSRF, path traversal, open redirect, CSRF, "
+            "prototype pollution, XXE, race conditions. Do NOT make vague style recommendations.\n\n"
+            "Each finding MUST reference a specific file and describe a specific exploitable pattern.\n\n"
+            "SOURCE FILES:\n"
+            + "\n\n".join(snippets)
+            + "\n\nRespond with JSON:\n"
+            '{\n'
+            '  "findings": [\n'
+            '    {\n'
+            '      "type": "sql_injection | xss | command_injection | hardcoded_secret | '
+            'insecure_crypto | ssrf | path_traversal | auth_bypass | insecure_deserialization | other",\n'
+            '      "severity": "critical | high | medium | low",\n'
+            '      "file": "path/to/file",\n'
+            '      "description": "Why this is exploitable",\n'
+            '      "evidence": "short code snippet"\n'
+            '    }\n'
+            '  ]\n'
+            '}\n'
+            'If nothing is found, return {"findings": []}.'
+        )
+
+        try:
+            result = await self.llm_client.call_llm_structured(
+                model=self.model, prompt=prompt, max_tokens=2500
+            )
+            findings = result.get("findings", []) if isinstance(result, dict) else []
+        except Exception as e:
+            self.logger.log_event(
+                agent_id=self.agent_id,
+                event_type=EventType.TASK_ERROR,
+                message=f"LLM source audit failed: {e}",
+                level=LogLevel.WARNING
+            )
+            findings = []
+
+        return {"files_scanned": len(snippets), "findings": findings, "sampled_paths": sampled[:max_files]}
     
     async def _generate_improvement_suggestions(self, repo_info: Dict[str, Any], 
                                               code_analysis: Dict[str, Any], 

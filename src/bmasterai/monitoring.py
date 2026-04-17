@@ -9,6 +9,12 @@ import json
 from collections import defaultdict, deque
 import statistics
 
+# Optional OTLP export — no-op if not configured or opentelemetry-sdk not installed
+try:
+    from bmasterai import otlp as _otlp
+except ImportError:  # pragma: no cover
+    _otlp = None  # type: ignore
+
 @dataclass
 class MetricPoint:
     timestamp: datetime
@@ -231,10 +237,13 @@ class AgentMonitor:
         self.agent_metrics[agent_id]['start_time'] = datetime.now(timezone.utc)
         self.agent_metrics[agent_id]['status'] = 'running'
         self.metrics_collector.record_custom_metric('agents_active', 1, {'agent_id': agent_id})
+        if _otlp:
+            _otlp.on_agent_start(agent_id)
 
     def track_agent_stop(self, agent_id: str):
         if agent_id in self.agent_metrics:
             start_time = self.agent_metrics[agent_id].get('start_time')
+            runtime = None
             if start_time:
                 runtime = (datetime.now(timezone.utc) - start_time).total_seconds()
                 self.agent_metrics[agent_id]['total_runtime'] = runtime
@@ -242,6 +251,8 @@ class AgentMonitor:
 
             self.agent_metrics[agent_id]['status'] = 'stopped'
             self.agent_metrics[agent_id]['stop_time'] = datetime.now(timezone.utc)
+            if _otlp:
+                _otlp.on_agent_stop(agent_id, runtime_seconds=runtime)
 
     def track_task_duration(self, agent_id: str, task_name: str, duration_ms: float):
         self.task_timings[f"{agent_id}:{task_name}"].append(duration_ms)
@@ -250,6 +261,8 @@ class AgentMonitor:
             duration_ms, 
             {'agent_id': agent_id, 'task_name': task_name}
         )
+        if _otlp:
+            _otlp.on_task_duration(agent_id, task_name, duration_ms)
 
     def track_error(self, agent_id: str, error_type: str = 'general'):
         key = f"{agent_id}:{error_type}"
@@ -259,6 +272,8 @@ class AgentMonitor:
             1, 
             {'agent_id': agent_id, 'error_type': error_type}
         )
+        if _otlp:
+            _otlp.on_error(agent_id, error_type)
 
     def track_llm_call(self, agent_id: str, model: str, tokens_used: int, duration_ms: float,
                       reasoning_steps: Optional[int] = None, thinking_depth: Optional[int] = None):
@@ -286,6 +301,13 @@ class AgentMonitor:
                 'llm_thinking_depth',
                 thinking_depth,
                 {'agent_id': agent_id, 'model': model}
+            )
+
+        if _otlp:
+            _otlp.on_llm_call(
+                agent_id, model, tokens_used, duration_ms,
+                reasoning_steps=reasoning_steps,
+                thinking_depth=thinking_depth,
             )
     
     def track_reasoning_session(self, agent_id: str, session_id: str, 
@@ -353,6 +375,8 @@ class AgentMonitor:
     def record_custom_metric(self, name: str, value: float, labels: Optional[Dict[str, str]] = None):
         """Record a custom metric"""
         self.metrics_collector.record_custom_metric(name, value, labels)
+        if _otlp:
+            _otlp.on_custom_metric(name, value, labels)
         
     def get_metric_stats(self, metric_name: str, duration_minutes: int = 60) -> Dict[str, float]:
         """Get statistics for a specific metric"""

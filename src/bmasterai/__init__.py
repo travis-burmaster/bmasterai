@@ -16,6 +16,7 @@ from .mcp_server import  mcp_server
 from .reasoning_logger import (
     ReasoningSession, ChainOfThought, with_reasoning_logging, log_reasoning
 )
+from .otlp import configure_otlp
 
 __all__ = [
     "configure_logging",
@@ -28,5 +29,6 @@ __all__ = [
     "ReasoningSession",
     "ChainOfThought", 
     "with_reasoning_logging",
-    "log_reasoning"
+    "log_reasoning",
+    "configure_otlp",
 ]

@@ -31,26 +31,45 @@ st.title("🧱 Databricks MCP Assistant with OpenAI")
 if not OPENAI_API_KEY:
     st.error("❌ OPENAI_API_KEY environment variable not set.")
     st.stop()
-openai_client = OpenAI(api_key=OPENAI_API_KEY)
-mcp_client = Client(MCP_SERVER_URL)
 
-MEMORY_ON = memory_enabled(os.environ)
-mem = None
-if MEMORY_ON:
+
+@st.cache_resource
+def get_openai_client(api_key: str) -> OpenAI:
+    """Build the OpenAI client once and reuse it across Streamlit reruns."""
+    return OpenAI(api_key=api_key)
+
+
+@st.cache_resource
+def get_mcp_client(url: str) -> Client:
+    """Build the fastmcp client once and reuse it across reruns."""
+    return Client(url)
+
+
+@st.cache_resource
+def get_memory(user_id: str):
+    """Build the lakehouse-memory client once; return None if memory is off or init fails."""
+    if not memory_enabled(os.environ):
+        return None
     try:
         from lakehouse_memory import Memory, Scope
-        mem = Memory.from_databricks(
+        return Memory.from_databricks(
             catalog=os.getenv("MEMORY_CATALOG", "workspace"),
             schema_name=os.getenv("MEMORY_SCHEMA", "mcp_assistant_memory"),
             workspace_url=os.environ["DATABRICKS_HOST"],
             access_token=os.environ["DATABRICKS_TOKEN"],
             http_path=os.environ["DATABRICKS_HTTP_PATH"],
             vector_search_endpoint=os.environ["DATABRICKS_VECTOR_SEARCH_ENDPOINT"],
-            scope=Scope(user_id=DEMO_USER_ID),
+            scope=Scope(user_id=user_id),
         )
     except Exception as e:  # noqa: BLE001
         logger.warning("memory init failed; disabling memory: %s", e)
-        MEMORY_ON = False
+        return None
+
+
+openai_client = get_openai_client(OPENAI_API_KEY)
+mcp_client = get_mcp_client(MCP_SERVER_URL)
+mem = get_memory(DEMO_USER_ID)
+MEMORY_ON = mem is not None
 
 
 def _unwrap(result):
@@ -101,7 +120,13 @@ def interpret(user_query: str) -> dict:
     try:
         return json.loads(raw)
     except json.JSONDecodeError:
-        return {"action": "list_jobs", "parameters": {}, "explanation": "Could not parse; defaulting to list_jobs"}
+        logger.warning("could not parse interpret response: %s", raw)
+        return {
+            "action": None,
+            "parameters": {},
+            "explanation": "I couldn't interpret that question. Try rephrasing it.",
+            "parse_error": True,
+        }
 
 
 async def call_tool_async(action: str, parameters: dict):
@@ -178,6 +203,9 @@ if st.button("🚀 Send Query", type="primary"):
     else:
         with st.spinner("🤔 Understanding..."):
             action_data = interpret(user_query)
+        if action_data.get("parse_error") or not action_data.get("action"):
+            st.warning(f"⚠️ {action_data.get('explanation', 'Could not interpret your question.')}")
+            st.stop()
         st.info(f"**Action:** {action_data.get('explanation', '')}")
         with st.spinner("📡 Querying Databricks..."):
             response = call_tool(action_data.get("action"), action_data.get("parameters", {}))

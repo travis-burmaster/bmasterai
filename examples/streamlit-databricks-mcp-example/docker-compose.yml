@@ -9,6 +9,9 @@ services:
       - "3000:3000"
     security_opt:
       - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
 
   streamlit-app:
     build: .
@@ -22,3 +25,8 @@ services:
       - "8501:8501"
     security_opt:
       - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+      # Streamlit writes config/metrics under the home dir at runtime
+      - /home/nonroot/.streamlit

@@ -2,7 +2,7 @@ streamlit
 openai
 bmasterai
 python-dotenv
-fastmcp>=2.3
+fastmcp>=3,<4
 databricks-sdk
 databricks-sql-connector
 lakehouse-memory

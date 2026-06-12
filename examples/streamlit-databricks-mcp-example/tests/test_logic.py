@@ -58,3 +58,28 @@ def test_server_registers_expected_tools():
         "list_jobs", "get_job_runs", "run_job", "get_failed_jobs",
         "run_sql", "list_catalogs", "list_schemas", "list_tables",
     }
+
+
+_spec2 = importlib.util.spec_from_file_location(
+    "app_logic", EXAMPLE_DIR / "app_logic.py"
+)
+app_logic = importlib.util.module_from_spec(_spec2)
+_spec2.loader.exec_module(app_logic)
+
+
+def test_memory_enabled_requires_flag_and_endpoint():
+    assert app_logic.memory_enabled({"ENABLE_MEMORY": "true", "DATABRICKS_VECTOR_SEARCH_ENDPOINT": "ep"}) is True
+    assert app_logic.memory_enabled({"ENABLE_MEMORY": "false", "DATABRICKS_VECTOR_SEARCH_ENDPOINT": "ep"}) is False
+    assert app_logic.memory_enabled({"ENABLE_MEMORY": "true"}) is False
+    assert app_logic.memory_enabled({}) is False
+
+
+def test_render_recall_context_empty_is_blank():
+    assert app_logic.render_recall_context([]) == ""
+
+
+def test_render_recall_context_lists_facts():
+    out = app_logic.render_recall_context([{"text": "prefers catalog workspace"}, {"text": "watches nightly_etl"}])
+    assert "prefers catalog workspace" in out
+    assert "watches nightly_etl" in out
+    assert "remember" in out.lower()

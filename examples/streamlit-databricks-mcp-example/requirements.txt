@@ -1,0 +1,8 @@
+streamlit
+openai
+bmasterai
+python-dotenv
+fastmcp>=2.3
+databricks-sdk
+databricks-sql-connector
+lakehouse-memory

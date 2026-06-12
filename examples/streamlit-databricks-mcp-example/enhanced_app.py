@@ -3,7 +3,7 @@ import json
 import asyncio
 
 import streamlit as st
-from openai import OpenAI
+import anthropic
 from dotenv import load_dotenv
 
 from bmasterai.logging import configure_logging, get_logger, LogLevel
@@ -18,7 +18,8 @@ from app_logic import (
 
 load_dotenv()
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-opus-4-8")
 MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:3000/mcp")
 DEMO_USER_ID = os.getenv("DEMO_USER_ID", "u_demo")
 
@@ -26,17 +27,17 @@ configure_logging(log_level=LogLevel.INFO)
 logger = get_logger().logger
 
 st.set_page_config(page_title="Databricks MCP Assistant", layout="wide")
-st.title("🧱 Databricks MCP Assistant with OpenAI")
+st.title("🧱 Databricks MCP Assistant with Claude")
 
-if not OPENAI_API_KEY:
-    st.error("❌ OPENAI_API_KEY environment variable not set.")
+if not ANTHROPIC_API_KEY:
+    st.error("❌ ANTHROPIC_API_KEY environment variable not set.")
     st.stop()
 
 
 @st.cache_resource
-def get_openai_client(api_key: str) -> OpenAI:
-    """Build the OpenAI client once and reuse it across Streamlit reruns."""
-    return OpenAI(api_key=api_key)
+def get_anthropic_client(api_key: str) -> anthropic.Anthropic:
+    """Build the Anthropic client once and reuse it across Streamlit reruns."""
+    return anthropic.Anthropic(api_key=api_key)
 
 
 @st.cache_resource
@@ -66,7 +67,7 @@ def get_memory(user_id: str):
         return None
 
 
-openai_client = get_openai_client(OPENAI_API_KEY)
+anthropic_client = get_anthropic_client(ANTHROPIC_API_KEY)
 mcp_client = get_mcp_client(MCP_SERVER_URL)
 mem = get_memory(DEMO_USER_ID)
 MEMORY_ON = mem is not None
@@ -80,15 +81,18 @@ def _unwrap(result):
     return result
 
 
-def ask_openai(prompt: str, system_prompt: str = None) -> str:
-    messages = []
+def ask_claude(prompt: str, system_prompt: str = None) -> str:
+    # Anthropic puts the system prompt in a top-level parameter, not a message role.
+    kwargs = {
+        "model": ANTHROPIC_MODEL,
+        "max_tokens": 2048,
+        "messages": [{"role": "user", "content": prompt}],
+    }
     if system_prompt:
-        messages.append({"role": "system", "content": system_prompt})
-    messages.append({"role": "user", "content": prompt})
-    resp = openai_client.chat.completions.create(
-        model="gpt-4o-mini", messages=messages, max_tokens=2048
-    )
-    return resp.choices[0].message.content
+        kwargs["system"] = system_prompt
+    resp = anthropic_client.messages.create(**kwargs)
+    # response.content is a list of blocks; concatenate the text blocks.
+    return "".join(b.text for b in resp.content if b.type == "text")
 
 
 def recall_context(user_query: str) -> str:
@@ -105,7 +109,7 @@ def remember(user_query: str, answer: str) -> None:
     if not (MEMORY_ON and mem):
         return
     try:
-        fact = ask_openai(build_extract_prompt(user_query, answer)).strip()
+        fact = ask_claude(build_extract_prompt(user_query, answer)).strip()
         if fact and fact.lower() != "none" and len(fact) > 3:
             mem.semantic.upsert(fact=fact, source="mcp-assistant")
             mem.semantic.trigger_sync()
@@ -116,7 +120,7 @@ def remember(user_query: str, answer: str) -> None:
 def interpret(user_query: str) -> dict:
     ctx = recall_context(user_query)
     prompt = f"{ctx}\nUser query: {user_query}\n\nJSON response:"
-    raw = ask_openai(prompt, INTERPRET_SYSTEM_PROMPT)
+    raw = ask_claude(prompt, INTERPRET_SYSTEM_PROMPT)
     try:
         return json.loads(raw)
     except json.JSONDecodeError:
@@ -147,7 +151,7 @@ def format_answer(user_query: str, response, explanation: str) -> str:
               "Use plain language; organize logically.")
     prompt = (f'User asked: "{user_query}"\nAction: {explanation}\n'
               f"Response: {json.dumps(response, indent=2, default=str)}\n\nExplain:")
-    return ask_openai(prompt, system)
+    return ask_claude(prompt, system)
 
 
 # Sidebar

@@ -1,5 +1,5 @@
 streamlit
-openai
+anthropic
 bmasterai
 python-dotenv
 fastmcp>=3,<4

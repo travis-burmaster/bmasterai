@@ -24,7 +24,7 @@ Databricks workspace** via `.env`.
 ## Prerequisites
 
 * **Docker** (for the compose path) or Python 3.11+.
-* **OpenAI API key.**
+* **Anthropic API key** (Claude).
 * **A Databricks workspace** with a SQL warehouse (HTTP path) and a token.
 * **For memory (optional):** a Vector Search endpoint and a one-time `provision()` of the memory
   schema (see below). Without it, the app runs as a pure Databricks assistant.
@@ -39,7 +39,8 @@ pip install -r requirements.txt
 pip install -e ../..   # BMasterAI + bundled logging
 ```
 
-Edit `.env`: set `OPENAI_API_KEY`, `DATABRICKS_HOST`, `DATABRICKS_TOKEN`, `DATABRICKS_HTTP_PATH`.
+Edit `.env`: set `ANTHROPIC_API_KEY`, `DATABRICKS_HOST`, `DATABRICKS_TOKEN`, `DATABRICKS_HTTP_PATH`
+(optionally `ANTHROPIC_MODEL` — defaults to `claude-opus-4-8`).
 For memory, also set `DATABRICKS_VECTOR_SEARCH_ENDPOINT` (and optionally `MEMORY_CATALOG`,
 `MEMORY_SCHEMA`, `DEMO_USER_ID`); leave `ENABLE_MEMORY=true`. Keep `DATABRICKS_ALLOW_RUN_JOB=false`
 unless you want the assistant to trigger real (billable) job runs.
@@ -92,7 +93,7 @@ streamlit-databricks-mcp-example/
 ├── .env.example
 ├── databricks_mcp_server.py   # bundled fastmcp server (8 Databricks tools)
 ├── app_logic.py               # pure helpers (memory gating, prompts) — unit-tested
-├── enhanced_app.py            # Streamlit + OpenAI + fastmcp client + lakehouse-memory
+├── enhanced_app.py            # Streamlit + Claude (Anthropic) + fastmcp client + lakehouse-memory
 ├── requirements.txt
 ├── Dockerfile
 ├── docker-compose.yml

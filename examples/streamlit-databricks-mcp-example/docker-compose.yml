@@ -1,0 +1,32 @@
+services:
+  databricks-mcp:
+    build: .
+    command: ["python", "databricks_mcp_server.py"]
+    env_file: .env
+    environment:
+      - MCP_PORT=3000
+    ports:
+      - "3000:3000"
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+
+  streamlit-app:
+    build: .
+    depends_on:
+      - databricks-mcp
+    env_file: .env
+    environment:
+      # reach the server container, not localhost
+      - MCP_SERVER_URL=http://databricks-mcp:3000/mcp
+    ports:
+      - "8501:8501"
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+      # Streamlit writes config/metrics under the home dir at runtime
+      - /home/nonroot/.streamlit
